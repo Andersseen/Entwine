@@ -1,7 +1,11 @@
-## Problem and resulting behavior
+## What and why
 
-## Validation
+<!-- What changed, and the problem it solves. -->
 
-- [ ] Relevant tests and `pnpm check` pass
-- [ ] Docs reflect changed behavior
-- [ ] Output remains deterministic
+## Tests
+
+<!-- What you ran or added. `pnpm check` should pass. -->
+
+## Docs and compatibility
+
+<!-- Docs updated? Any change to output, routes, or the context schema? Note breaking behavior. -->

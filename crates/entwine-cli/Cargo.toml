@@ -9,8 +9,8 @@ rust-version.workspace = true
 name = "entwine"
 path = "src/main.rs"
 [dependencies]
-entwine-core = { path = "../entwine-core", version = "0.1.0" }
-entwine-engine = { path = "../entwine-engine", version = "0.1.0" }
+entwine-core = { path = "../entwine-core" }
+entwine-engine = { path = "../entwine-engine" }
 clap = { version = "4", features = ["derive"] }
 tiny_http = "0.12"
 notify = "8"

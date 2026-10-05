@@ -4,6 +4,7 @@
     "includes": [
       "**",
       "!**/dist",
+      "!**/deployment",
       "!**/target",
       "!**/node_modules",
       "!**/.astro",

@@ -1,16 +1,46 @@
 name: Bug report
-description: Report unexpected behavior in Entwine
+description: Something in Entwine does not behave as documented
+labels: [bug]
 body:
-  - type: textarea
-    id: reproduction
+  - type: input
+    id: version
     attributes:
-      label: Reproduction
-      description: Version, platform, command, and minimal Markdown that reproduces the problem.
+      label: Entwine version
+      description: Output of `entwine --version`, or the commit if built from source.
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: macOS 15 arm64, Ubuntu 24.04, Windows 11
+    validations:
+      required: true
+  - type: input
+    id: command
+    attributes:
+      label: Command
+      placeholder: entwine build .
     validations:
       required: true
   - type: textarea
-    id: behavior
+    id: structure
     attributes:
-      label: Expected and actual behavior
+      label: Minimal docs structure
+      description: The smallest `docs/` tree and Markdown that reproduces the problem.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include the full command output or the incorrect generated result.
     validations:
       required: true

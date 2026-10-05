@@ -1,0 +1,45 @@
+{
+  "name": "@entwine/cli",
+  "version": "0.1.0",
+  "description": "Entwine — repository-native project knowledge compiler. Installs the native Rust CLI.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "entwine": "dist/launcher.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Andersseen/Entwine.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/Andersseen/Entwine#readme",
+  "bugs": "https://github.com/Andersseen/Entwine/issues",
+  "keywords": [
+    "markdown",
+    "documentation",
+    "docs-as-code",
+    "knowledge-graph",
+    "backlinks",
+    "cli"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.12.0",
+    "typescript": "^5.9.3"
+  }
+}
