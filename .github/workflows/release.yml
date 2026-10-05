@@ -1,105 +1,122 @@
 name: Release
 
-# Releases are cut only by pushing a version tag, e.g. `git tag v0.2.0 && git push origin v0.2.0`.
+# Versioning is automated by release-please from Conventional Commits:
+#   1. Commits land on main (squash-merged PRs, titled `feat: ...`, `fix: ...`).
+#   2. release-please keeps a "release PR" open that bumps every version file and
+#      writes CHANGELOG.md.
+#   3. Merging that PR creates a *draft* GitHub release. This workflow then runs
+#      the full CI, builds native binaries, uploads them, publishes the npm
+#      packages with provenance, and only then un-drafts the release.
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
 
 permissions:
   contents: read
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
-  # The same gates as CI: fmt, clippy, tests, lint, types, showcase, self-dogfood.
+  release-please:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      created: ${{ steps.rp.outputs.release_created }}
+      tag: ${{ steps.rp.outputs.tag_name }}
+      version: ${{ steps.rp.outputs.version }}
+      sha: ${{ steps.rp.outputs.sha }}
+    steps:
+      - id: rp
+        uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # Same gates as every pull request: fmt, clippy, tests, lint, types, showcase,
+  # self-dogfood, and the npm distribution smoke test.
   quality:
+    needs: release-please
+    if: needs.release-please.outputs.created == 'true'
     uses: ./.github/workflows/ci.yml
 
-  version:
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-    steps:
-      - uses: actions/checkout@v4
-      - id: version
-        name: Tag must match the crate version
-        run: |
-          tag="${GITHUB_REF_NAME}"
-          crate="v$(cargo metadata --no-deps --format-version 1 | python3 -c 'import json,sys; print(next(p["version"] for p in json.load(sys.stdin)["packages"] if p["name"]=="entwine-cli"))')"
-          if [[ "$tag" != "$crate" ]]; then
-            echo "Tag $tag does not match entwine-cli version $crate" >&2
-            exit 1
-          fi
-          echo "version=$tag" >> "$GITHUB_OUTPUT"
-
   build:
-    needs: [quality, version]
+    needs: [release-please, quality]
     strategy:
       fail-fast: true
       matrix:
         include:
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-            archive: tar.gz
-          - target: aarch64-apple-darwin
-            os: macos-14
-            archive: tar.gz
-          - target: x86_64-apple-darwin
-            os: macos-14
-            archive: tar.gz
-          - target: x86_64-pc-windows-msvc
-            os: windows-latest
-            archive: zip
+          - { target: x86_64-unknown-linux-gnu, os: ubuntu-latest, archive: tar.gz }
+          - { target: aarch64-apple-darwin, os: macos-14, archive: tar.gz }
+          - { target: x86_64-apple-darwin, os: macos-14, archive: tar.gz }
+          - { target: x86_64-pc-windows-msvc, os: windows-latest, archive: zip }
     runs-on: ${{ matrix.os }}
     defaults:
       run:
         shell: bash
+    env:
+      VERSION: ${{ needs.release-please.outputs.version }}
+      TAG: ${{ needs.release-please.outputs.tag }}
+      NAME: entwine-${{ needs.release-please.outputs.tag }}-${{ matrix.target }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-please.outputs.sha }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Versions must agree
+        run: |
+          crate=$(cargo metadata --no-deps --format-version 1 | python3 -c 'import json,sys; print(next(p["version"] for p in json.load(sys.stdin)["packages"] if p["name"]=="entwine-cli"))')
+          npm_version=$(node -p 'require("./packages/cli/package.json").version')
+          [[ "$crate" == "$VERSION" && "$npm_version" == "$VERSION" ]] || { echo "tag $VERSION, crate $crate, npm $npm_version" >&2; exit 1; }
       - name: Build
         run: cargo build --release --locked -p entwine-cli --target ${{ matrix.target }}
-      - name: Package
-        env:
-          NAME: entwine-${{ needs.version.outputs.version }}-${{ matrix.target }}
+      - name: Package archive
         run: |
+          exe=entwine; [[ "${{ matrix.target }}" == *windows* ]] && exe=entwine.exe
           mkdir "$NAME"
-          exe=entwine
-          [[ "${{ matrix.target }}" == *windows* ]] && exe=entwine.exe
           cp "target/${{ matrix.target }}/release/$exe" LICENSE README.md "$NAME/"
-          if [[ "${{ matrix.archive }}" == zip ]]; then
-            7z a "$NAME.zip" "$NAME" > /dev/null
-          else
-            tar -czf "$NAME.tar.gz" "$NAME"
-          fi
-          ls -l "$NAME".*
-      - name: Smoke-test the binary (native targets)
+          if [[ "${{ matrix.archive }}" == zip ]]; then 7z a "$NAME.zip" "$NAME" > /dev/null; else tar -czf "$NAME.tar.gz" "$NAME"; fi
+      - name: Smoke-test the binary
         if: matrix.target != 'x86_64-apple-darwin'
-        env:
-          NAME: entwine-${{ needs.version.outputs.version }}-${{ matrix.target }}
         run: |
-          exe="$NAME/entwine"
-          [[ "${{ matrix.target }}" == *windows* ]] && exe="$NAME/entwine.exe"
+          exe="$NAME/entwine"; [[ "${{ matrix.target }}" == *windows* ]] && exe="$NAME/entwine.exe"
           "$exe" --version
           "$exe" check examples/kitchen-sink
+      - name: Stage npm platform package
+        run: |
+          exe=entwine; [[ "${{ matrix.target }}" == *windows* ]] && exe=entwine.exe
+          node tooling/stage-npm.ts platform --target ${{ matrix.target }} --binary "target/${{ matrix.target }}/release/$exe" --version "$VERSION" --out "npm/${{ matrix.target }}"
       - uses: actions/upload-artifact@v4
         with:
-          name: entwine-${{ matrix.target }}
-          path: entwine-${{ needs.version.outputs.version }}-${{ matrix.target }}.${{ matrix.archive }}
+          name: archive-${{ matrix.target }}
+          path: ${{ env.NAME }}.${{ matrix.archive }}
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-${{ matrix.target }}
+          path: npm/${{ matrix.target }}
           if-no-files-found: error
 
-  publish:
-    needs: [build, version]
+  github-assets:
+    needs: [release-please, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: entwine-*
+          pattern: archive-*
           path: release
           merge-multiple: true
       - name: Checksums
@@ -107,14 +124,59 @@ jobs:
         run: |
           sha256sum entwine-*.tar.gz entwine-*.zip > SHA256SUMS
           sha256sum --check SHA256SUMS
-          cat SHA256SUMS
-      - name: Create GitHub release
+      - name: Attach to the draft release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ needs.version.outputs.version }}
+        run: gh release upload "${{ needs.release-please.outputs.tag }}" release/* --repo "$GITHUB_REPOSITORY" --clobber
+
+  npm:
+    needs: [release-please, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # npm provenance
+    env:
+      VERSION: ${{ needs.release-please.outputs.version }}
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-please.outputs.sha }}
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @entwine/cli build
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: npm-*
+          path: npm-staged
+      - name: Stage the launcher package
+        run: node tooling/stage-npm.ts main --version "$VERSION" --out npm-staged/main
+      - name: Publish platform packages first, launcher last
         run: |
-          gh release create "$TAG" release/* \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "Entwine $TAG" \
-            --generate-notes \
-            --prerelease
+          publish() {
+            dir="$1"
+            name=$(node -p "require('./$dir/package.json').name")
+            if npm view "$name@$VERSION" version >/dev/null 2>&1; then
+              echo "$name@$VERSION already published; skipping"
+            else
+              (cd "$dir" && npm publish --access public --provenance)
+            fi
+          }
+          for dir in npm-staged/npm-*; do publish "$dir"; done
+          publish npm-staged/main
+
+  publish-release:
+    needs: [release-please, github-assets, npm]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "${{ needs.release-please.outputs.tag }}" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease --latest=false

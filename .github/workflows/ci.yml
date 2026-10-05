@@ -34,6 +34,8 @@ jobs:
       - run: cargo run -p entwine-cli -- graph examples/kitchen-sink
       - run: cargo run -p entwine-cli -- context examples/kitchen-sink
       - run: cargo run -p entwine-cli -- context examples/kitchen-sink --json
+      # Stage, pack, install, and run the npm distribution for this platform.
+      - run: pnpm smoke:npm
       - uses: actions/upload-artifact@v4
         with:
           name: showcase

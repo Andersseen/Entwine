@@ -27,15 +27,31 @@ kitchen-sink, composes `deployment/`, and verifies subpath hosting.
 
 ## Releasing
 
-1. Bump the workspace version in `Cargo.toml`, the crate dependency versions,
-   and both `package.json` files; update `docs/state.md` and `docs/roadmap.md`.
-2. Merge to `main` once CI passes.
-3. Tag and push: `git tag v0.2.0 && git push origin v0.2.0`.
+Releases are automated; nobody tags or edits versions by hand.
 
-The `Release` workflow refuses a tag that differs from the `entwine-cli` version,
-runs the full CI workflow, builds Linux x86_64, macOS arm64/x86_64, and Windows
-x86_64 archives, checks them against `SHA256SUMS`, and creates a pre-release on
-GitHub. Releases are never created from branch pushes.
+1. Use [Conventional Commits](https://www.conventionalcommits.org). PRs are
+   squash-merged and the **PR title** becomes the commit, so it must look like
+   `feat: ...`, `fix: ...`, `perf: ...`, `docs: ...` (checked by the `PR title`
+   workflow). While pre-1.0, `feat` bumps the minor version and `fix` the patch;
+   `feat!:` or a `BREAKING CHANGE:` footer is a breaking change.
+2. On every push to `main`, release-please opens or updates a **release PR** that
+   bumps the version in `Cargo.toml`, `Cargo.lock`, and every `package.json` and
+   writes `CHANGELOG.md`.
+3. Merging the release PR creates a draft GitHub release. The `Release` workflow
+   then runs the full CI, builds Linux x86_64, macOS arm64/x86_64, and Windows
+   x86_64 binaries, uploads archives with `SHA256SUMS`, publishes
+   `@entwine/cli` and its `@entwine/cli-<platform>` packages to npm with
+   provenance (platform packages first, launcher last), and finally un-drafts
+   the release. If any step fails, the release stays a draft and nothing partial
+   is announced; re-run the failed jobs.
 
-Open a concise issue for substantial design changes. A PR should explain the
-problem, resulting behavior, and checks run. Pre-stable does not mean low-quality.
+Required repository configuration: secret `NPM_TOKEN` (publish rights on the
+`@entwine` npm scope) and Actions setting "Allow GitHub Actions to create and
+approve pull requests". The workflow never runs from branches other than `main`.
+CI on the release PR itself does not start automatically, because PRs created
+with `GITHUB_TOKEN` do not trigger workflows; the full CI runs again before
+anything is published.
+
+`pnpm smoke:npm` reproduces the npm distribution locally: it stages and packs the
+launcher plus this platform's binary package, installs both into a clean project,
+and runs `entwine`.

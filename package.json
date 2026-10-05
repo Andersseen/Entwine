@@ -1,6 +1,6 @@
 {
   "name": "entwine",
-  "version": "0.2.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.18.3",
@@ -17,8 +17,9 @@
     "typecheck": "turbo run typecheck && tsc -p tooling/tsconfig.json",
     "format": "cargo fmt --all && biome format --write . && prettier --plugin=prettier-plugin-astro --write 'apps/**/*.astro'",
     "format:check": "cargo fmt --all --check && biome format . && prettier --plugin=prettier-plugin-astro --check 'apps/**/*.astro'",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build:showcase",
-    "build:showcase": "node tooling/build-showcase.ts"
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build:showcase && pnpm smoke:npm",
+    "build:showcase": "node tooling/build-showcase.ts",
+    "smoke:npm": "pnpm --filter @entwine/cli build && cargo build -q -p entwine-cli && node tooling/smoke-npm.ts --binary target/debug/entwine"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.0",

@@ -1,6 +1,6 @@
 # Current state
 
-Version 0.2.0 implements a zero-config compiler for `docs/**/*.md` and a public
+Version 0.1.0 implements a zero-config compiler for `docs/**/*.md` and a public
 showcase built from its own output.
 
 ## Implemented commands
@@ -42,7 +42,9 @@ are unmodified `entwine build` output hosted below a subpath. `pnpm build:showca
 produces the same `deployment/` directory locally and verifies every relative
 link, asset, and fragment under both mount points. Tagged `v*` releases publish
 native binaries for Linux x86_64, macOS arm64, macOS x86_64, and Windows x86_64
-on GitHub Releases, with SHA-256 checksums.
+on GitHub Releases, with SHA-256 checksums. The same binaries are published to npm as `@entwine/cli`
+(a launcher) plus one `@entwine/cli-<platform>` package per target. Versions,
+changelog, tags, and publishing are automated from Conventional Commits.
 
 `build` and `graph` intentionally do the same work: the graph is always part of
 a published site, and the graph page is only meaningful beside the pages it links.

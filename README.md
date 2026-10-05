@@ -8,7 +8,7 @@
 
 [![CI](https://img.shields.io/github/actions/workflow/status/Andersseen/Entwine/ci.yml?branch=main&style=flat-square&label=ci)](https://github.com/Andersseen/Entwine/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/github/license/Andersseen/Entwine?style=flat-square)](LICENSE)
-![Version 0.2.0](https://img.shields.io/badge/version-0.2.0-informational?style=flat-square)
+![Version 0.1.0](https://img.shields.io/badge/version-0.1.0-informational?style=flat-square)
 ![Rust 1.85+](https://img.shields.io/badge/rust-1.85%2B-orange?style=flat-square)
 
 </div>
@@ -74,11 +74,17 @@ technology work identically. Only Entwine's implementation uses Rust and TypeScr
 
 ## Quick start
 
-Download the archive for your platform from
+After the first release, from npm (the launcher installs the native binary for
+your platform; there is no postinstall script):
+
+```sh
+npm install --global @entwine/cli
+```
+
+Or download the archive for your platform from
 [GitHub Releases](https://github.com/Andersseen/Entwine/releases) (Linux x86_64,
 macOS arm64/x86_64, Windows x86_64), verify it against `SHA256SUMS`, and put
-`entwine` on your `PATH`. Binaries are unsigned. There is no npm or Homebrew
-package yet. To build from a source checkout with Rust stable:
+`entwine` on your `PATH`. Binaries are unsigned. There is no Homebrew package. To build from a source checkout with Rust stable:
 
 ```sh
 cargo install --path crates/entwine-cli
@@ -196,7 +202,7 @@ The kitchen-sink is a healthy seven-document consumer. Dedicated broken fixtures
 live in `crates/entwine-engine/tests/fixtures/`. Tests invoke the real compiler and
 binary. CI validates both fixtures and Entwine's own documentation.
 
-## 0.2 limits
+## Limits
 
 Full rebuilds, manual browser refresh, no search or theme configuration. SVG graph
 layout is a deterministic radial SVG, with a fitted overview, an optional large

@@ -4,7 +4,7 @@ This page describes future intent. The [current state](state.md) lists what work
 
 ## Next milestone
 
-Validate Entwine on repositories that are not its own. The 0.2 checks use
+Validate Entwine on repositories that are not its own. The current checks use
 generated trees and one fictional example; real documentation will find the
 remaining gaps. Likely work, in order of evidence:
 
