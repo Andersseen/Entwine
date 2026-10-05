@@ -173,6 +173,9 @@ cargo build --workspace
 pnpm check
 ```
 
+`pnpm dev:www` serves `/docs/` and `/demo/` from `deployment/`, so run
+`pnpm build:showcase` once first; otherwise those two paths show a hint.
+
 Available shortcuts: `pnpm dev`, `dev:www`, `build`, `build:www`, `test`, `lint`,
 `typecheck`, `format`, `format:check`, `build:showcase`, and `check`. Direct gates:
 

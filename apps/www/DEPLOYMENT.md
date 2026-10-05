@@ -29,6 +29,9 @@ is missing), and verifies every relative link, asset, and fragment under `/docs/
 and `/demo/` (`tooling/verify-showcase.ts`). `deployment/` is exactly what is
 uploaded. Preview it with any static server, e.g. `npx serve deployment`.
 
+`pnpm dev:www` (Astro dev) only renders the landing page itself; it proxies `/docs/`
+and `/demo/` from `deployment/` after a `pnpm build:showcase`.
+
 ## Workflow
 
 `Deploy showcase to Cloudflare Pages` runs on every push to `main` and on manual
