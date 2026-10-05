@@ -13,4 +13,4 @@ navigation, backlinks, a project graph, validation, and structured context.
 - No AI, hosted service, database, or frontend framework is involved.
 
 Read the [architecture](architecture.md), [implemented state](state.md), and
-[future roadmap](roadmap.md). Version 0.1.0 is experimental and pre-stable.
+[future roadmap](roadmap.md). Version 0.2.0 is experimental and pre-stable.

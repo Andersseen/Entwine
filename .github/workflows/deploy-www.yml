@@ -1,4 +1,4 @@
-name: Deploy www to Cloudflare Pages
+name: Deploy showcase to Cloudflare Pages
 
 on:
   push:
@@ -28,12 +28,14 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Format, lint, types, tests, and static build
+      # Format, lint, types, tests, then build and verify the exact showcase
+      # artifact: Astro at /, Entwine docs at /docs/, kitchen-sink at /demo/.
+      - name: Validate and build showcase
         run: pnpm check
       - uses: actions/upload-artifact@v4
         with:
-          name: www
-          path: apps/www/dist
+          name: showcase
+          path: deployment
           if-no-files-found: error
           retention-days: 1
 
@@ -46,20 +48,24 @@ jobs:
     env:
       PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT_NAME }}
     steps:
-      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # Nothing is rebuilt here: the validated artifact is deployed as-is.
       - uses: actions/download-artifact@v4
         with:
-          name: www
-          path: apps/www/dist
-      - name: Require a Pages project name
-        run: '[[ "$PAGES_PROJECT" =~ ^[a-z0-9][a-z0-9-]*$ ]]'
-      - name: Deploy validated assets
+          name: showcase
+          path: deployment
+      - name: Require a Pages project name and a complete artifact
+        run: |
+          [[ "$PAGES_PROJECT" =~ ^[a-z0-9][a-z0-9-]*$ ]]
+          test -f deployment/index.html
+          test -f deployment/docs/index.html
+          test -f deployment/demo/index.html
+      - name: Deploy validated artifact
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          command: pages deploy apps/www/dist --project-name=${{ env.PAGES_PROJECT }} --branch=main
+          command: pages deploy deployment --project-name=${{ env.PAGES_PROJECT }} --branch=main

@@ -1,0 +1,120 @@
+name: Release
+
+# Releases are cut only by pushing a version tag, e.g. `git tag v0.2.0 && git push origin v0.2.0`.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  # The same gates as CI: fmt, clippy, tests, lint, types, showcase, self-dogfood.
+  quality:
+    uses: ./.github/workflows/ci.yml
+
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: version
+        name: Tag must match the crate version
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          crate="v$(cargo metadata --no-deps --format-version 1 | python3 -c 'import json,sys; print(next(p["version"] for p in json.load(sys.stdin)["packages"] if p["name"]=="entwine-cli"))')"
+          if [[ "$tag" != "$crate" ]]; then
+            echo "Tag $tag does not match entwine-cli version $crate" >&2
+            exit 1
+          fi
+          echo "version=$tag" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: [quality, version]
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            archive: tar.gz
+          - target: aarch64-apple-darwin
+            os: macos-14
+            archive: tar.gz
+          - target: x86_64-apple-darwin
+            os: macos-14
+            archive: tar.gz
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            archive: zip
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - name: Build
+        run: cargo build --release --locked -p entwine-cli --target ${{ matrix.target }}
+      - name: Package
+        env:
+          NAME: entwine-${{ needs.version.outputs.version }}-${{ matrix.target }}
+        run: |
+          mkdir "$NAME"
+          exe=entwine
+          [[ "${{ matrix.target }}" == *windows* ]] && exe=entwine.exe
+          cp "target/${{ matrix.target }}/release/$exe" LICENSE README.md "$NAME/"
+          if [[ "${{ matrix.archive }}" == zip ]]; then
+            7z a "$NAME.zip" "$NAME" > /dev/null
+          else
+            tar -czf "$NAME.tar.gz" "$NAME"
+          fi
+          ls -l "$NAME".*
+      - name: Smoke-test the binary (native targets)
+        if: matrix.target != 'x86_64-apple-darwin'
+        env:
+          NAME: entwine-${{ needs.version.outputs.version }}-${{ matrix.target }}
+        run: |
+          exe="$NAME/entwine"
+          [[ "${{ matrix.target }}" == *windows* ]] && exe="$NAME/entwine.exe"
+          "$exe" --version
+          "$exe" check examples/kitchen-sink
+      - uses: actions/upload-artifact@v4
+        with:
+          name: entwine-${{ matrix.target }}
+          path: entwine-${{ needs.version.outputs.version }}-${{ matrix.target }}.${{ matrix.archive }}
+          if-no-files-found: error
+
+  publish:
+    needs: [build, version]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: entwine-*
+          path: release
+          merge-multiple: true
+      - name: Checksums
+        working-directory: release
+        run: |
+          sha256sum entwine-*.tar.gz entwine-*.zip > SHA256SUMS
+          sha256sum --check SHA256SUMS
+          cat SHA256SUMS
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version.outputs.version }}
+        run: |
+          gh release create "$TAG" release/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Entwine $TAG" \
+            --generate-notes \
+            --prerelease

@@ -6,7 +6,7 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 [dependencies]
-entwine-core = { path = "../entwine-core", version = "0.1.0" }
+entwine-core = { path = "../entwine-core", version = "0.2.0" }
 serde.workspace = true
 serde_json.workspace = true
 pulldown-cmark = "0.13"

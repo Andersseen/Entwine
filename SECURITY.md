@@ -1,6 +1,6 @@
 # Security
 
-Entwine 0.1.x is experimental. Use the newest available patch release. The compiler
+Entwine 0.2.x is experimental. Use the newest available patch release. The compiler
 never executes Markdown code or frontmatter, and never fetches external links.
 Raw Markdown HTML is escaped. Documentation symlinks and escaping paths are refused.
 

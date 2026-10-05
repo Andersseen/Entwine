@@ -44,6 +44,19 @@ pub(crate) fn error(source: &str, line: Option<usize>, message: impl Into<String
     }
 }
 
+/// Record a route and return an earlier source whose route differs only by case.
+fn case_collision(
+    seen: &mut BTreeMap<String, (String, String)>,
+    route: &Route,
+    source: &str,
+) -> Option<String> {
+    let (previous_route, previous) = seen
+        .entry(route.as_str().to_lowercase())
+        .or_insert_with(|| (route.as_str().to_owned(), source.to_owned()))
+        .clone();
+    (previous_route != route.as_str()).then_some(previous)
+}
+
 /// Compile `project/docs` without configuration or network access.
 pub fn compile(project: &Path) -> io::Result<Compilation> {
     let root = project.join("docs");
@@ -116,6 +129,7 @@ pub fn compile(project: &Path) -> io::Result<Compilation> {
     }
     let mut parsed = Vec::new();
     let mut routes = BTreeMap::new();
+    let mut folded_routes = BTreeMap::new();
     for (source, path) in paths {
         let route = match Route::from_source(&source) {
             Ok(route) => route,
@@ -132,6 +146,14 @@ pub fn compile(project: &Path) -> io::Result<Compilation> {
                     "Route collision at {}: also produced by {previous}",
                     route.as_str()
                 ),
+            ));
+        }
+        // Case-insensitive hosts (macOS, Windows) would silently merge these outputs.
+        if let Some(previous) = case_collision(&mut folded_routes, &route, &source) {
+            diagnostics.push(error(
+                &source,
+                None,
+                format!("Routes differ only by case: {previous} and {source}; case-insensitive file systems cannot publish both"),
             ));
         }
         let text = match fs::read_to_string(&path) {
@@ -238,4 +260,22 @@ pub fn compile(project: &Path) -> io::Result<Compilation> {
         diagnostics,
         assets,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn routes_differing_only_by_case_collide() {
+        let mut seen = BTreeMap::new();
+        let upper = Route::from_source("Guide.md").unwrap();
+        let lower = Route::from_source("guide.md").unwrap();
+        assert_eq!(case_collision(&mut seen, &upper, "Guide.md"), None);
+        assert_eq!(case_collision(&mut seen, &upper, "Guide.md"), None);
+        assert_eq!(
+            case_collision(&mut seen, &lower, "guide.md").as_deref(),
+            Some("Guide.md")
+        );
+    }
 }

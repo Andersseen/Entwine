@@ -1,10 +1,11 @@
 {
   "name": "entwine",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
+  "type": "module",
   "packageManager": "pnpm@10.18.3",
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=22.18.0"
   },
   "scripts": {
     "dev": "cargo run -p entwine-cli -- dev",
@@ -13,16 +14,18 @@
     "build:www": "turbo run build",
     "test": "cargo test --workspace",
     "lint": "biome check . && cargo clippy --workspace --all-targets --all-features -- -D warnings",
-    "typecheck": "turbo run typecheck",
+    "typecheck": "turbo run typecheck && tsc -p tooling/tsconfig.json",
     "format": "cargo fmt --all && biome format --write . && prettier --plugin=prettier-plugin-astro --write 'apps/**/*.astro'",
     "format:check": "cargo fmt --all --check && biome format . && prettier --plugin=prettier-plugin-astro --check 'apps/**/*.astro'",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build:www && cargo run -p entwine-cli -- check . && cargo run -p entwine-cli -- check examples/kitchen-sink && cargo run -p entwine-cli -- build examples/kitchen-sink"
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build:showcase",
+    "build:showcase": "node tooling/build-showcase.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.0",
     "prettier": "3.9.9",
     "prettier-plugin-astro": "1.1.0",
     "turbo": "^2.5.8",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "@types/node": "^22.12.0"
   }
 }
