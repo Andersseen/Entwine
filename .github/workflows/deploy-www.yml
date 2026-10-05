@@ -52,7 +52,7 @@ jobs:
         with:
           node-version: 22
       # Nothing is rebuilt here: the validated artifact is deployed as-is.
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: showcase
           path: deployment
