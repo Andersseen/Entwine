@@ -1,4 +1,5 @@
 //! Scan and parse each document once, resolve a canonical model, then project it.
+mod graph_layout;
 mod markdown;
 mod projections;
 mod render;

@@ -18,6 +18,7 @@ const commands = [
       content="Entwine turns repository Markdown into static documentation, relationships, backlinks, a graph, validation, and structured context."
     />
     <title>Entwine — project knowledge, connected.</title>
+    <link rel="icon" type="image/png" href="/logo.png" />
   </head>
   <body>
     <a class="skip" href="#main">
@@ -25,7 +26,8 @@ const commands = [
     </a>
     <header class="masthead">
       <a class="wordmark" href="#">
-        entwine<span aria-hidden="true">⌁</span>
+        <img src="/logo.png" alt="" width="36" height="36" />
+        entwine
       </a>
       <nav aria-label="Main navigation">
         <a href="#how">How it works</a>
@@ -191,7 +193,8 @@ entwine context --json</code></pre>
     </main>
     <footer>
       <a class="wordmark" href="#">
-        entwine⌁
+        <img src="/logo.png" alt="" width="36" height="36" />
+        entwine
       </a>
       <p>Project knowledge, connected.</p>
       <a href="https://github.com/search?q=entwine&amp;type=repositories">
@@ -205,17 +208,30 @@ entwine context --json</code></pre>
 <style>
   :root {
     font-family: "Avenir Next", Avenir, "Segoe UI", sans-serif;
-    color: #173a48;
-    background: #f7fafc;
+    color: #171717;
+    background: #f5f5f5;
     font-synthesis: none;
-    --ink: #173a48;
-    --blue: #17657f;
-    --line: #cadce5;
-    --mist: #e9f2f6;
-    --violet: #675793;
+    --ink: #171717;
+    --accent: #404040;
+    --line: #d4d4d4;
+    --mist: #e5e5e5;
+    --connector: #737373;
   }
   * {
     box-sizing: border-box;
+  }
+  .hero > *,
+  .thesis > *,
+  .workflow > *,
+  .principles > *,
+  dl > div > * {
+    min-width: 0;
+  }
+  h1,
+  h2,
+  p,
+  dd {
+    overflow-wrap: anywhere;
   }
   body {
     margin: 0;
@@ -225,7 +241,7 @@ entwine context --json</code></pre>
     text-underline-offset: 0.25em;
   }
   a:focus-visible {
-    outline: 3px solid var(--violet);
+    outline: 3px solid var(--connector);
     outline-offset: 5px;
   }
   p {
@@ -251,15 +267,16 @@ entwine context --json</code></pre>
     padding-bottom: 2rem;
   }
   .wordmark {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
     font-size: 1.6rem;
     font-weight: 800;
     letter-spacing: -0.06em;
     text-decoration: none;
   }
-  .wordmark span {
-    color: var(--violet);
-    font-size: 2rem;
-    margin-left: 0.3rem;
+  .wordmark img {
+    flex-shrink: 0;
   }
   nav {
     display: flex;
@@ -278,7 +295,7 @@ entwine context --json</code></pre>
   }
   .release {
     font-size: 0.85rem;
-    color: var(--blue);
+    color: var(--accent);
   }
   h1 {
     font-size: clamp(2.8rem, 5.6vw, 5.4rem);
@@ -304,8 +321,8 @@ entwine context --json</code></pre>
   }
   .button {
     display: inline-block;
-    background: var(--blue);
-    color: white;
+    background: var(--accent);
+    color: #fafafa;
     text-decoration: none;
     border-radius: 6px;
     padding: 0.9rem 1.3rem;
@@ -314,14 +331,14 @@ entwine context --json</code></pre>
   }
   .promise {
     font-size: 0.85rem;
-    color: #526d7b;
+    color: #525252;
   }
   .map {
     position: relative;
     padding: 1.5rem 0;
   }
   .file {
-    background: white;
+    background: #fafafa;
     border: 1px solid var(--line);
     border-radius: 6px;
     padding: 1.2rem;
@@ -332,7 +349,7 @@ entwine context --json</code></pre>
   .file small {
     display: block;
     font-size: 0.72rem;
-    color: #526d7b;
+    color: #525252;
   }
   .file strong {
     display: block;
@@ -359,16 +376,16 @@ entwine context --json</code></pre>
     left: 25%;
     width: 50%;
     height: 1.5rem;
-    border-top: 2px solid var(--violet);
-    border-left: 2px solid var(--violet);
-    border-right: 2px solid var(--violet);
+    border-top: 2px solid var(--connector);
+    border-left: 2px solid var(--connector);
+    border-right: 2px solid var(--connector);
   }
   .compiler {
     margin: 2.5rem auto 0;
     width: 65%;
     text-align: center;
     background: var(--ink);
-    color: white;
+    color: #fafafa;
     padding: 1rem;
     border-radius: 40px;
     position: relative;
@@ -381,13 +398,13 @@ entwine context --json</code></pre>
     height: 2.5rem;
     top: -2.5rem;
     left: 50%;
-    border-left: 2px solid var(--violet);
+    border-left: 2px solid var(--connector);
   }
   .compiler span {
     display: block;
     font-size: 0.7rem;
     font-weight: 400;
-    color: #c4dee7;
+    color: #d4d4d4;
   }
   .outputs {
     display: flex;
@@ -395,7 +412,7 @@ entwine context --json</code></pre>
     text-align: center;
     margin-top: 2rem;
     gap: 0.5rem;
-    border-top: 2px solid var(--violet);
+    border-top: 2px solid var(--connector);
     padding-top: 1rem;
   }
   .outputs strong {
@@ -438,7 +455,7 @@ entwine context --json</code></pre>
   .terminal p {
     font-size: 0.75rem;
     margin-bottom: 0;
-    color: #526d7b;
+    color: #525252;
   }
   .commands {
     padding: 3rem 0 4rem;
@@ -454,7 +471,7 @@ entwine context --json</code></pre>
     gap: 2rem;
   }
   dt {
-    color: var(--blue);
+    color: var(--accent);
     font-weight: 600;
   }
   dd {
@@ -465,7 +482,7 @@ entwine context --json</code></pre>
     margin-bottom: 2rem;
   }
   .experimental {
-    border-left: 4px solid var(--violet);
+    border-left: 4px solid var(--connector);
     padding: 1rem 2rem;
     background: var(--mist);
     margin: 1rem 0 5rem;
@@ -491,7 +508,7 @@ entwine context --json</code></pre>
     position: absolute;
     top: -100px;
     padding: 1rem;
-    background: white;
+    background: #fafafa;
   }
   .skip:focus {
     top: 0;
@@ -529,18 +546,55 @@ entwine context --json</code></pre>
   }
   @media (max-width: 550px) {
     .masthead {
-      align-items: start;
+      align-items: center;
+      gap: 1rem;
+      padding-top: 1.25rem;
+      padding-bottom: 1.25rem;
     }
     nav {
-      flex-direction: column;
+      flex-wrap: wrap;
+      justify-content: flex-end;
       font-size: 0.8rem;
-      gap: 0.5rem;
+      gap: 0.5rem 1rem;
+    }
+    .masthead nav a:last-child {
+      display: none;
     }
     h1 {
-      font-size: 3rem;
+      font-size: clamp(2.25rem, 10.5vw, 3rem);
+      letter-spacing: -0.055em;
+      line-height: 1.08;
+      margin: 1rem 0;
     }
     .hero {
-      padding-bottom: 3rem;
+      padding-top: 1.25rem;
+      padding-bottom: 2rem;
+      gap: 1rem;
+    }
+    .release {
+      margin: 0;
+      font-size: 0.75rem;
+    }
+    .lead {
+      font-size: 1rem;
+    }
+    .promise {
+      font-size: 0.8rem;
+    }
+    .map {
+      padding: 1rem 0;
+    }
+    .terminal {
+      padding: 1rem;
+    }
+    .terminal pre {
+      font-size: 0.8rem;
+    }
+    .thesis,
+    .workflow,
+    .principles {
+      padding: 2.5rem 0;
+      gap: 1.5rem;
     }
     dl > div {
       grid-template-columns: 1fr;
