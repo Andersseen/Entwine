@@ -1,12 +1,41 @@
-# Entwine
+<div align="center">
 
-Project knowledge, connected.
+<img src="apps/www/public/logo.png" alt="Entwine logo" width="120" />
 
-**Experimental / pre-1.0 — version 0.2.0.** APIs and context schema may change.
+# 🧶 Entwine
+
+### Project knowledge, connected.
+
+[![CI](https://img.shields.io/github/actions/workflow/status/Andersseen/Entwine/ci.yml?branch=main&style=flat-square&label=ci)](https://github.com/Andersseen/Entwine/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/github/license/Andersseen/Entwine?style=flat-square)](LICENSE)
+![Version 0.2.0](https://img.shields.io/badge/version-0.2.0-informational?style=flat-square)
+![Rust 1.85+](https://img.shields.io/badge/rust-1.85%2B-orange?style=flat-square)
+
+</div>
+
+Architecture notes, specs, and decisions live beside your code, but the
+connections between them disappear. Entwine is a repository-native project
+knowledge compiler: put Markdown under
+`docs/` and get static documentation, backlinks, a linked project graph,
+validation, and structured context, without building a documentation app. It is
+written in Rust (with TypeScript for its website and tooling) and has no runtime;
+your project can use any stack.
+
+```text
+docs/**/*.md
+     ↓
+   Entwine
+  /   |    \
+Docs Graph Context
+```
+
+Markdown remains the source of truth. Links create relationships.
+
+> **Experimental / pre-1.0.** APIs and the context schema may change.
 
 ## See it live
 
-The deployed site is one Cloudflare Pages project:
+The deployment workflow publishes one Cloudflare Pages project:
 
 | Path | What it is |
 | --- | --- |

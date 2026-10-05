@@ -1,10 +1,16 @@
 name: Feature request
-description: Propose a focused improvement
+description: Describe a problem Entwine should help with
+labels: [enhancement]
 body:
   - type: textarea
     id: problem
     attributes:
-      label: Problem and proposed behavior
-      description: Describe a real repository workflow and the smallest useful improvement.
+      label: Problem or use case
+      description: What are you trying to do with your repository's documentation, and what gets in the way?
     validations:
       required: true
+  - type: textarea
+    id: ideas
+    attributes:
+      label: Ideas or alternatives
+      description: Optional. Any approach you have considered, including workarounds.
