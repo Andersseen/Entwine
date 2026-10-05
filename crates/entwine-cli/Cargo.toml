@@ -1,0 +1,22 @@
+[package]
+name = "entwine-cli"
+description = "Entwine — project knowledge, connected"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+[[bin]]
+name = "entwine"
+path = "src/main.rs"
+[dependencies]
+entwine-core = { path = "../entwine-core", version = "0.1.0" }
+entwine-engine = { path = "../entwine-engine", version = "0.1.0" }
+clap = { version = "4", features = ["derive"] }
+tiny_http = "0.12"
+notify = "8"
+percent-encoding = "2"
+tempfile = "3"
+[dev-dependencies]
+serde_json.workspace = true
+[lints]
+workspace = true

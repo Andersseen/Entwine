@@ -1,0 +1,19 @@
+[package]
+name = "entwine-engine"
+description = "Markdown knowledge compiler and static projections"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+[dependencies]
+entwine-core = { path = "../entwine-core", version = "0.1.0" }
+serde.workspace = true
+serde_json.workspace = true
+pulldown-cmark = "0.13"
+serde_yaml = { package = "yaml_serde", version = "0.10" }
+walkdir = "2"
+percent-encoding = "2"
+[dev-dependencies]
+tempfile = "3"
+[lints]
+workspace = true

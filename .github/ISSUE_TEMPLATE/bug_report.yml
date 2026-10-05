@@ -1,0 +1,16 @@
+name: Bug report
+description: Report unexpected behavior in Entwine
+body:
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Version, platform, command, and minimal Markdown that reproduces the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true

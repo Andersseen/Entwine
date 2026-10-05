@@ -1,0 +1,8 @@
+/target/
+**/dist/
+node_modules/
+.turbo/
+.astro/
+.entwine-stage-*/
+.entwine-backup-*/
+.DS_Store

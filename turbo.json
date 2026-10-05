@@ -1,0 +1,9 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": ["tsconfig.base.json"],
+  "tasks": {
+    "build": { "outputs": ["dist/**"] },
+    "typecheck": { "outputs": [] },
+    "dev": { "cache": false, "persistent": true }
+  }
+}

@@ -1,0 +1,37 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: cargo build --workspace --locked
+      - run: cargo fmt --check
+      - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - run: cargo test --workspace --locked
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm typecheck
+      - run: pnpm build:www
+      - run: cargo run -p entwine-cli -- check examples/kitchen-sink
+      - run: cargo run -p entwine-cli -- build examples/kitchen-sink
+      - run: cargo run -p entwine-cli -- graph examples/kitchen-sink
+      - run: cargo run -p entwine-cli -- context examples/kitchen-sink
+      - run: cargo run -p entwine-cli -- context examples/kitchen-sink --json
+      - run: cargo run -p entwine-cli -- check .
+      - run: cargo run -p entwine-cli -- build .

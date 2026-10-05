@@ -1,0 +1,10 @@
+name: Feature request
+description: Propose a focused improvement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and proposed behavior
+      description: Describe a real repository workflow and the smallest useful improvement.
+    validations:
+      required: true

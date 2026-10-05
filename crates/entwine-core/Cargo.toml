@@ -1,0 +1,11 @@
+[package]
+name = "entwine-core"
+description = "Pure domain model for repository-native project knowledge"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+[dependencies]
+serde.workspace = true
+[lints]
+workspace = true

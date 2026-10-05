@@ -1,0 +1,208 @@
+use std::{
+    fs,
+    path::Path,
+    process::{Command, Output},
+};
+
+fn fixture() -> tempfile::TempDir {
+    let temp = tempfile::tempdir().unwrap();
+    let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/kitchen-sink/docs");
+    fn copy(source: &Path, destination: &Path) {
+        fs::create_dir_all(destination).unwrap();
+        for entry in fs::read_dir(source).unwrap() {
+            let entry = entry.unwrap();
+            let target = destination.join(entry.file_name());
+            if entry.file_type().unwrap().is_dir() {
+                copy(&entry.path(), &target);
+            } else {
+                fs::copy(entry.path(), target).unwrap();
+            }
+        }
+    }
+    copy(&source, &temp.path().join("docs"));
+    temp
+}
+fn cli(command: &str, project: &Path, flags: &[&str]) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_entwine"))
+        .arg(command)
+        .arg(project)
+        .args(flags)
+        .output()
+        .unwrap()
+}
+
+#[test]
+fn real_cli_build_check_graph_and_context_work() {
+    let temp = fixture();
+    for command in ["check", "build", "graph"] {
+        let result = cli(command, temp.path(), &[]);
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+    }
+    for file in [
+        "index.html",
+        "architecture/index.html",
+        "specs/authentication/index.html",
+        "__entwine/graph/index.html",
+    ] {
+        assert!(temp.path().join("dist").join(file).is_file());
+    }
+    let context = cli("context", temp.path(), &["--json"]);
+    assert!(context.status.success());
+    let parsed: serde_json::Value = serde_json::from_slice(&context.stdout).unwrap();
+    assert_eq!(parsed["documents"].as_array().unwrap().len(), 7);
+    assert_eq!(
+        context.stdout,
+        cli("context", temp.path(), &["--json"]).stdout
+    );
+    let markdown = cli("context", temp.path(), &[]);
+    assert!(markdown.status.success());
+    assert!(String::from_utf8(markdown.stdout)
+        .unwrap()
+        .contains("# Project: Harbor"));
+    let current_dir = Command::new(env!("CARGO_BIN_EXE_entwine"))
+        .arg("check")
+        .current_dir(temp.path())
+        .output()
+        .unwrap();
+    assert!(current_dir.status.success());
+}
+
+#[test]
+fn failing_validation_preserves_last_output_and_sets_exit_code() {
+    let temp = fixture();
+    assert!(cli("build", temp.path(), &[]).status.success());
+    let home = temp.path().join("dist/index.html");
+    let original = fs::read(&home).unwrap();
+    fs::write(
+        temp.path().join("docs/index.md"),
+        "# Broken\n[Missing](security.md)",
+    )
+    .unwrap();
+    for command in ["check", "build", "graph", "context"] {
+        let result = cli(command, temp.path(), &[]);
+        assert!(!result.status.success());
+        let stderr = String::from_utf8(result.stderr).unwrap();
+        assert!(stderr.contains("docs/index.md:2"));
+        assert!(stderr.contains("security.md"));
+    }
+    assert_eq!(fs::read(home).unwrap(), original);
+}
+
+#[test]
+fn rebuild_removes_stale_routes_and_refuses_unrelated_dist() {
+    let temp = fixture();
+    fs::create_dir(temp.path().join("dist")).unwrap();
+    fs::write(temp.path().join("dist/precious.txt"), "keep").unwrap();
+    assert!(!cli("build", temp.path(), &[]).status.success());
+    assert_eq!(
+        fs::read_to_string(temp.path().join("dist/precious.txt")).unwrap(),
+        "keep"
+    );
+    fs::remove_dir_all(temp.path().join("dist")).unwrap();
+    fs::write(temp.path().join("docs/temporary.md"), "# Temporary").unwrap();
+    assert!(cli("build", temp.path(), &[]).status.success());
+    assert!(temp.path().join("dist/temporary/index.html").is_file());
+    fs::remove_file(temp.path().join("docs/temporary.md")).unwrap();
+    assert!(cli("build", temp.path(), &[]).status.success());
+    assert!(!temp.path().join("dist/temporary").exists());
+}
+
+#[test]
+fn dedicated_failures_exit_nonzero() {
+    for fixture in ["broken-link", "route-collision", "invalid-frontmatter"] {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../entwine-engine/tests/fixtures")
+            .join(fixture);
+        assert!(!cli("check", &root, &[]).status.success());
+    }
+}
+
+struct DevProcess(std::process::Child);
+impl Drop for DevProcess {
+    fn drop(&mut self) {
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
+}
+
+fn get(port: u16, route: &str) -> Option<String> {
+    use std::io::{Read, Write};
+    let mut stream = std::net::TcpStream::connect(("127.0.0.1", port)).ok()?;
+    stream
+        .set_read_timeout(Some(std::time::Duration::from_secs(2)))
+        .ok()?;
+    stream
+        .write_all(
+            format!("GET {route} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+                .as_bytes(),
+        )
+        .ok()?;
+    let mut response = String::new();
+    stream.read_to_string(&mut response).ok()?;
+    Some(response)
+}
+
+#[test]
+fn dev_serves_rebuilds_preserves_last_good_output_and_rejects_traversal() {
+    use std::time::{Duration, Instant};
+    let temp = fixture();
+    let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+    let port = listener.local_addr().unwrap().port();
+    drop(listener);
+    let mut process = DevProcess(
+        Command::new(env!("CARGO_BIN_EXE_entwine"))
+            .arg("dev")
+            .arg(temp.path())
+            .args(["--port", &port.to_string()])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .unwrap(),
+    );
+    fn wait_for(port: u16, text: &str, process: &mut DevProcess) -> String {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        loop {
+            if let Some(response) = get(port, "/") {
+                if response.contains(text) {
+                    return response;
+                }
+            }
+            assert!(
+                process.0.try_wait().unwrap().is_none(),
+                "dev exited before serving {text}"
+            );
+            assert!(Instant::now() < deadline, "dev did not serve {text}");
+            std::thread::sleep(Duration::from_millis(25));
+        }
+    }
+    let response = wait_for(port, ">Harbor</h1>", &mut process);
+    assert!(response.starts_with("HTTP/1.1 200"));
+    assert!(get(port, "/architecture/")
+        .unwrap()
+        .contains("Harbor architecture"));
+    assert!(get(port, "/architecture")
+        .unwrap()
+        .starts_with("HTTP/1.1 308"));
+    assert!(get(port, "/%2e%2e/Cargo.toml")
+        .unwrap()
+        .starts_with("HTTP/1.1 403"));
+    fs::write(
+        temp.path().join("docs/index.md"),
+        "# Updated project\n\n[Architecture](architecture.md)",
+    )
+    .unwrap();
+    wait_for(port, ">Updated project</h1>", &mut process);
+    fs::write(
+        temp.path().join("docs/index.md"),
+        "# Broken update\n\n[Bad](missing.md)",
+    )
+    .unwrap();
+    std::thread::sleep(Duration::from_millis(600));
+    assert!(get(port, "/").unwrap().contains(">Updated project</h1>"));
+    fs::write(temp.path().join("docs/index.md"), "# Recovered project").unwrap();
+    wait_for(port, ">Recovered project</h1>", &mut process);
+}

@@ -1,0 +1,272 @@
+:root {
+  color-scheme: light dark;
+  --bg: #fff;
+  --panel: #f3f6f8;
+  --text: #22313b;
+  --muted: #5a6b76;
+  --line: #dbe3e9;
+  --link: #09677c;
+  --code: #edf2f5;
+  font:
+    17px / 1.65 system-ui,
+    sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+a {
+  color: var(--link);
+  text-underline-offset: 0.2em;
+}
+a:hover {
+  text-decoration-thickness: 2px;
+}
+a:focus-visible {
+  outline: 3px solid var(--link);
+  outline-offset: 4px;
+}
+h1,
+h2,
+h3 {
+  line-height: 1.2;
+  scroll-margin-top: 2rem;
+}
+h1 {
+  font-size: 2.3rem;
+  letter-spacing: -0.04em;
+}
+h2 {
+  margin-top: 2.5rem;
+}
+p,
+li {
+  overflow-wrap: anywhere;
+}
+.layout {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 800px) 220px;
+  max-width: 1400px;
+  margin: auto;
+  min-height: 100vh;
+}
+.sidebar {
+  background: var(--panel);
+  padding: 2rem 1.4rem;
+}
+.brand {
+  font-weight: 750;
+  font-size: 1.4rem;
+  margin: 0 0 2rem;
+}
+.sidebar ul,
+.toc ul {
+  list-style: none;
+  padding: 0;
+}
+.sidebar ul ul {
+  padding-left: 1rem;
+  border-left: 1px solid var(--line);
+}
+.sidebar li {
+  margin: 0.6rem 0;
+}
+.sidebar a {
+  text-decoration: none;
+  display: block;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+}
+.sidebar [aria-current="page"] {
+  background: var(--bg);
+  font-weight: 700;
+  border-left: 3px solid var(--link);
+}
+.group {
+  color: var(--muted);
+  font-weight: 650;
+}
+.graph-link {
+  margin-top: 2rem;
+}
+.layout main {
+  padding: 3rem clamp(1.2rem, 4vw, 4rem);
+  min-width: 0;
+}
+.toc {
+  padding: 3rem 1rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.toc h2 {
+  font-size: 1rem;
+  margin: 0;
+}
+.toc li {
+  margin: 0.6rem 0;
+}
+.toc .level-3,
+.toc .level-4 {
+  padding-left: 1rem;
+}
+.metadata {
+  display: flex;
+  gap: 0.6rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.metadata span {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0.1rem 0.5rem;
+}
+pre {
+  background: var(--code);
+  padding: 1.2rem;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+code {
+  font-family: ui-monospace, monospace;
+}
+p code,
+li code {
+  background: var(--code);
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+}
+blockquote {
+  margin: 1.5rem 0;
+  padding: 0.1rem 1.5rem;
+  border-left: 3px solid var(--link);
+  color: var(--muted);
+}
+table {
+  display: block;
+  overflow: auto;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+td,
+th {
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--line);
+}
+img {
+  max-width: 100%;
+  height: auto;
+}
+.backlinks,
+footer {
+  margin-top: 3rem;
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+}
+footer {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.skip {
+  position: absolute;
+  top: -100px;
+  background: var(--bg);
+  padding: 1rem;
+  z-index: 2;
+}
+.skip:focus {
+  top: 0;
+}
+.mobile {
+  display: none;
+}
+.graph-page {
+  max-width: 1000px;
+  margin: auto;
+  padding: 2rem;
+}
+.graph-scroll {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.graph {
+  display: block;
+  background: var(--panel);
+}
+.node {
+  fill: var(--bg);
+  stroke: var(--link);
+}
+.graph text {
+  fill: var(--text);
+  font:
+    16px system-ui,
+    sans-serif;
+}
+.edge {
+  fill: none;
+  stroke: var(--link);
+  stroke-width: 1.5;
+  opacity: 0.6;
+}
+marker path {
+  fill: var(--link);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14222a;
+    --panel: #1b2d37;
+    --text: #e2edf2;
+    --muted: #acc0ca;
+    --line: #35505e;
+    --link: #77d5e7;
+    --code: #203640;
+  }
+}
+@media (max-width: 1100px) {
+  .layout {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+  .toc {
+    display: none;
+  }
+}
+@media (max-width: 700px) {
+  .layout {
+    display: block;
+  }
+  .sidebar {
+    padding: 1rem;
+  }
+  .sidebar nav > ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1rem;
+  }
+  .sidebar ul ul {
+    display: block;
+  }
+  .brand {
+    margin: 0;
+  }
+  .graph-link {
+    margin-top: 1rem;
+  }
+  .layout main {
+    padding: 1.5rem;
+  }
+  .mobile {
+    display: block;
+    padding: 0.8rem 1rem;
+    border-bottom: 1px solid var(--line);
+  }
+  h1 {
+    font-size: 1.9rem;
+  }
+}
