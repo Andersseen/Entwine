@@ -158,3 +158,8 @@ supported Markdown extension. Symbolic links are not supported. Context schema
 until this checkout has a public upstream URL.
 
 MIT licensed. Contributions: [CONTRIBUTING.md](CONTRIBUTING.md).
+# Website deployment
+
+The official Astro website has a gated GitHub Actions deployment to Cloudflare
+Pages. See [setup instructions](apps/www/DEPLOYMENT.md) for the required repository
+secrets and Pages project variable.

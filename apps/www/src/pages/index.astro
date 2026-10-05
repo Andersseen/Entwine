@@ -18,6 +18,7 @@ const commands = [
       content="Entwine turns repository Markdown into static documentation, relationships, backlinks, a graph, validation, and structured context."
     />
     <title>Entwine — project knowledge, connected.</title>
+    <link rel="icon" type="image/png" href="/logo.png" />
   </head>
   <body>
     <a class="skip" href="#main">
@@ -25,7 +26,8 @@ const commands = [
     </a>
     <header class="masthead">
       <a class="wordmark" href="#">
-        entwine<span aria-hidden="true">⌁</span>
+        <img src="/logo.png" alt="" width="36" height="36" />
+        entwine
       </a>
       <nav aria-label="Main navigation">
         <a href="#how">How it works</a>
@@ -191,7 +193,8 @@ entwine context --json</code></pre>
     </main>
     <footer>
       <a class="wordmark" href="#">
-        entwine⌁
+        <img src="/logo.png" alt="" width="36" height="36" />
+        entwine
       </a>
       <p>Project knowledge, connected.</p>
       <a href="https://github.com/search?q=entwine&amp;type=repositories">
@@ -264,15 +267,16 @@ entwine context --json</code></pre>
     padding-bottom: 2rem;
   }
   .wordmark {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
     font-size: 1.6rem;
     font-weight: 800;
     letter-spacing: -0.06em;
     text-decoration: none;
   }
-  .wordmark span {
-    color: var(--connector);
-    font-size: 2rem;
-    margin-left: 0.3rem;
+  .wordmark img {
+    flex-shrink: 0;
   }
   nav {
     display: flex;
