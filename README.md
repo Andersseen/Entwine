@@ -150,7 +150,8 @@ binary. CI validates both fixtures and Entwine's own documentation.
 ## 0.1 limits
 
 Full rebuilds, manual browser refresh, no search or theme configuration. SVG graph
-layout is fixed, with scrolling and a complete text list for larger/dense projects;
+layout is a deterministic radial SVG, with a fitted overview, an optional large
+view, and a complete text list for larger/dense projects;
 there is no force simulation or zoom UI. Paths are case-sensitive; `.md` is the
 supported Markdown extension. Symbolic links are not supported. Context schema
 `0.1` and Rust APIs are experimental. The site GitHub links use repository discovery

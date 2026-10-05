@@ -24,9 +24,18 @@ Document links, extensionless routes, anchors, and local assets are resolved.
 Repeated links yield one document relationship. Orphans are warnings.
 Projects without an index document receive an automatically generated landing page.
 
+## Reading and graph views
+
+Documentation uses neutral gray surfaces with automatic light/dark support.
+Mobile navigation and page headings use native collapsible menus. The graph
+centers the most connected document, distributes other documents in radial rings,
+and draws directed curved edges between them. The overview fits the viewport;
+an optional large view allows closer inspection with scrolling. Document and
+relationship lists remain available as accessible collapsible sections.
+
 ## Limits
 
-No search, theme configuration, client-side graph interactions, incremental
+No search, theme configuration, graph dragging or physics, incremental
 compilation, or browser reload. Refresh after dev rebuilds. The graph uses a
 fixed SVG layout with a complete text relationship list for dense repositories.
 Raw HTML is escaped. Symbolic links are rejected. Builds own `dist/` entirely.
