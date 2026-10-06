@@ -5,10 +5,16 @@ describes the boundaries that are already implemented.
 
 ## Available today
 
-- Dataset names and descriptions
-- Static documentation
-- A deterministic catalogue export
+- Dataset names and descriptions through the read interface.
+- Static documentation, published as decided in [static output](decisions/static-output.md).
+- A deterministic [catalogue export](specs/catalogue-export.md).
 
-## Not shipped
+## In progress
 
-Write access and full-text search are planned in the [roadmap](roadmap.md).
+Nothing is partially implemented. Search is only specified; see the
+[search contract](specs/search.md).
+
+## Known limitations
+
+Write access and full-text search are not shipped. They are planned in the
+[roadmap](roadmap.md). Day-to-day handling is in the [operations runbook](operations/runbook.md).

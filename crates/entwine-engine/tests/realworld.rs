@@ -1,6 +1,6 @@
 //! Real-world structure, portability, and subpath-hosting validation.
 use entwine_core::{DiagnosticSeverity, Route};
-use entwine_engine::{compile, render_graph, render_site, Compilation, StaticFile};
+use entwine_engine::{compile, render_graph, Compilation, StaticFile};
 use percent_encoding::percent_decode_str;
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -19,10 +19,7 @@ fn repo(path: &str) -> PathBuf {
         .join(path)
 }
 fn site_files(compilation: &Compilation) -> Vec<StaticFile> {
-    let mut files = render_site(&compilation.site);
-    files.push(render_graph(&compilation.graph));
-    files.extend(compilation.assets.clone());
-    files
+    entwine_engine::render(compilation)
 }
 
 /// Extract the values of every `attr="..."` in an HTML document.
@@ -164,7 +161,7 @@ fn entwine_docs_and_demo_work_under_docs_and_demo_prefixes() {
             .map(|f| String::from_utf8_lossy(&f.contents).into_owned())
             .unwrap();
         assert!(auth.contains("Referenced by"));
-        assert!(auth.contains("Project graph"));
+        assert!(auth.contains(">Graph</a>"));
     }
 }
 

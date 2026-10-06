@@ -1,11 +1,22 @@
 ---
 const repository = "https://github.com/Andersseen/Entwine";
-const commands = [
-  ["dev", "Read your docs locally. Rebuild when Markdown changes."],
-  ["build", "Publish plain HTML and CSS to any static host."],
-  ["check", "Catch broken links, bad metadata, and route collisions."],
-  ["graph", "See documents and their directed relationships."],
-  ["context --json", "Export structured knowledge for your own tools."],
+const steps = [
+  [
+    "init",
+    "Scaffold the recommended project knowledge. Questions, not answers.",
+  ],
+  ["dev", "Read it locally. Rebuilds when Markdown changes."],
+  [
+    "check",
+    "Validate links and metadata, and see which knowledge areas exist.",
+  ],
+  ["setup", "Automate validation and publishing with your Git provider."],
+] as const;
+const providers = [
+  ["GitHub", "GitHub Pages"],
+  ["GitLab", "GitLab Pages"],
+  ["Bitbucket", "Provider-native static publishing"],
+  ["Any Git", "dist/ on any static host"],
 ] as const;
 ---
 
@@ -33,7 +44,8 @@ const commands = [
       <nav aria-label="Main navigation">
         <a href="/docs/">Documentation</a>
         <a href="/demo/">Live example</a>
-        <a href="#try">Try 0.1.0</a>
+        <a href="#convention">Convention</a>
+        <a href="#start">Start here</a>
         <a href={repository}>GitHub</a>
       </nav>
     </header>
@@ -105,72 +117,140 @@ const commands = [
         </div>
       </section>
       <section class="thesis" id="how">
-        <h2>The knowledge is already there.</h2>
+        <h2>Project knowledge is fragmented.</h2>
         <div>
           <p>
-            Architecture notes. Specifications. Decisions. They live beside your
-            code, but the connections disappear between files.
+            It is spread across the README, docs, architecture notes, state
+            files, decisions, specifications, and agent context. The connections
+            between them disappear, and every newcomer, human or agent,
+            reconstructs the same facts again.
           </p>
           <p>
-            Entwine follows the links you already write. It gives each document
-            a page, builds navigation from folders, and shows where each page is
-            referenced. A normal repository with a <code>docs/</code> directory
+            Entwine follows the links you already write and turns the Markdown
+            in your repository into one shared model of that knowledge.
+          </p>
+          <pre
+            tabindex="0"
+            class="flow"
+            aria-label="Markdown becomes a knowledge model that feeds docs, graph, and context"
+          ><code>Markdown
+   ↓
+Knowledge model
+   ↓
+Docs + Graph + Context</code></pre>
+        </div>
+      </section>
+      <section class="thesis" id="convention">
+        <div>
+          <h2>A convention for durable project knowledge.</h2>
+          <p class="note">
+            <strong>Recommended, not required.</strong> Any Markdown still
+            works. Custom filenames work too: a <code>type</code> in frontmatter
             is enough.
           </p>
         </div>
-      </section>
-      <section class="workflow" id="try">
         <div>
-          <h2>
-            Try it on
-            <br />
-            your repository.
-          </h2>
+          <pre class="tree" tabindex="0"><code>docs/
+├── index.md          what this is, where things are
+├── architecture.md   how it is structured today
+├── state.md          what is true right now
+├── roadmap.md        what is intended next
+├── decisions/        what was decided, and why
+└── specs/            what capabilities do</code></pre>
           <p>
-            Download a prebuilt <code>entwine</code> binary for Linux, macOS, or
-            Windows from
-            <a href={`${repository}/releases`}>GitHub Releases</a>, or build
-            from source with Rust stable. No account, documentation app, or
-            configuration file.
-          </p>
-          <p>
-            Every release lists SHA-256 checksums. Packages for npm or Homebrew
-            do not exist yet.
-          </p>
-          <p>
-            This site's <a href="/docs/">documentation</a> and the
-            <a href="/demo/">example project</a> were compiled by Entwine
-            itself.
+            <code>state</code> is current reality; <code>roadmap</code> is
+            future intent. Entwine recognizes each by path or metadata and shows
+            which areas exist: presence, never a quality score. It complements{" "}
+            <code>README.md</code>, <code>AGENTS.md</code>,<code>SKILL.md</code>
+            , MCP, and OpenSpec instead of replacing them.
+            <a href="/docs/convention/">Read the convention</a>.
           </p>
         </div>
+      </section>
+      <section class="thesis" id="agents">
+        <h2>Humans and agents share one source.</h2>
+        <div>
+          <p>
+            The same Markdown feeds readable documentation with backlinks, a
+            project graph, and a Knowledge overview for people, and structured
+            context for agents. A tool can ask for the current state or the
+            architecture directly instead of guessing which file to open.
+          </p>
+          <p>
+            <code>entwine context --json</code> labels every document with its
+            role: architecture, state, roadmap, decision, spec, or other. There
+            is no second parser, and no AI inside Entwine.
+          </p>
+          <p>
+            See it in the <a href="/demo/">demo project</a>: its
+            <a href="/demo/__entwine/knowledge/">Knowledge overview</a> shows
+            what exists, and its <a href="/demo/__entwine/graph/">graph</a>
+            shows how it connects.
+          </p>
+        </div>
+      </section>
+      <section class="workflow" id="start">
+        <div>
+          <h2>Start here.</h2>
+          <p>
+            No account, documentation app, or configuration file.
+            <code>entwine build</code> remains available for any custom hosting.
+          </p>
+          <p>
+            Entwine 0.1.0 is not published yet. Until its first release, build
+            from a <a href={repository}>source checkout</a> with Rust stable.
+            Releases will provide <code>npm install --global @entwine/cli</code>
+            and checksummed binaries on
+            <a href={`${repository}/releases`}>GitHub Releases</a>.
+          </p>
+          <dl class="steps">
+            {steps.map(([command, description]) => (
+              <div>
+                <dt>
+                  <code>entwine {command}</code>
+                </dt>
+                <dd>{description}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
         <div class="terminal">
-          <pre><code># Download from GitHub Releases, or from a source checkout:
+          <pre><code># From a source checkout of Entwine
 cargo install --path crates/entwine-cli
 
 # In your own repository
-mkdir -p docs
-printf '# My project\n' > docs/index.md
-entwine check
+entwine init
 entwine dev
+entwine check
+entwine setup
 
-# Publish dist/ to any static host, even below a subpath
-entwine build
-entwine context --json</code></pre>
+# Or publish dist/ yourself
+entwine build</code></pre>
           <p>Local preview at localhost:4173. Refresh after edits.</p>
         </div>
       </section>
-      <section class="commands">
-        <h2>Five commands. One source of truth.</h2>
+      <section class="commands" id="deployment">
+        <h2>Publish where your repository lives.</h2>
+        <p class="lead">
+          <code>entwine setup</code> generates validation and publishing for
+          your Git provider, once. After that, the provider's own pipeline
+          publishes. Entwine is not a hosted platform and stores no credentials.
+        </p>
         <dl>
-          {commands.map(([command, description]) => (
+          {providers.map(([provider, target]) => (
             <div>
-              <dt>
-                <code>entwine {command}</code>
-              </dt>
-              <dd>{description}</dd>
+              <dt>{provider}</dt>
+              <dd>{target}</dd>
             </div>
           ))}
         </dl>
+        <p>
+          Documentation changes in a pull request are validated before merge.
+          Existing CI is never overwritten, and
+          <code>entwine setup --dry-run</code> changes nothing.
+          <a href="/docs/deployment/">Deployment details</a>, including
+          Bitbucket's one-time steps.
+        </p>
       </section>
       <section class="principles">
         <h2>
@@ -204,8 +284,8 @@ entwine context --json</code></pre>
         <p>
           Entwine 0.1.0 is experimental and pre-stable. APIs and the context
           schema may change before 1.0. There is no search, plugin system, or
-          interactive graph physics. This release makes Entwine easy to inspect,
-          download, and try on a real repository.
+          interactive graph physics. The Knowledge Convention is an open
+          proposal that has to earn adoption, not a standard.
         </p>
       </aside>
     </main>
@@ -473,6 +553,24 @@ entwine context --json</code></pre>
   }
   .workflow h2 {
     margin-bottom: 1.5rem;
+  }
+  .flow,
+  .tree {
+    background: var(--mist);
+    padding: 1rem 1.25rem;
+    border-radius: 8px;
+    overflow: auto;
+    line-height: 1.7;
+    font-size: 0.85rem;
+  }
+  .note {
+    border-left: 4px solid var(--connector);
+    padding-left: 1rem;
+  }
+  .steps > div {
+    grid-template-columns: 1fr;
+    gap: 0.2rem;
+    padding: 0.8rem 0;
   }
   .terminal {
     background: var(--mist);

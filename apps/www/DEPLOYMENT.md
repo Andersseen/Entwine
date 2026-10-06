@@ -1,4 +1,8 @@
-# Cloudflare Pages deployment
+# Cloudflare Pages deployment (Entwine's own showcase)
+
+This is how the Entwine project publishes its own website, docs, and demo. It is
+not what `entwine setup` generates for users, who get provider-native publishing
+(GitHub Pages, GitLab Pages, Bitbucket); see `docs/deployment.md`.
 
 One Pages project serves three things. Two of them are Entwine output.
 

@@ -134,6 +134,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tiny_http",
+ "yaml_serde",
 ]
 
 [[package]]

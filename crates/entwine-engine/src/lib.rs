@@ -7,7 +7,7 @@ mod resolve;
 
 use entwine_core::*;
 pub use projections::{context_json, context_markdown};
-pub use render::{render_graph, render_site, StaticFile};
+pub use render::{render_graph, render_knowledge, render_site, StaticFile};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs, io,
@@ -44,6 +44,15 @@ pub(crate) fn error(source: &str, line: Option<usize>, message: impl Into<String
     }
 }
 
+pub(crate) fn warning(source: &str, line: Option<usize>, message: impl Into<String>) -> Diagnostic {
+    Diagnostic {
+        severity: DiagnosticSeverity::Warning,
+        source: source.into(),
+        line,
+        message: message.into(),
+    }
+}
+
 /// Record a route and return an earlier source whose route differs only by case.
 fn case_collision(
     seen: &mut BTreeMap<String, (String, String)>,
@@ -55,6 +64,50 @@ fn case_collision(
         .or_insert_with(|| (route.as_str().to_owned(), source.to_owned()))
         .clone();
     (previous_route != route.as_str()).then_some(previous)
+}
+
+/// Every file of a complete static site: pages, graph, knowledge overview, and assets.
+pub fn render(compilation: &Compilation) -> Vec<StaticFile> {
+    let mut files = render_site(&compilation.site);
+    files.push(render_graph(&compilation.graph));
+    files.push(render_knowledge(&compilation.site));
+    files.extend(compilation.assets.clone());
+    files
+}
+
+/// Find which knowledge roles existing Markdown plays, without validating or rendering it.
+/// Unreadable or non-UTF-8 files are skipped; symbolic links are never followed.
+pub fn scan_roles(project: &Path) -> io::Result<Vec<(String, KnowledgeRole)>> {
+    let root = project.join("docs");
+    let mut found = Vec::new();
+    if !root.is_dir() || fs::symlink_metadata(&root)?.file_type().is_symlink() {
+        return Ok(found);
+    }
+    for entry in WalkDir::new(&root)
+        .follow_links(false)
+        .into_iter()
+        .flatten()
+    {
+        if !entry.file_type().is_file() {
+            continue;
+        }
+        let Some(source) = entry
+            .path()
+            .strip_prefix(&root)
+            .ok()
+            .and_then(|p| p.to_str())
+            .map(|s| s.replace('\\', "/"))
+            .filter(|s| s.ends_with(".md"))
+        else {
+            continue;
+        };
+        if let Ok(text) = fs::read_to_string(entry.path()) {
+            let role = markdown::role_of(&source, &text);
+            found.push((source, role));
+        }
+    }
+    found.sort();
+    Ok(found)
 }
 
 /// Compile `project/docs` without configuration or network access.
@@ -225,6 +278,7 @@ pub fn compile(project: &Path) -> io::Result<Compilation> {
     output_paths.extend([
         "__entwine/style.css".into(),
         "__entwine/graph/index.html".into(),
+        "__entwine/knowledge/index.html".into(),
     ]);
     for (index, path) in output_paths.iter().enumerate() {
         if output_paths.iter().skip(index + 1).any(|other| {

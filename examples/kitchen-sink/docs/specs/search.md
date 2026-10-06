@@ -2,6 +2,7 @@
 type: spec
 status: planned
 ---
+
 # Search
 
 Search is planned by the [roadmap](../roadmap.md). It will respect the
@@ -15,3 +16,5 @@ Queries match dataset names. Empty queries return a predictable alphabetical lis
 
 Repeated headings receive distinct anchors. This second section records edge cases:
 **empty input**, *Unicode names*, and `limit=0`.
+
+Not yet available; see the [current state](../state.md#known-limitations).
