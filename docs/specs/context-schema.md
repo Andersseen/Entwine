@@ -6,15 +6,23 @@ agent parser. See [architecture](../architecture.md#canonical-representation).
 
 ## Version
 
-`schema_version` is currently `"0.2"` and is versioned separately from the Entwine
-package. Version 0.2 adds `role` to each document and changes nothing else from
-0.1. The schema is experimental before 1.0.
+`schema_version` is currently `"0.3"` and is versioned separately from the Entwine
+package. Version 0.3 adds `anchors` and `repository_references` to each document.
+Repository references retain `path` (relative to the repository), `source`,
+`line`, and original `destination`. They never become knowledge relationships.
+A reference without provider metadata has an empty link `href`; renderers show
+a labeled repository path instead. Consumers must check the schema version;
+0.2 consumers that tolerate additional fields can ignore these two fields.
+`content` now retains the exact original UTF-8 Markdown source, including
+frontmatter and unknown metadata keys; consumers that need the body should parse
+frontmatter rather than assuming it was removed.
+README fallback may change a document route to `/` and its role to `project`. The schema is experimental before 1.0.
 
 ## Shape
 
 ```json
 {
-  "schema_version": "0.2",
+  "schema_version": "0.3",
   "documents": [
     {
       "id": "architecture.md",
@@ -24,6 +32,8 @@ package. Version 0.2 adds `role` to each document and changes nothing else from
       "role": "architecture",
       "headings": [],
       "links": [],
+      "anchors": [],
+      "repository_references": [],
       "backlinks": [],
       "content": "..."
     }

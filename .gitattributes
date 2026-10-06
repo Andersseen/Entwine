@@ -1,0 +1,2 @@
+# Keep exact source and projection goldens portable across Git checkouts.
+* text=auto eol=lf

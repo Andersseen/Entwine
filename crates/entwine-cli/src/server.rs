@@ -1,6 +1,8 @@
-use crate::{checked, output};
+use crate::{checked, compile_project, diagnostics, output, provider};
+use entwine_engine::Compilation;
 use notify::{RecursiveMode, Watcher};
 use percent_encoding::percent_decode_str;
+use std::collections::BTreeSet;
 use std::{
     fs, io,
     path::Path,
@@ -90,15 +92,39 @@ pub(crate) fn dev(project: &Path, port: u16) -> Result<(), Box<dyn std::error::E
         let _ = sender.send(event);
     })?;
     watcher.watch(&project.join("docs"), RecursiveMode::Recursive)?;
-    output::publish(project, &checked(project)?)?;
+    let initial = checked(project)?;
+    output::publish(project, &initial)?;
+    let repository = provider::inspect(project);
+    let repository_root = repository.root.as_deref().unwrap_or(project);
+    let mut watched = BTreeSet::new();
+    watch_references(
+        &mut watcher,
+        &initial,
+        repository_root,
+        project,
+        &mut watched,
+    )?;
     let root = project.join("dist").canonicalize()?;
     eprintln!("Entwine dev server\n\nLocal: http://localhost:{port}\nWatching docs/ (refresh your browser after changes)");
+    let visible_project = visible_path(project);
     let mut changed = None;
+    let mut changed_paths = BTreeSet::new();
     loop {
         while let Ok(event) = receiver.try_recv() {
             match event {
                 Ok(event) if !matches!(event.kind, notify::EventKind::Access(_)) => {
-                    changed = Some(Instant::now())
+                    for path in event.paths {
+                        let visible = visible_path(&path);
+                        let relative = visible.strip_prefix(&visible_project).unwrap_or(&visible);
+                        if relative.components().next().is_some_and(|c| {
+                            let name = c.as_os_str().to_string_lossy();
+                            name == "dist" || name == ".git" || name.starts_with(".entwine-")
+                        }) {
+                            continue;
+                        }
+                        changed_paths.insert(relative.display().to_string());
+                        changed = Some(Instant::now());
+                    }
                 }
                 Err(error) => eprintln!("warning: file watcher: {error}"),
                 _ => {}
@@ -106,11 +132,36 @@ pub(crate) fn dev(project: &Path, port: u16) -> Result<(), Box<dyn std::error::E
         }
         if changed.is_some_and(|time| time.elapsed() >= Duration::from_millis(200)) {
             changed = None;
-            match checked(project).and_then(|compilation| {
-                output::publish(project, &compilation)?;
-                Ok(())
-            }) {
-                Ok(()) => eprintln!("✓ rebuilt documentation"),
+            eprintln!(
+                "Changed: {}",
+                changed_paths
+                    .iter()
+                    .take(3)
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+            changed_paths.clear();
+            match compile_project(project)
+                .map_err(|e| -> Box<dyn std::error::Error> { e.into() })
+                .and_then(|compilation| {
+                    diagnostics(&compilation);
+                    watch_references(
+                        &mut watcher,
+                        &compilation,
+                        repository_root,
+                        project,
+                        &mut watched,
+                    )?;
+                    if compilation.has_errors() {
+                        return Err("Documentation validation failed".into());
+                    }
+                    output::publish(project, &compilation)?;
+                    Ok(())
+                }) {
+                Ok(()) => eprintln!(
+                    "✓ rebuilt documentation · http://localhost:{port} · refresh to read changes"
+                ),
                 Err(error) => eprintln!("error: {error}; serving the last successful build"),
             }
         }
@@ -119,5 +170,58 @@ pub(crate) fn dev(project: &Path, port: u16) -> Result<(), Box<dyn std::error::E
                 eprintln!("warning: HTTP request: {error}");
             }
         }
+    }
+}
+
+fn watch_references(
+    watcher: &mut impl Watcher,
+    compilation: &Compilation,
+    repository: &Path,
+    project: &Path,
+    watched: &mut BTreeSet<std::path::PathBuf>,
+) -> Result<(), notify::Error> {
+    for dependency in &compilation.repository_dependencies {
+        let target = repository.join(dependency);
+        if let Some(parent) = target.parent() {
+            let parent = parent
+                .ancestors()
+                .find(|p| p.is_dir() && p.starts_with(repository))
+                .unwrap_or(repository);
+            if !parent.starts_with(project.join("docs")) && watched.insert(parent.to_path_buf()) {
+                watcher.watch(parent, RecursiveMode::NonRecursive)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// notify can report ordinary Windows paths while canonicalize uses verbatim
+/// prefixes. Compare lexical spellings without canonicalizing deleted files.
+fn visible_path(path: &Path) -> std::path::PathBuf {
+    #[cfg(windows)]
+    {
+        let value = path.to_string_lossy();
+        if let Some(rest) = value.strip_prefix(r"\\?\UNC\") {
+            return std::path::PathBuf::from(format!(r"\\{rest}"));
+        }
+        if let Some(rest) = value.strip_prefix(r"\\?\") {
+            return std::path::PathBuf::from(rest);
+        }
+    }
+    path.to_path_buf()
+}
+#[cfg(all(test, windows))]
+mod windows_paths {
+    use super::*;
+    #[test]
+    fn verbatim_and_notify_paths_compare_identically() {
+        assert_eq!(
+            visible_path(Path::new(r"\\?\C:\repo\dist")),
+            visible_path(Path::new(r"C:\repo\dist"))
+        );
+        assert_eq!(
+            visible_path(Path::new(r"\\?\UNC\server\share\repo")),
+            visible_path(Path::new(r"\\server\share\repo"))
+        );
     }
 }

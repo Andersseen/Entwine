@@ -11,7 +11,8 @@
       "!**/.turbo",
       "!**/Cargo.lock",
       "!**/pnpm-lock.yaml",
-      "!**/.release-please-manifest.json"
+      "!**/.release-please-manifest.json",
+      "!crates/entwine-engine/tests/golden"
     ]
   },
   "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2 },

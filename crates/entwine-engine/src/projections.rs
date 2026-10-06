@@ -2,8 +2,8 @@ use crate::{render::escape, resolve::relative_url};
 use entwine_core::*;
 use std::collections::BTreeMap;
 
-/// Context schema `0.2` adds `role` to every document; all `0.1` fields are unchanged.
-pub const CONTEXT_SCHEMA_VERSION: &str = "0.2";
+/// Context schema `0.3` adds explicit anchors and repository references.
+pub const CONTEXT_SCHEMA_VERSION: &str = "0.3";
 
 fn knowledge_groups(knowledge: &KnowledgeBase) -> Vec<KnowledgeGroup> {
     let mut roles = RECOMMENDED_ROLES.to_vec();
@@ -36,16 +36,23 @@ struct Tree {
     page: Option<PageReference>,
     children: BTreeMap<String, Tree>,
 }
-fn navigation(tree: Tree) -> Vec<Navigation> {
+fn navigation(tree: Tree, prefix: &str) -> Vec<Navigation> {
     tree.children
         .into_iter()
-        .map(|(name, branch)| Navigation {
-            label: branch
-                .page
-                .as_ref()
-                .map_or_else(|| humanize(&name), |p| p.title.clone()),
-            route: branch.page.as_ref().map(|p| p.route.clone()),
-            children: navigation(branch),
+        .map(|(name, branch)| {
+            let path = format!("{prefix}{name}/");
+            Navigation {
+                label: branch
+                    .page
+                    .as_ref()
+                    .map_or_else(|| humanize(&name), |p| p.title.clone()),
+                route: branch
+                    .page
+                    .as_ref()
+                    .map(|p| p.route.clone())
+                    .or_else(|| Route::from_source(&format!("{path}index.md")).ok()),
+                children: navigation(branch, &path),
+            }
         })
         .collect()
 }
@@ -72,7 +79,8 @@ pub(crate) fn project(knowledge: &KnowledgeBase) -> (SiteModel, GraphModel, Cont
         }
         branch.page = Some(reference);
     }
-    let mut nav = navigation(tree);
+    merge_directory_entries(&mut tree);
+    let mut nav = navigation(tree, "");
     let needs_index = home.is_none();
     nav.insert(
         0,
@@ -92,6 +100,18 @@ pub(crate) fn project(knowledge: &KnowledgeBase) -> (SiteModel, GraphModel, Cont
             headings: d.headings.clone(),
             metadata: d.metadata.clone(),
             role: d.role,
+            references: knowledge
+                .relations
+                .iter()
+                .filter(|r| r.source == d.id)
+                .filter_map(|r| knowledge.documents.iter().find(|d| d.id == r.target))
+                .map(|d| PageReference {
+                    title: d.title.clone(),
+                    route: d.route.clone(),
+                })
+                .collect(),
+            source_path: Some(format!("docs/{}", d.id.0)),
+            source_url: None,
             backlinks: knowledge
                 .backlinks(&d.id)
                 .iter()
@@ -103,6 +123,47 @@ pub(crate) fn project(knowledge: &KnowledgeBase) -> (SiteModel, GraphModel, Cont
                 .collect(),
         })
         .collect();
+    for directory in directory_routes(knowledge) {
+        if knowledge
+            .documents
+            .iter()
+            .any(|p| p.route.as_str().eq_ignore_ascii_case(directory.as_str()))
+        {
+            continue;
+        }
+        let html = format!(
+            "<ul>{}</ul>",
+            knowledge
+                .documents
+                .iter()
+                .filter(|d| d.route.as_str().starts_with(directory.as_str()))
+                .map(|d| format!(
+                    "<li><a href=\"{}\">{}</a></li>",
+                    escape(&relative_url(directory.as_str(), d.route.as_str())),
+                    escape(&d.title)
+                ))
+                .collect::<String>()
+        );
+        pages.push(SitePage {
+            route: directory.clone(),
+            title: humanize(
+                directory
+                    .as_str()
+                    .trim_matches('/')
+                    .rsplit('/')
+                    .next()
+                    .unwrap_or("Documentation"),
+            ),
+            html,
+            headings: Vec::new(),
+            metadata: DocumentMetadata::default(),
+            role: KnowledgeRole::Other,
+            backlinks: Vec::new(),
+            references: Vec::new(),
+            source_path: None,
+            source_url: None,
+        });
+    }
     if needs_index {
         let html = format!(
             "<p>Project documentation compiled from Markdown.</p><ul>{}</ul>",
@@ -126,6 +187,9 @@ pub(crate) fn project(knowledge: &KnowledgeBase) -> (SiteModel, GraphModel, Cont
                 metadata: DocumentMetadata::default(),
                 role: KnowledgeRole::Project,
                 backlinks: Vec::new(),
+                references: Vec::new(),
+                source_path: None,
+                source_url: None,
             },
         );
     }
@@ -157,6 +221,8 @@ pub(crate) fn project(knowledge: &KnowledgeBase) -> (SiteModel, GraphModel, Cont
                 headings: d.headings.clone(),
                 links: d.links.clone(),
                 backlinks: knowledge.backlinks(&d.id),
+                anchors: d.anchors.clone(),
+                repository_references: d.repository_references.clone(),
                 content: d.content.clone(),
             })
             .collect(),
@@ -169,6 +235,11 @@ pub(crate) fn project(knowledge: &KnowledgeBase) -> (SiteModel, GraphModel, Cont
             graph_route: "/__entwine/graph/".into(),
             knowledge_route: "/__entwine/knowledge/".into(),
             knowledge: knowledge_groups(knowledge),
+            repository_reference_count: knowledge
+                .documents
+                .iter()
+                .map(|d| d.repository_references.len())
+                .sum(),
         },
         graph,
         context,
@@ -207,6 +278,15 @@ pub fn context_markdown(context: &ContextModel) -> String {
             relation.source.0, relation.target.0
         ));
     }
+    output.push_str("\n## Repository references\n\n");
+    for document in &context.documents {
+        for reference in &document.repository_references {
+            output.push_str(&format!(
+                "- {}:{} → {} ({})\n",
+                reference.source.0, reference.line, reference.path, reference.destination
+            ));
+        }
+    }
     output.push_str("\n## Content\n");
     for document in &context.documents {
         output.push_str(&format!(
@@ -228,4 +308,99 @@ pub fn context_markdown(context: &ContextModel) -> String {
         output.push('\n');
     }
     output
+}
+
+fn directory_routes(knowledge: &KnowledgeBase) -> std::collections::BTreeSet<Route> {
+    knowledge
+        .documents
+        .iter()
+        .flat_map(|d| {
+            let parts: Vec<_> = d.id.0.split('/').collect();
+            (1..parts.len()).filter_map(move |i| {
+                Route::from_source(&format!("{}/index.md", parts[..i].join("/"))).ok()
+            })
+        })
+        .collect()
+}
+pub(crate) fn source_links(
+    site: &mut SiteModel,
+    knowledge: &KnowledgeBase,
+    docs: &std::path::Path,
+    repository: &std::path::Path,
+    source: Option<&RepositorySource>,
+) {
+    let prefix = docs
+        .strip_prefix(repository)
+        .unwrap_or(docs)
+        .to_string_lossy()
+        .replace('\\', "/");
+    for page in &mut site.pages {
+        if let Some(document) = knowledge.documents.iter().find(|d| d.route == page.route) {
+            let path = format!("{prefix}/{}", document.id.0);
+            page.source_path = Some(path.clone());
+            page.source_url = source
+                .filter(|s| s.files.as_ref().is_none_or(|files| files.contains(&path)))
+                .map(|s| crate::resolve::source_url(s, &path, ""));
+        }
+    }
+}
+
+/// An authored route such as /ROADMAP/ also owns a case-equivalent directory
+/// landing on portable hosts. Merge its leaf navigation into the directory group.
+fn merge_directory_entries(tree: &mut Tree) {
+    let groups: Vec<_> = tree
+        .children
+        .iter()
+        .filter(|(_, branch)| !branch.children.is_empty())
+        .map(|(name, _)| name.clone())
+        .collect();
+    for name in groups {
+        let leaf = tree
+            .children
+            .iter()
+            .find(|(other, branch)| {
+                *other != &name
+                    && other.eq_ignore_ascii_case(&name)
+                    && branch.children.is_empty()
+                    && branch.page.is_some()
+            })
+            .map(|(other, _)| other.clone());
+        if let Some(leaf) = leaf {
+            let page = tree.children.remove(&leaf).and_then(|branch| branch.page);
+            if let Some(group) = tree.children.get_mut(&name) {
+                if group.page.is_none() {
+                    group.page = page;
+                }
+            }
+        }
+    }
+    for branch in tree.children.values_mut() {
+        merge_directory_entries(branch);
+    }
+}
+
+#[cfg(test)]
+mod portable_directories {
+    use super::*;
+    #[test]
+    fn generated_case_variants_remain_visible_to_collision_validation() {
+        let documents = ["A/one.md", "a/two.md"]
+            .into_iter()
+            .map(|source| {
+                crate::markdown::finish(crate::markdown::parse(
+                    source,
+                    Route::from_source(source).unwrap(),
+                    "# Document",
+                    &mut Vec::new(),
+                ))
+            })
+            .collect();
+        let knowledge = KnowledgeBase {
+            documents,
+            relations: Vec::new(),
+        };
+        let site = project(&knowledge).0;
+        assert!(site.pages.iter().any(|p| p.route.as_str() == "/A/"));
+        assert!(site.pages.iter().any(|p| p.route.as_str() == "/a/"));
+    }
 }

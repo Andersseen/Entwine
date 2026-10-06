@@ -4,21 +4,20 @@ This page describes future intent. The [current state](state.md) lists what work
 
 ## Next
 
-Make 0.1 trustworthy in real repositories and publish it.
+Continue collecting evidence from real adopters of the standalone compiler.
 
-- Publish the first release so generated CI can install `@entwine/cli` from npm,
-  then run the generated GitHub, GitLab, and Bitbucket pipelines on real
-  repositories and fix what they reveal.
-- Resolve the gaps found by running `entwine check` on ForgeCMS, Flowview, and
-  Agentyx. Links from docs to repository files outside `docs/` (such as
-  `../CLAUDE.md` or `../apps/...`), links to raw-HTML anchors
-  (`<a id="...">`), and links to a directory without an index page are all
-  errors today and are the most common blockers. A `docs/README.md` entry point
-  is not yet recognized as the project role. Decide each deliberately; the
-  regression tests in `crates/entwine-engine/tests/compilation.rs` pin current
-  behavior.
-- Improve graph readability beyond roughly 50 documents, where the fixed radial
-  layout produces a wide canvas that the text relationship list serves better.
+- Run the generated GitHub Pages, GitLab Pages, and Bitbucket pipelines in
+  dedicated provider repositories. Local contract tests do not replace hosted
+  provider execution.
+- Measure dense relationship graphs and deeply nested trees beyond the current
+  1,000-document baseline. Preserve complete static text views and simple full
+  rebuilds unless evidence demonstrates a need for more complexity.
+- Evaluate additional repository reference types (directories and images outside
+  `docs/`) only when useful source-link behavior can be specified safely.
+- Keep improving diagnostics from consumer reports and track context 0.3 adoption.
+
+The [hardening evidence](hardening.md) records completed compatibility fixes,
+measurements, provider evidence, and remaining limits.
 
 ## Later
 

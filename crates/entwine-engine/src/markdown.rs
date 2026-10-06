@@ -91,14 +91,58 @@ pub(crate) fn parse(
     let mut link_events = Vec::new();
     let mut image_events = Vec::new();
     let mut heading: Option<(usize, u8, String)> = None;
-    let mut used_ids = BTreeSet::new();
-    for (event, range) in Parser::new_ext(
-        body,
-        Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH | Options::ENABLE_TASKLISTS,
-    )
-    .into_offset_iter()
-    {
-        let line = line_offset + 1 + body[..range.start].bytes().filter(|b| *b == b'\n').count();
+    let mut used_ids = BTreeSet::from(["main".to_string()]);
+    let mut anchors = Vec::new();
+    let options =
+        Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH | Options::ENABLE_TASKLISTS;
+    let mut raw = Parser::new_ext(body, options).into_offset_iter().peekable();
+    let mut parsed_events = Vec::new();
+    while let Some((event, mut range)) = raw.next() {
+        // CommonMark emits a standalone empty <a> as two inline HTML tokens.
+        let event = match &event {
+            Event::InlineHtml(open)
+                if raw.peek().is_some_and(|(next, next_range)| {
+                    matches!(next, Event::InlineHtml(close) if close.as_ref() == "</a>")
+                        && range.end == next_range.start
+                }) =>
+            {
+                let combined = format!("{open}</a>");
+                if explicit_anchor(&combined).is_some() {
+                    range.end = raw.next().unwrap().1.end;
+                    Event::Html(CowStr::from(combined))
+                } else {
+                    event
+                }
+            }
+            _ => event,
+        };
+        parsed_events.push((event, range));
+    }
+    // Reserve explicit anchor IDs before heading slugs, regardless of source order.
+    for (event, range) in &parsed_events {
+        if let Event::Html(text) | Event::InlineHtml(text) = event {
+            if let Some(id) = explicit_anchor(text) {
+                if used_ids.insert(id.clone()) {
+                    anchors.push(id);
+                } else {
+                    diagnostics.push(error(
+                        source,
+                        Some(
+                            line_offset
+                                + 1
+                                + body[..range.start].bytes().filter(|b| *b == b'\n').count(),
+                        ),
+                        format!("Duplicate or reserved explicit anchor #{id}"),
+                    ));
+                }
+            }
+        }
+    }
+    let line_starts: Vec<_> = std::iter::once(0)
+        .chain(body.match_indices('\n').map(|(i, _)| i + 1))
+        .collect();
+    for (event, range) in parsed_events {
+        let line = line_offset + line_starts.partition_point(|start| *start <= range.start);
         match &event {
             Event::Start(Tag::Heading { level, .. }) => {
                 heading = Some((events.len(), *level as u8, String::new()))
@@ -147,7 +191,13 @@ pub(crate) fn parse(
         }
         // Raw HTML is displayed as text; scripts and arbitrary author markup never execute.
         events.push(match event {
-            Event::Html(text) | Event::InlineHtml(text) => Event::Text(text.into_static()),
+            Event::Html(text) | Event::InlineHtml(text) => {
+                if let Some(id) = explicit_anchor(&text) {
+                    Event::Html(CowStr::from(format!("<span id=\"{id}\"></span>")))
+                } else {
+                    Event::Text(text.into_static())
+                }
+            }
             other => other.into_static(),
         });
     }
@@ -165,7 +215,9 @@ pub(crate) fn parse(
             role,
             headings,
             links,
-            content: body.into(),
+            anchors,
+            repository_references: Vec::new(),
+            content: text.into(),
             html: String::new(),
         },
         events,
@@ -193,6 +245,11 @@ fn slug(text: &str) -> String {
 
 pub(crate) fn finish(mut parsed: Parsed) -> Document {
     html::push_html(&mut parsed.document.html, parsed.events.into_iter());
+    parsed.document.html = parsed
+        .document
+        .html
+        .replace("<pre>", "<pre tabindex=\"0\">")
+        .replace("<table>", "<table tabindex=\"0\">");
     parsed.document
 }
 
@@ -202,4 +259,27 @@ pub(crate) fn role_of(source: &str, text: &str) -> KnowledgeRole {
     let mut ignored = Vec::new();
     let (metadata, _, _) = frontmatter(source, text, &mut ignored);
     classify(source, metadata.kind.as_deref()).0
+}
+
+/// Only an empty anchor with one quoted id/name attribute is accepted.
+/// No URLs, other attributes, content, entities, or arbitrary HTML are interpreted.
+fn explicit_anchor(text: &str) -> Option<String> {
+    let text = text.trim();
+    let inner = text.strip_prefix("<a ")?.strip_suffix("></a>")?.trim();
+    let value = inner
+        .strip_prefix("id=")
+        .or_else(|| inner.strip_prefix("name="))?;
+    let quote = value.chars().next()?;
+    if quote != '\'' && quote != '"' {
+        return None;
+    }
+    let id = value.strip_prefix(quote)?.strip_suffix(quote)?;
+    if id.is_empty()
+        || !id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "-_:.".contains(c))
+    {
+        return None;
+    }
+    Some(id.to_string())
 }

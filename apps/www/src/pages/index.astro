@@ -1,4 +1,7 @@
 ---
+import packageJson from "../../package.json";
+
+const version = packageJson.version;
 const repository = "https://github.com/Andersseen/Entwine";
 const steps = [
   [
@@ -30,6 +33,22 @@ const providers = [
       content="Entwine turns repository Markdown into static documentation, relationships, backlinks, a graph, validation, and structured context."
     />
     <title>Entwine — project knowledge, connected.</title>
+    <link rel="canonical" href="https://entwine.andersseen.dev/" />
+    <meta
+      property="og:title"
+      content="Entwine — Project knowledge, connected."
+    />
+    <meta
+      property="og:description"
+      content="One source of project knowledge, for humans and agents. Markdown → Docs + Graph + Context."
+    />
+    <meta property="og:url" content="https://entwine.andersseen.dev/" />
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:image"
+      content="https://entwine.andersseen.dev/logo.png"
+    />
+    <meta name="twitter:card" content="summary" />
     <link rel="icon" type="image/png" href="/logo.png" />
   </head>
   <body>
@@ -49,10 +68,10 @@ const providers = [
         <a href={repository}>GitHub</a>
       </nav>
     </header>
-    <main id="main">
+    <main id="main" tabindex="-1">
       <section class="hero">
         <div class="intro">
-          <p class="release">Open source / Experimental 0.1.0</p>
+          <p class="release">Open source / Experimental {version}</p>
           <h1>
             Project knowledge,
             <br />
@@ -64,14 +83,17 @@ const providers = [
             context.
           </p>
           <p class="actions">
-            <a class="button" href="/docs/">
-              Read the documentation
+            <a class="button" href="#start">
+              Get started
             </a>
             <a class="button secondary" href="/demo/">
-              See a live example
+              Live demo → documentation
             </a>
             <a class="button secondary" href="/demo/__entwine/graph/">
-              Open a project graph
+              Graph → relationships
+            </a>
+            <a class="button secondary" href="/demo/__entwine/knowledge/">
+              Knowledge → coverage
             </a>
           </p>
           <p class="promise">
@@ -197,11 +219,11 @@ Docs + Graph + Context</code></pre>
             <code>entwine build</code> remains available for any custom hosting.
           </p>
           <p>
-            Entwine 0.1.0 is not published yet. Until its first release, build
-            from a <a href={repository}>source checkout</a> with Rust stable.
-            Releases will provide <code>npm install --global @entwine/cli</code>
-            and checksummed binaries on
-            <a href={`${repository}/releases`}>GitHub Releases</a>.
+            Install Entwine {version} from npm, or download a native binary for
+            Linux x86_64, macOS arm64/x86_64, or Windows x86_64 from
+            <a href={`${repository}/releases`}>GitHub Releases</a>. Verify
+            native archives against the release’s SHA256SUMS. Binaries are
+            unsigned; Entwine remains pre-1.0.
           </p>
           <dl class="steps">
             {steps.map(([command, description]) => (
@@ -215,8 +237,8 @@ Docs + Graph + Context</code></pre>
           </dl>
         </div>
         <div class="terminal">
-          <pre><code># From a source checkout of Entwine
-cargo install --path crates/entwine-cli
+          <pre><code># Install the native CLI through npm
+npm install --global @entwine/cli
 
 # In your own repository
 entwine init
@@ -282,7 +304,7 @@ entwine build</code></pre>
       <aside class="experimental">
         <strong>A deliberate first release.</strong>
         <p>
-          Entwine 0.1.0 is experimental and pre-stable. APIs and the context
+          Entwine {version} is experimental and pre-stable. APIs and the context
           schema may change before 1.0. There is no search, plugin system, or
           interactive graph physics. The Knowledge Convention is an open
           proposal that has to earn adoption, not a standard.

@@ -53,7 +53,10 @@ fn tree(root: &Path) -> BTreeMap<String, Vec<u8>> {
                 walk(root, &path, out);
             } else {
                 out.insert(
-                    path.strip_prefix(root).unwrap().to_string_lossy().into(),
+                    path.strip_prefix(root)
+                        .unwrap()
+                        .to_string_lossy()
+                        .replace('\\', "/"),
                     fs::read(&path).unwrap(),
                 );
             }
@@ -166,7 +169,7 @@ fn context_json_exposes_roles_under_an_explicit_schema_version() {
     let out = entwine(temp.path(), &["context", "--json"]);
     assert!(out.status.success());
     let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
-    assert_eq!(json["schema_version"], "0.2");
+    assert_eq!(json["schema_version"], "0.3");
     let role = |id: &str| {
         json["documents"]
             .as_array()
@@ -431,7 +434,7 @@ fn dry_run_describes_the_plan_and_changes_nothing() {
         assert!(
             text.contains("Would create:")
                 && text.contains("Triggers:")
-                && text.contains("docs/**"),
+                && text.contains("entwine check"),
             "{text}"
         );
         assert!(text.contains("No files changed."));
@@ -478,7 +481,8 @@ fn github_workflow_is_valid_least_privilege_and_does_not_deploy_pull_requests() 
     for event in ["pull_request", "push"] {
         let paths = doc["on"][event]["paths"].as_sequence().unwrap();
         assert_eq!(paths[0], "docs/**");
-        assert_eq!(paths[1], ".github/workflows/entwine.yml");
+        assert_eq!(paths[1], "**");
+        assert_eq!(paths[2], ".github/workflows/entwine.yml");
     }
     for action in [
         "actions/checkout@v",
@@ -688,4 +692,21 @@ fn generated_files_match_golden_snapshots_and_are_deterministic() {
             "{name}; set ENTWINE_UPDATE_GOLDEN=1 to refresh"
         );
     }
+}
+
+#[test]
+fn init_accepts_readme_entrypoint_without_creating_a_competing_index() {
+    let temporary = tempfile::tempdir().unwrap();
+    write(temporary.path(), "docs/README.md", "# Existing project\n");
+    let output = entwine(temporary.path(), &["init", "--yes"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert!(!temporary.path().join("docs/index.md").exists());
+    assert_eq!(
+        fs::read_to_string(temporary.path().join("docs/README.md")).unwrap(),
+        "# Existing project\n"
+    );
+    assert!(temporary.path().join("docs/architecture.md").is_file());
+    let output = entwine(temporary.path(), &["check"]);
+    assert!(output.status.success());
+    assert!(stderr(&output).contains("docs/README.md"));
 }

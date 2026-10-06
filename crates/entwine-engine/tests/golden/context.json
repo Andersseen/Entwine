@@ -1,0 +1,151 @@
+{
+  "schema_version": "0.3",
+  "documents": [
+    {
+      "id": "architecture.md",
+      "title": "Architecture",
+      "route": "/architecture/",
+      "metadata": {
+        "title": null,
+        "type": null,
+        "status": null
+      },
+      "role": "architecture",
+      "headings": [
+        {
+          "level": 1,
+          "text": "Architecture",
+          "id": "architecture"
+        }
+      ],
+      "links": [
+        {
+          "destination": "index.md",
+          "line": 3,
+          "target": "index.md",
+          "href": "../"
+        },
+        {
+          "destination": "specs/auth.md#boundary",
+          "line": 3,
+          "target": "specs/auth.md",
+          "href": "../specs/auth/#boundary"
+        }
+      ],
+      "backlinks": [
+        "index.md",
+        "specs/auth.md"
+      ],
+      "anchors": [],
+      "repository_references": [],
+      "content": "# Architecture\n\n[Home](index.md) [Spec](specs/auth.md#boundary)\n"
+    },
+    {
+      "id": "index.md",
+      "title": "Project",
+      "route": "/",
+      "metadata": {
+        "title": null,
+        "type": null,
+        "status": null
+      },
+      "role": "project",
+      "headings": [
+        {
+          "level": 1,
+          "text": "Project",
+          "id": "project"
+        }
+      ],
+      "links": [
+        {
+          "destination": "architecture.md",
+          "line": 3,
+          "target": "architecture.md",
+          "href": "architecture/"
+        },
+        {
+          "destination": "specs/",
+          "line": 3,
+          "target": null,
+          "href": "specs/"
+        },
+        {
+          "destination": "../README.md",
+          "line": 3,
+          "target": null,
+          "href": ""
+        }
+      ],
+      "backlinks": [
+        "architecture.md"
+      ],
+      "anchors": [],
+      "repository_references": [
+        {
+          "path": "README.md",
+          "source": "index.md",
+          "line": 3,
+          "destination": "../README.md"
+        }
+      ],
+      "content": "# Project\n\n[Architecture](architecture.md) [Specs](specs/) [Repository](../README.md)\n"
+    },
+    {
+      "id": "specs/auth.md",
+      "title": "Authentication",
+      "route": "/specs/auth/",
+      "metadata": {
+        "title": null,
+        "type": null,
+        "status": null
+      },
+      "role": "spec",
+      "headings": [
+        {
+          "level": 1,
+          "text": "Authentication",
+          "id": "authentication"
+        }
+      ],
+      "links": [
+        {
+          "destination": "../architecture.md",
+          "line": 5,
+          "target": "architecture.md",
+          "href": "../../architecture/"
+        }
+      ],
+      "backlinks": [
+        "architecture.md"
+      ],
+      "anchors": [
+        "boundary"
+      ],
+      "repository_references": [],
+      "content": "# Authentication\n\n<a id=\"boundary\"></a>\n\n[Architecture](../architecture.md)\n"
+    }
+  ],
+  "relationships": [
+    {
+      "source": "architecture.md",
+      "target": "index.md",
+      "kind": "references"
+    },
+    {
+      "source": "architecture.md",
+      "target": "specs/auth.md",
+      "kind": "references"
+    },
+    {
+      "source": "index.md",
+      "target": "architecture.md",
+      "kind": "references"
+    },
+    {
+      "source": "specs/auth.md",
+      "target": "architecture.md",
+      "kind": "references"
+    }
+  ]
+}

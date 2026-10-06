@@ -10,6 +10,7 @@ pipelines:
             changesets:
               includePaths:
                 - "docs/**"
+                - "**" # Repository references may change outside docs/.
           script:
             - npm install --global "@entwine/cli@{{VERSION}}"
             - entwine check
@@ -22,6 +23,7 @@ pipelines:
             changesets:
               includePaths:
                 - "docs/**"
+                - "**" # Repository references may change outside docs/.
           script:
             - npm install --global "@entwine/cli@{{VERSION}}"
             - entwine check
@@ -34,11 +36,18 @@ pipelines:
                 echo "ENTWINE_SITE_TOKEN is not set. See the Entwine deployment documentation." >&2
                 exit 1
               fi
+              # Provider variables are data, never executable shell or path traversal.
+              for value in "$BITBUCKET_WORKSPACE" "$BITBUCKET_REPO_SLUG"; do
+                case "$value" in
+                  ""|*[!a-zA-Z0-9_-]*|-*) echo "Invalid Bitbucket workspace or repository slug" >&2; exit 1 ;;
+                esac
+              done
               DIST="$BITBUCKET_CLONE_DIR/dist"
               SITE="$HOME/entwine-site"
               ASKPASS="$HOME/entwine-askpass.sh"
               printf '#!/bin/sh\ncase "$1" in Username*) echo x-token-auth ;; *) echo "$ENTWINE_SITE_TOKEN" ;; esac\n' > "$ASKPASS"
               chmod 700 "$ASKPASS"
+              trap 'rm -f "$ASKPASS"' EXIT
               export GIT_ASKPASS="$ASKPASS" GIT_TERMINAL_PROMPT=0
               git clone --depth 1 "https://bitbucket.org/${BITBUCKET_WORKSPACE}/${BITBUCKET_WORKSPACE}.bitbucket.io.git" "$SITE"
               rm -rf "$SITE/$BITBUCKET_REPO_SLUG"

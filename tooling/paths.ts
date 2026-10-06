@@ -32,4 +32,6 @@ export const required = [
   "demo/__entwine/graph/index.html",
   "demo/__entwine/knowledge/index.html",
   "demo/design/data-model/index.html",
+  "demo/design/index.html",
+  "demo/operations/index.html",
 ] as const;

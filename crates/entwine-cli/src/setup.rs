@@ -105,16 +105,13 @@ fn plan(
             },
         }
     };
-    let docs = format!("{}docs/**", layout.prefix);
     match provider {
         Provider::GitHub => Plan {
             provider,
             changes: vec![file_change(ci::GITHUB_PATH, ci::github(version, layout))],
             triggers: vec![
-                format!("pull requests touching {docs}  → entwine check"),
-                format!(
-                    "pushes to the default branch touching {docs}  → check, build, GitHub Pages"
-                ),
+                "pull requests changing repository files  → entwine check".into(),
+                "pushes to the default branch  → check, build, GitHub Pages".into(),
             ],
             next_steps: vec![
                 "In the repository, open Settings → Pages and set Source to \"GitHub Actions\"."
@@ -157,8 +154,8 @@ fn plan(
                 provider,
                 changes,
                 triggers: vec![
-                    format!("merge requests touching {docs}  → entwine check"),
-                    format!("default branch pipelines touching {docs}  → check, build, GitLab Pages"),
+                    "merge requests changing repository files  → entwine check".into(),
+                    "default branch pipelines  → check, build, GitLab Pages".into(),
                 ],
                 next_steps: vec![
                     "GitLab Pages must be enabled for the project or instance (requires GitLab 17.10 or later).".into(),
@@ -212,8 +209,8 @@ fn plan(
                 provider,
                 changes,
                 triggers: vec![
-                    format!("pull requests touching {docs}  → entwine check"),
-                    format!("pushes to {default_branch} touching {docs}  → check, build, publish to <workspace>.bitbucket.io/<repository>/"),
+                    "pull requests changing repository files  → entwine check".into(),
+                    format!("pushes to {default_branch}  → check, build, publish to <workspace>.bitbucket.io/<repository>/"),
                 ],
                 next_steps: vec![
                     "Bitbucket static hosting serves one site per workspace, from a repository named <workspace>.bitbucket.io (main branch).".into(),
@@ -342,7 +339,7 @@ pub(crate) fn run(project: &Path, options: &Options) -> Result<(), Box<dyn std::
     for step in &plan.next_steps {
         println!("  {step}");
     }
-    println!("\nGenerated pipelines install @entwine/cli@{version}. Until that version is published, edit the install line.");
+    println!("\nGenerated pipelines pin @entwine/cli@{version}. Commit the generated files to enable validation.");
     println!(
         "To remove this setup, delete the generated files. `entwine build` still produces dist/."
     );

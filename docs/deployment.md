@@ -57,18 +57,17 @@ embedded in CI configuration are refused.
 
 All generated pipelines do the same thing:
 
-- A pull or merge request changing `docs/**` runs `entwine check`. Validation errors
+- A pull or merge request changing repository files runs `entwine check`. Validation errors
   fail it. Missing recommended knowledge areas stay warnings.
-- The default branch, on a change to `docs/**` (or the generated file itself), runs
+- The default branch, on repository changes, runs
   `entwine check`, then `entwine build`, then publishes that same built artifact.
 - Pull requests are never published.
 
 Generated files install `@entwine/cli` pinned to the version of the CLI that wrote
 them, through a single clearly marked install line and version variable. If you
 use a different installation path, such as a release binary, change that line.
-The release automation publishes npm packages and GitHub Release binaries, but
-no release exists yet at this milestone, so the pinned version will not install
-until the first release is published.
+Version 0.1.0 is published on npm and GitHub Releases. Generated setup pins the
+CLI version for reproducible builds.
 
 ### GitHub Pages
 
@@ -159,3 +158,7 @@ repository: the Astro website at `/`, these docs at `/docs/`, and the kitchen-si
 demo at `/demo/`. That is the project's own choice. It is unrelated to what
 `entwine setup` generates for your repository. See [the architecture](architecture.md) for
 the output model.
+
+Generated validation also runs for repository-file changes outside `docs/`, because
+those files can be targets of repository references. Publishing remains restricted
+to the default branch.

@@ -46,10 +46,14 @@ on:
   pull_request:
     paths:
       - "__PREFIX__docs/**"
+      # Repository references may change anywhere in the work tree.
+      - "**"
       - ".github/workflows/entwine.yml"
   push:
     paths:
       - "__PREFIX__docs/**"
+      # Repository references may change anywhere in the work tree.
+      - "**"
       - ".github/workflows/entwine.yml"
   workflow_dispatch:
 
@@ -118,6 +122,7 @@ entwine:check:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
         - __PREFIX__docs/**/*
+        - "**/*" # Repository references may change outside docs/.
         - .gitlab/ci/entwine.yml
   script:
     - npm install --global "@entwine/cli@${ENTWINE_VERSION}"
@@ -131,6 +136,7 @@ entwine:build:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
         - __PREFIX__docs/**/*
+        - "**/*" # Repository references may change outside docs/.
         - .gitlab/ci/entwine.yml
   script:
     - npm install --global "@entwine/cli@${ENTWINE_VERSION}"
@@ -151,6 +157,7 @@ entwine:pages:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
         - __PREFIX__docs/**/*
+        - "**/*" # Repository references may change outside docs/.
         - .gitlab/ci/entwine.yml
   script:
     - echo "Publishing the Entwine build validated in entwine:build"
@@ -176,6 +183,7 @@ pub(crate) fn bitbucket(version: &str, layout: &Layout, default_branch: &str) ->
             changesets:
               includePaths:
                 - "__PREFIX__docs/**"
+                - "**" # Repository references may change outside docs/.
           script:
             - npm install --global "@entwine/cli@__VERSION__"
             - entwine check__PROJECT__
@@ -188,6 +196,7 @@ pub(crate) fn bitbucket(version: &str, layout: &Layout, default_branch: &str) ->
             changesets:
               includePaths:
                 - "__PREFIX__docs/**"
+                - "**" # Repository references may change outside docs/.
           script:
             - npm install --global "@entwine/cli@__VERSION__"
             - entwine check__PROJECT__
@@ -200,11 +209,18 @@ pub(crate) fn bitbucket(version: &str, layout: &Layout, default_branch: &str) ->
                 echo "ENTWINE_SITE_TOKEN is not set. See the Entwine deployment documentation." >&2
                 exit 1
               fi
+              # Provider variables are data, never executable shell or path traversal.
+              for value in "$BITBUCKET_WORKSPACE" "$BITBUCKET_REPO_SLUG"; do
+                case "$value" in
+                  ""|*[!a-zA-Z0-9_-]*|-*) echo "Invalid Bitbucket workspace or repository slug" >&2; exit 1 ;;
+                esac
+              done
               DIST="$BITBUCKET_CLONE_DIR/__PREFIX__dist"
               SITE="$HOME/entwine-site"
               ASKPASS="$HOME/entwine-askpass.sh"
               printf '#!/bin/sh\ncase "$1" in Username*) echo x-token-auth ;; *) echo "$ENTWINE_SITE_TOKEN" ;; esac\n' > "$ASKPASS"
               chmod 700 "$ASKPASS"
+              trap 'rm -f "$ASKPASS"' EXIT
               export GIT_ASKPASS="$ASKPASS" GIT_TERMINAL_PROMPT=0
               git clone --depth 1 "https://bitbucket.org/${BITBUCKET_WORKSPACE}/${BITBUCKET_WORKSPACE}.bitbucket.io.git" "$SITE"
               rm -rf "$SITE/$BITBUCKET_REPO_SLUG"

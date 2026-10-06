@@ -10,7 +10,7 @@ mod setup;
 mod templates;
 use clap::{Parser, Subcommand};
 use entwine_core::DiagnosticSeverity;
-use entwine_engine::{compile, context_json, context_markdown, Compilation};
+use entwine_engine::{compile_with_source, context_json, context_markdown, Compilation};
 use std::{
     io::{self, Write},
     path::{Path, PathBuf},
@@ -90,12 +90,22 @@ fn diagnostics(compilation: &Compilation) {
         let line = diagnostic.line.map_or(String::new(), |l| format!(":{l}"));
         eprintln!(
             "{severity}: docs/{}{line}: {}",
-            diagnostic.source, diagnostic.message
+            diagnostic.source.trim_start_matches("docs/"),
+            diagnostic.message
         );
     }
 }
+fn compile_project(project: &Path) -> io::Result<Compilation> {
+    let repository = provider::inspect(project);
+    let source = provider::source(&repository);
+    compile_with_source(
+        project,
+        repository.root.as_deref().unwrap_or(project),
+        source.as_ref(),
+    )
+}
 fn checked(project: &Path) -> Result<Compilation, Box<dyn std::error::Error>> {
-    let compilation = compile(project)?;
+    let compilation = compile_project(project)?;
     diagnostics(&compilation);
     if compilation.has_errors() {
         return Err("Documentation validation failed; output was not changed".into());
@@ -104,7 +114,7 @@ fn checked(project: &Path) -> Result<Compilation, Box<dyn std::error::Error>> {
 }
 fn summary(compilation: &Compilation) {
     eprintln!(
-        "Entwine\n\n✓ {} documents\n✓ {} internal links\n✓ {} relationships",
+        "Entwine\n\n✓ {} documents\n✓ {} internal links\n✓ {} relationships\n✓ {} repository references",
         compilation.knowledge.documents.len(),
         compilation
             .knowledge
@@ -113,7 +123,8 @@ fn summary(compilation: &Compilation) {
             .flat_map(|d| &d.links)
             .filter(|l| l.target.is_some())
             .count(),
-        compilation.knowledge.relations.len()
+        compilation.knowledge.relations.len(),
+        compilation.knowledge.documents.iter().map(|d| d.repository_references.len()).sum::<usize>()
     );
 }
 fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {

@@ -14,6 +14,7 @@ entwine:check:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       changes:
         - docs/**/*
+        - "**/*" # Repository references may change outside docs/.
         - .gitlab/ci/entwine.yml
   script:
     - npm install --global "@entwine/cli@${ENTWINE_VERSION}"
@@ -27,6 +28,7 @@ entwine:build:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
         - docs/**/*
+        - "**/*" # Repository references may change outside docs/.
         - .gitlab/ci/entwine.yml
   script:
     - npm install --global "@entwine/cli@${ENTWINE_VERSION}"
@@ -47,6 +49,7 @@ entwine:pages:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes:
         - docs/**/*
+        - "**/*" # Repository references may change outside docs/.
         - .gitlab/ci/entwine.yml
   script:
     - echo "Publishing the Entwine build validated in entwine:build"

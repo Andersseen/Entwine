@@ -1,10 +1,11 @@
 use crate::{error, markdown::Parsed};
 use entwine_core::*;
 use percent_encoding::{percent_decode_str, utf8_percent_encode, NON_ALPHANUMERIC};
-use pulldown_cmark::{CowStr, Event, Tag};
+use pulldown_cmark::{CowStr, Event, Tag, TagEnd};
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::Path;
 
-type Targets = BTreeMap<String, (DocumentId, Route, Vec<Heading>)>;
+type Targets = BTreeMap<String, (DocumentId, Route, Vec<String>)>;
 const URL_SEGMENT: &percent_encoding::AsciiSet = &NON_ALPHANUMERIC
     .remove(b'.')
     .remove(b'-')
@@ -108,8 +109,22 @@ fn resolve(
         .or_else(|| targets.get(&format!("{normalized}.md")))
         .or_else(|| targets.get(&format!("{}/index.md", normalized.trim_end_matches('/'))))
         .or_else(|| {
+            // Authored routes win over generated case-equivalent directory indexes.
+            if targets
+                .keys()
+                .any(|id| id.starts_with(&(normalized.clone() + "/")))
+            {
+                let directory = format!("/{}/", normalized.trim_matches('/'));
+                targets
+                    .values()
+                    .find(|(_, route, _)| route.as_str().eq_ignore_ascii_case(&directory))
+            } else {
+                None
+            }
+        })
+        .or_else(|| {
             if normalized.is_empty() {
-                targets.get("index.md")
+                targets.get("index.md").or_else(|| targets.get("README.md"))
             } else {
                 None
             }
@@ -120,19 +135,29 @@ fn resolve(
                 let decoded = percent_decode_str(anchor)
                     .decode_utf8()
                     .map_err(|_| "Anchor is not valid UTF-8".to_string())?;
-                if !headings.iter().any(|h| h.id == decoded) {
-                    return Err(format!("Broken heading anchor #{anchor} in {normalized}"));
+                if !headings.iter().any(|h| h == &decoded) {
+                    return Err(format!("Broken heading anchor #{anchor}: document {normalized} exists, but this anchor does not"));
                 }
             }
             (
                 relative_url(route.as_str(), target_route.as_str()),
                 Some(id.clone()),
             )
-        } else if normalized.is_empty() {
+        } else if normalized.is_empty()
+            || targets
+                .keys()
+                .any(|id| id.starts_with(&(normalized.clone() + "/")))
+        {
             if anchor.is_some_and(|a| !a.is_empty()) {
                 return Err("Generated landing page has no heading anchors".into());
             }
-            (relative_url(route.as_str(), "/"), None)
+            (
+                relative_url(
+                    route.as_str(),
+                    &format!("/{}/", normalized.trim_matches('/')),
+                ),
+                None,
+            )
         } else if assets.contains(&normalized) {
             (relative_url(route.as_str(), &normalized), None)
         } else {
@@ -156,13 +181,25 @@ fn resolve(
     Ok((href, id))
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn links(
     parsed: &mut Parsed,
     targets: &Targets,
     assets: &BTreeSet<String>,
+    docs: &Path,
+    repository: &Path,
+    source: Option<&RepositorySource>,
+    dependencies: &mut Vec<String>,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     for (link, index) in parsed.document.links.iter_mut().zip(&parsed.link_events) {
+        let reference = repository_reference(
+            docs,
+            repository,
+            &parsed.document.id.0,
+            &link.destination,
+            dependencies,
+        );
         match resolve(
             &parsed.document.id.0,
             &parsed.document.route,
@@ -176,8 +213,45 @@ pub(crate) fn links(
                 link.target = target;
             }
             Err(message) => {
-                diagnostics.push(error(&parsed.document.id.0, Some(link.line), message));
-                link.href = "#".into();
+                match reference {
+                    Ok(Some(path)) => {
+                        let source = source
+                            .filter(|s| s.files.as_ref().is_none_or(|files| files.contains(&path)));
+                        link.href = source
+                            .map(|s| source_url(s, &path, &link.destination))
+                            .unwrap_or_default();
+                        parsed
+                            .document
+                            .repository_references
+                            .push(RepositoryReference {
+                                path: path.clone(),
+                                source: parsed.document.id.clone(),
+                                line: link.line,
+                                destination: link.destination.clone(),
+                            });
+                        if source.is_none() {
+                            parsed.events[*index] = Event::Html(CowStr::from(format!("<span class=\"repository-reference\" title=\"Repository file: {}\">", crate::render::escape(&path))));
+                            if let Some(end) =
+                                parsed.events.iter().enumerate().skip(index + 1).find_map(
+                                    |(i, e)| matches!(e, Event::End(TagEnd::Link)).then_some(i),
+                                )
+                            {
+                                parsed.events[end] = Event::Html(CowStr::from(format!(
+                                    " <code>{}</code></span>",
+                                    crate::render::escape(&path)
+                                )));
+                            }
+                        }
+                    }
+                    Ok(None) => {
+                        diagnostics.push(error(&parsed.document.id.0, Some(link.line), message));
+                        link.href = "#".into();
+                    }
+                    Err(message) => {
+                        diagnostics.push(error(&parsed.document.id.0, Some(link.line), message));
+                        link.href = "#".into();
+                    }
+                }
             }
         }
         if let Some(Event::Start(Tag::Link { dest_url, .. })) = parsed.events.get_mut(*index) {
@@ -202,4 +276,97 @@ pub(crate) fn links(
             }
         }
     }
+}
+
+fn repository_reference(
+    docs: &Path,
+    repository: &Path,
+    source: &str,
+    destination: &str,
+    dependencies: &mut Vec<String>,
+) -> Result<Option<String>, String> {
+    if destination.starts_with('/') || destination.contains(':') {
+        return Ok(None);
+    }
+    let path = destination.split(['#', '?']).next().unwrap_or("");
+    if path.is_empty() {
+        return Ok(None);
+    }
+    let decoded = percent_decode_str(path)
+        .decode_utf8()
+        .map_err(|_| "Link path is not valid UTF-8")?;
+    if decoded.contains('\\') || decoded.chars().any(|c| c.is_control() || c == ':') {
+        return Err("Invalid repository reference path".into());
+    }
+    let relative = docs
+        .strip_prefix(repository)
+        .map_err(|_| "Documentation is outside the repository")?;
+    let mut parts: Vec<String> = relative
+        .iter()
+        .map(|p| p.to_string_lossy().into_owned())
+        .collect();
+    parts.extend(
+        source
+            .split('/')
+            .rev()
+            .skip(1)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .map(str::to_string),
+    );
+    for part in decoded.split('/') {
+        match part {
+            "" | "." => {}
+            ".." => {
+                if parts.pop().is_none() {
+                    return Err("Link traverses outside the repository".into());
+                }
+            }
+            value => parts.push(value.into()),
+        }
+    }
+    let mut target = repository.to_path_buf();
+    for part in &parts {
+        target.push(part);
+        if std::fs::symlink_metadata(&target).is_ok_and(|m| m.file_type().is_symlink()) {
+            return Err("Repository reference crosses a symbolic link; use regular files".into());
+        }
+    }
+    if target.starts_with(docs) {
+        return Ok(None);
+    }
+    dependencies.push(parts.join("/"));
+    if target.is_dir() {
+        return Err(format!("Repository reference points to a directory: {}; link to a regular file such as its README instead", parts.join("/")));
+    }
+    if !target.is_file() {
+        return Err(format!(
+            "Repository file does not exist: {}",
+            parts.join("/")
+        ));
+    }
+    Ok(Some(parts.join("/")))
+}
+
+pub(crate) fn source_url(source: &RepositorySource, path: &str, destination: &str) -> String {
+    let mut url = source.file_base_url.clone();
+    url.push_str(
+        &path
+            .split('/')
+            .map(|p| utf8_percent_encode(p, URL_SEGMENT).to_string())
+            .collect::<Vec<_>>()
+            .join("/"),
+    );
+    if let Some((_, fragment)) = destination.split_once('#') {
+        url.push('#');
+        url.push_str(
+            &utf8_percent_encode(
+                &percent_decode_str(fragment).decode_utf8_lossy(),
+                URL_SEGMENT,
+            )
+            .to_string(),
+        );
+    }
+    url
 }

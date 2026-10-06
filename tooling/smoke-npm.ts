@@ -49,8 +49,16 @@ try {
   const pack = (dir: string): string =>
     join(dir, run(dir, "pack", "--silent").trim().split("\n").pop() ?? "");
   const platformTarball = pack(join(work, "platform"));
+  // Keep this smoke offline and limited to the host tarball. The separate
+  // public-consumer matrix exercises registry distribution on every native OS.
+  const manifestPath = join(work, "main/package.json");
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as Record<
+    string,
+    unknown
+  >;
+  manifest.optionalDependencies = { [platformPackage(target)]: version };
+  writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
   const mainTarball = pack(join(work, "main"));
-
   const project = join(work, "project");
   mkdirSync(project);
   writeFileSync(
@@ -58,11 +66,10 @@ try {
     JSON.stringify({
       private: true,
       dependencies: { "@entwine/cli": `file:${mainTarball}` },
-      // The registry does not have these versions yet; use the local tarball.
       overrides: { [platformPackage(target)]: `file:${platformTarball}` },
     }),
   );
-  run(project, "install", "--no-audit", "--no-fund");
+  run(project, "install", "--no-audit", "--no-fund", "--offline");
   const bin = join(
     project,
     "node_modules/.bin",

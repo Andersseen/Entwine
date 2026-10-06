@@ -25,6 +25,8 @@ pub struct Compilation {
     pub diagnostics: Vec<Diagnostic>,
     /// Validated static assets, stored relative to docs/.
     pub assets: Vec<StaticFile>,
+    /// Validated repository paths used by links, including missing file targets.
+    pub repository_dependencies: Vec<String>,
 }
 impl Compilation {
     /// Fatal diagnostics prevent output publication.
@@ -102,7 +104,14 @@ pub fn scan_roles(project: &Path) -> io::Result<Vec<(String, KnowledgeRole)>> {
             continue;
         };
         if let Ok(text) = fs::read_to_string(entry.path()) {
-            let role = markdown::role_of(&source, &text);
+            let role = if source == "README.md"
+                && !root.join("index.md").is_file()
+                && markdown::role_of(&source, &text) == KnowledgeRole::Other
+            {
+                KnowledgeRole::Project
+            } else {
+                markdown::role_of(&source, &text)
+            };
             found.push((source, role));
         }
     }
@@ -112,6 +121,35 @@ pub fn scan_roles(project: &Path) -> io::Result<Vec<(String, KnowledgeRole)>> {
 
 /// Compile `project/docs` without configuration or network access.
 pub fn compile(project: &Path) -> io::Result<Compilation> {
+    compile_with_source(project, project, None)
+}
+
+/// Compile with a validated repository boundary and optional local source metadata.
+/// Git inspection belongs to callers; compilation never invokes Git or the network.
+pub fn compile_with_source(
+    project: &Path,
+    repository: &Path,
+    source: Option<&RepositorySource>,
+) -> io::Result<Compilation> {
+    if source.is_some_and(|s| {
+        !s.file_base_url.starts_with("https://")
+            || !s.file_base_url.ends_with('/')
+            || s.file_base_url
+                .chars()
+                .any(|c| c.is_control() || c.is_whitespace() || "@?#\\".contains(c))
+    }) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Repository source must be a credential-free HTTPS file URL prefix",
+        ));
+    }
+    let repository = repository.canonicalize()?;
+    let project = project.canonicalize()?;
+    if !project.starts_with(&repository) {
+        return Err(io::Error::other(
+            "Project is outside the repository boundary",
+        ));
+    }
     let root = project.join("docs");
     if !root.is_dir() {
         return Err(io::Error::new(
@@ -183,8 +221,10 @@ pub fn compile(project: &Path) -> io::Result<Compilation> {
     let mut parsed = Vec::new();
     let mut routes = BTreeMap::new();
     let mut folded_routes = BTreeMap::new();
+    let has_index = paths.iter().any(|(s, _)| s == "index.md");
     for (source, path) in paths {
         let route = match Route::from_source(&source) {
+            Ok(_) if source == "README.md" && !has_index => Route::home(),
             Ok(route) => route,
             Err(message) => {
                 diagnostics.push(error(&source, None, message));
@@ -217,7 +257,20 @@ pub fn compile(project: &Path) -> io::Result<Compilation> {
             }
             Err(e) => return Err(e),
         };
-        parsed.push(markdown::parse(&source, route, &text, &mut diagnostics));
+        let mut document = markdown::parse(&source, route, &text, &mut diagnostics);
+        if source == "README.md"
+            && !has_index
+            && document
+                .document
+                .metadata
+                .kind
+                .as_deref()
+                .and_then(KnowledgeRole::from_type)
+                .is_none()
+        {
+            document.document.role = KnowledgeRole::Project;
+        }
+        parsed.push(document);
     }
     let targets: BTreeMap<_, _> = parsed
         .iter()
@@ -227,7 +280,12 @@ pub fn compile(project: &Path) -> io::Result<Compilation> {
                 (
                     p.document.id.clone(),
                     p.document.route.clone(),
-                    p.document.headings.clone(),
+                    p.document
+                        .headings
+                        .iter()
+                        .map(|h| h.id.clone())
+                        .chain(p.document.anchors.clone())
+                        .collect::<Vec<_>>(),
                 ),
             )
         })
@@ -236,8 +294,18 @@ pub fn compile(project: &Path) -> io::Result<Compilation> {
         .iter()
         .map(|a| a.path.clone())
         .collect::<BTreeSet<_>>();
+    let mut repository_dependencies = Vec::new();
     for document in &mut parsed {
-        resolve::links(document, &targets, &asset_names, &mut diagnostics);
+        resolve::links(
+            document,
+            &targets,
+            &asset_names,
+            &root,
+            &repository,
+            source,
+            &mut repository_dependencies,
+            &mut diagnostics,
+        );
     }
     let documents: Vec<_> = parsed.into_iter().map(markdown::finish).collect();
     let relations = documents
@@ -268,7 +336,21 @@ pub fn compile(project: &Path) -> io::Result<Compilation> {
             });
         }
     }
-    let (site, graph, context) = projections::project(&knowledge);
+    let (mut site, graph, context) = projections::project(&knowledge);
+    projections::source_links(&mut site, &knowledge, &root, &repository, source);
+    let mut page_routes = BTreeMap::new();
+    for page in &site.pages {
+        if let Some(previous) = case_collision(&mut page_routes, &page.route, page.route.as_str()) {
+            diagnostics.push(error(
+                "docs/",
+                None,
+                format!(
+                    "Generated routes differ only by case: {previous} and {}",
+                    page.route.as_str()
+                ),
+            ));
+        }
+    }
     // Detect files that would occupy directories or overwrite generated pages.
     let mut output_paths: Vec<String> = site
         .pages
@@ -304,8 +386,35 @@ pub fn compile(project: &Path) -> io::Result<Compilation> {
             ));
         }
     }
+    let mut portable_paths = BTreeMap::new();
+    for path in output_paths.iter().chain(assets.iter().map(|a| &a.path)) {
+        if let Some(previous) = portable_paths.insert(path.to_lowercase(), path.clone()) {
+            if previous != *path {
+                diagnostics.push(error(
+                    "docs/",
+                    None,
+                    format!("Output paths differ only by case: {previous} and {path}"),
+                ));
+            }
+        }
+    }
+    let portable: Vec<_> = portable_paths.keys().collect();
+    for pair in portable.windows(2) {
+        if pair[1].starts_with(&(pair[0].to_string() + "/")) {
+            diagnostics.push(error(
+                "docs/",
+                None,
+                format!(
+                    "Portable file/directory collision: {} and {}",
+                    pair[0], pair[1]
+                ),
+            ));
+        }
+    }
     diagnostics
         .sort_by(|a, b| (&a.source, a.line, &a.message).cmp(&(&b.source, b.line, &b.message)));
+    repository_dependencies.sort();
+    repository_dependencies.dedup();
     Ok(Compilation {
         knowledge,
         site,
@@ -313,6 +422,7 @@ pub fn compile(project: &Path) -> io::Result<Compilation> {
         context,
         diagnostics,
         assets,
+        repository_dependencies,
     })
 }
 

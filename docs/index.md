@@ -28,6 +28,7 @@ parsed knowledge. Markdown remains the source of truth.
 - [Roadmap](roadmap.md): where it is headed.
 - [Knowledge convention](convention.md): the recommended, optional structure
   for durable project knowledge.
+- [Hardening evidence](hardening.md): real consumer findings, measurements, and verification.
 - [Deployment](deployment.md): `entwine setup` and provider-native publishing.
 
 ## Decisions and specifications
@@ -38,4 +39,4 @@ parsed knowledge. Markdown remains the source of truth.
 - [Generated CI contract](specs/generated-ci.md)
 
 This documentation is itself compiled by Entwine and follows its own
-convention. Version 0.1.0 is experimental and pre-stable.
+convention. Entwine is experimental and pre-stable.

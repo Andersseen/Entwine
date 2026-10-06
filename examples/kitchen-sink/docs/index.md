@@ -47,3 +47,10 @@ entwine dev
 
 Your Markdown remains the source of truth. See [CommonMark](https://commonmark.org)
 for the underlying Markdown syntax.
+
+## Repository and sections
+
+The [repository guide](../README.md) explains the Harbor example. Browse the
+[design documents](design/) and [operations documents](operations/) as generated directory indexes.
+
+![Harbor knowledge mark](assets/harbor.svg)
