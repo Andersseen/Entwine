@@ -124,7 +124,8 @@ pub(crate) fn project(knowledge: &KnowledgeBase) -> (SiteModel, GraphModel, Cont
         })
         .collect();
     for directory in directory_routes(knowledge) {
-        if pages
+        if knowledge
+            .documents
             .iter()
             .any(|p| p.route.as_str().eq_ignore_ascii_case(directory.as_str()))
         {
@@ -375,5 +376,31 @@ fn merge_directory_entries(tree: &mut Tree) {
     }
     for branch in tree.children.values_mut() {
         merge_directory_entries(branch);
+    }
+}
+
+#[cfg(test)]
+mod portable_directories {
+    use super::*;
+    #[test]
+    fn generated_case_variants_remain_visible_to_collision_validation() {
+        let documents = ["A/one.md", "a/two.md"]
+            .into_iter()
+            .map(|source| {
+                crate::markdown::finish(crate::markdown::parse(
+                    source,
+                    Route::from_source(source).unwrap(),
+                    "# Document",
+                    &mut Vec::new(),
+                ))
+            })
+            .collect();
+        let knowledge = KnowledgeBase {
+            documents,
+            relations: Vec::new(),
+        };
+        let site = project(&knowledge).0;
+        assert!(site.pages.iter().any(|p| p.route.as_str() == "/A/"));
+        assert!(site.pages.iter().any(|p| p.route.as_str() == "/a/"));
     }
 }
