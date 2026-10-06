@@ -1,29 +1,42 @@
+---
+type: project
+---
+
 # Harbor
 
 Harbor is a small, fictional service for teams to catalogue shared datasets. This
-site is the documentation for that imaginary project, and it is a worked example
-of Entwine.
+site is the project knowledge for that imaginary project, and it is a worked
+example of Entwine and its Knowledge Convention.
 
-## How this site was made
+## How to read this demo
 
-- Every page is a plain Markdown file under `docs/`. There is no documentation
-  framework, theme, or configuration file in this project.
-- Entwine compiled those files into this static site. Folders became navigation
-  and files became routes.
-- Ordinary Markdown links create relationships between pages. Look for the
-  **Referenced by** list at the bottom of a page: backlinks are derived
-  automatically.
-- Open **Project graph** in the sidebar to see the same relationships drawn by
-  Entwine as a linked SVG.
-- Broken links, bad anchors, and route collisions fail the build instead of
-  shipping.
+This is what Entwine compiles from plain Markdown under `docs/`. There is no
+documentation framework, theme, or configuration file in the project.
 
-## Start here
+1. **Browse the knowledge.** Each page carries a role badge: Architecture,
+   Current state, Roadmap, Decision, or Specification.
+2. **Open Knowledge** in the sidebar. It lists which recommended areas exist and
+   links to each document.
+3. **Open Graph** in the sidebar. It shows how those documents reference each
+   other. Every link you see in the text is a relationship, and the
+   **Referenced by** list at the bottom of each page is derived from them.
+4. Run `entwine context --json` to see the same knowledge as structured data
+   for tools and coding agents, each document carrying its role.
 
-- Understand the [architecture](architecture.md).
-- Review the [current state](state.md) and [roadmap](roadmap.md).
-- Read the [authentication](specs/authentication.md) and [search](specs/search.md) specifications.
-- Learn why we chose [static output](decisions/static-output.md).
+## Project knowledge
+
+| Area | Document | Question it answers |
+| --- | --- | --- |
+| Architecture | [Harbor architecture](architecture.md) and the [data model](design/data-model.md) | How is Harbor built today? |
+| Current state | [Current state](state.md) | What is true right now? |
+| Roadmap | [Roadmap](roadmap.md) | What happens next? |
+| Decisions | [Static output](decisions/static-output.md), [Read-only first](decisions/read-only-first.md), [Anonymous public reads](decisions/anonymous-reads.md) | Why is it this way? |
+| Specifications | [Authentication](specs/authentication.md), [Search](specs/search.md), [Catalogue export](specs/catalogue-export.md) | What do capabilities do? |
+| Other knowledge | [Operations runbook](operations/runbook.md) | Anything else worth keeping. |
+
+The runbook is a free-form guide with its own `type`, and the data model lives in
+`design/` rather than `architecture.md`; Entwine recognizes it as architecture
+from its metadata. The convention is recommended, not required.
 
 ## Local workflow
 

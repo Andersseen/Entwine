@@ -85,7 +85,12 @@ export function verify(artifact = showcase.output): void {
     }
   }
   const landing = readFileSync(join(artifact, "index.html"), "utf8");
-  for (const link of ['href="/docs/"', 'href="/demo/"']) {
+  for (const link of [
+    'href="/docs/"',
+    'href="/demo/"',
+    'href="/demo/__entwine/knowledge/"',
+    'href="/demo/__entwine/graph/"',
+  ]) {
     if (!landing.includes(link))
       throw new Error(`Landing page does not link to ${link}`);
   }

@@ -10,7 +10,8 @@
       "!**/.astro",
       "!**/.turbo",
       "!**/Cargo.lock",
-      "!**/pnpm-lock.yaml"
+      "!**/pnpm-lock.yaml",
+      "!**/.release-please-manifest.json"
     ]
   },
   "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2 },

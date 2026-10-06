@@ -23,7 +23,7 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -44,11 +44,15 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      deployments: write
+    # A named environment makes each deploy visible in the repository's
+    # Deployments panel and on pull requests.
+    environment:
+      name: production
+      url: https://entwine.andersseen.dev
     env:
       PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT_NAME }}
     steps:
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       # Nothing is rebuilt here: the validated artifact is deployed as-is.
@@ -67,5 +71,4 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
           command: pages deploy deployment --project-name=${{ env.PAGES_PROJECT }} --branch=main

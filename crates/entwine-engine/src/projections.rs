@@ -2,6 +2,35 @@ use crate::{render::escape, resolve::relative_url};
 use entwine_core::*;
 use std::collections::BTreeMap;
 
+/// Context schema `0.2` adds `role` to every document; all `0.1` fields are unchanged.
+pub const CONTEXT_SCHEMA_VERSION: &str = "0.2";
+
+fn knowledge_groups(knowledge: &KnowledgeBase) -> Vec<KnowledgeGroup> {
+    let mut roles = RECOMMENDED_ROLES.to_vec();
+    if knowledge
+        .documents
+        .iter()
+        .any(|d| d.role == KnowledgeRole::Other)
+    {
+        roles.push(KnowledgeRole::Other);
+    }
+    roles
+        .into_iter()
+        .map(|role| KnowledgeGroup {
+            role,
+            pages: knowledge
+                .documents
+                .iter()
+                .filter(|d| d.role == role)
+                .map(|d| PageReference {
+                    title: d.title.clone(),
+                    route: d.route.clone(),
+                })
+                .collect(),
+        })
+        .collect()
+}
+
 #[derive(Default)]
 struct Tree {
     page: Option<PageReference>,
@@ -62,6 +91,7 @@ pub(crate) fn project(knowledge: &KnowledgeBase) -> (SiteModel, GraphModel, Cont
             html: d.html.clone(),
             headings: d.headings.clone(),
             metadata: d.metadata.clone(),
+            role: d.role,
             backlinks: knowledge
                 .backlinks(&d.id)
                 .iter()
@@ -94,6 +124,7 @@ pub(crate) fn project(knowledge: &KnowledgeBase) -> (SiteModel, GraphModel, Cont
                 html,
                 headings: Vec::new(),
                 metadata: DocumentMetadata::default(),
+                role: KnowledgeRole::Project,
                 backlinks: Vec::new(),
             },
         );
@@ -107,12 +138,13 @@ pub(crate) fn project(knowledge: &KnowledgeBase) -> (SiteModel, GraphModel, Cont
                 label: d.title.clone(),
                 route: d.route.clone(),
                 metadata: d.metadata.clone(),
+                role: d.role,
             })
             .collect(),
         edges: knowledge.relations.clone(),
     };
     let context = ContextModel {
-        schema_version: "0.1".into(),
+        schema_version: CONTEXT_SCHEMA_VERSION.into(),
         documents: knowledge
             .documents
             .iter()
@@ -121,6 +153,7 @@ pub(crate) fn project(knowledge: &KnowledgeBase) -> (SiteModel, GraphModel, Cont
                 title: d.title.clone(),
                 route: d.route.clone(),
                 metadata: d.metadata.clone(),
+                role: d.role,
                 headings: d.headings.clone(),
                 links: d.links.clone(),
                 backlinks: knowledge.backlinks(&d.id),
@@ -134,6 +167,8 @@ pub(crate) fn project(knowledge: &KnowledgeBase) -> (SiteModel, GraphModel, Cont
             pages,
             navigation: nav,
             graph_route: "/__entwine/graph/".into(),
+            knowledge_route: "/__entwine/knowledge/".into(),
+            knowledge: knowledge_groups(knowledge),
         },
         graph,
         context,
@@ -158,10 +193,11 @@ pub fn context_markdown(context: &ContextModel) -> String {
     );
     for document in &context.documents {
         output.push_str(&format!(
-            "- {} — {} ({})\n",
+            "- {} — {} ({}) [{}]\n",
             document.title,
             document.route.as_str(),
-            document.id.0
+            document.id.0,
+            document.role.as_str()
         ));
     }
     output.push_str("\n## Relationships\n\n");
@@ -174,10 +210,11 @@ pub fn context_markdown(context: &ContextModel) -> String {
     output.push_str("\n## Content\n");
     for document in &context.documents {
         output.push_str(&format!(
-            "\n### {}\n\nSource: {}\nRoute: {}\nType: {}\nStatus: {}\nBacklinks: {}\n\n",
+            "\n### {}\n\nSource: {}\nRoute: {}\nRole: {}\nType: {}\nStatus: {}\nBacklinks: {}\n\n",
             document.title,
             document.id.0,
             document.route.as_str(),
+            document.role.as_str(),
             document.metadata.kind.as_deref().unwrap_or("unspecified"),
             document.metadata.status.as_deref().unwrap_or("unspecified"),
             document

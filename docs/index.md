@@ -1,16 +1,41 @@
+---
+type: project
+---
+
 # Entwine
 
 Project knowledge, connected.
 
-Entwine compiles the Markdown already in a repository into static documentation,
-navigation, backlinks, a project graph, validation, and structured context.
+Entwine turns the Markdown already in a repository into one shared source of
+project knowledge for humans and agents.
 
-## Principles
+```text
+            Markdown
+               │
+         Knowledge model
+        /      |      \
+      Docs   Graph   Context
+    (humans)  (both)  (agents)
+```
 
-- Markdown remains the source of truth.
-- Parse once into one canonical knowledge model, then project different views.
-- Users do not need a documentation application.
-- No AI, hosted service, database, or frontend framework is involved.
+Docs, the project graph, and structured context are projections of the same
+parsed knowledge. Markdown remains the source of truth.
 
-Read the [architecture](architecture.md), [implemented state](state.md), and
-[future roadmap](roadmap.md). Version 0.1.0 is experimental and pre-stable.
+## Where to start
+
+- [Architecture](architecture.md): how Entwine is structured today.
+- [Current state](state.md): what is implemented and what is not.
+- [Roadmap](roadmap.md): where it is headed.
+- [Knowledge convention](convention.md): the recommended, optional structure
+  for durable project knowledge.
+- [Deployment](deployment.md): `entwine setup` and provider-native publishing.
+
+## Decisions and specifications
+
+- [Derive roles; keep author metadata open](decisions/derived-roles.md)
+- [Provider CI owns publishing](decisions/provider-owned-publishing.md)
+- [Context schema](specs/context-schema.md)
+- [Generated CI contract](specs/generated-ci.md)
+
+This documentation is itself compiled by Entwine and follows its own
+convention. Version 0.1.0 is experimental and pre-stable.

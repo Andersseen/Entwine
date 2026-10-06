@@ -22,6 +22,12 @@ No application/tooling logic may be authored in plain JavaScript; repository
 tooling lives in strict TypeScript under `tooling/`. Generated third-party
 JavaScript output is allowed. Consumer projects remain stack-agnostic.
 
+Try `entwine init` and `entwine setup --dry-run` in a scratch Git repository, or run
+`pnpm smoke:setup`, which does so for every provider with the real binary. Generated CI
+files have golden snapshots in `crates/entwine-cli/tests/golden/`; refresh them with
+`ENTWINE_UPDATE_GOLDEN=1 cargo test -p entwine-cli --test convention` after reviewing
+the diff.
+
 `pnpm build:showcase` builds the Astro site, Entwine's own docs, and the
 kitchen-sink, composes `deployment/`, and verifies subpath hosting.
 
