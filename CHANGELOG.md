@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/Andersseen/Entwine/compare/v0.1.0...v0.2.0) (2026-10-06)
+
+
+### Features
+
+* harden standalone knowledge compilation and distribution ([#16](https://github.com/Andersseen/Entwine/issues/16)) ([cc13ab3](https://github.com/Andersseen/Entwine/commit/cc13ab33c79c99a5da6025d3706fccf26448e398))
+
 ## 0.1.0 (2026-10-06)
 
 
