@@ -674,8 +674,11 @@ fn generated_files_match_golden_snapshots_and_are_deterministic() {
         git(two.path(), &["checkout", "-q", "-b", "main"]);
         entwine(one.path(), &["setup"]);
         entwine(two.path(), &["setup"]);
-        let text = read(one.path(), file);
-        assert_eq!(text, read(two.path(), file));
+        let raw = read(one.path(), file);
+        assert_eq!(raw, read(two.path(), file));
+        // Goldens must not change on every release: the pinned version is a placeholder.
+        let text = raw.replace(env!("CARGO_PKG_VERSION"), "{{VERSION}}");
+        assert_ne!(text, raw, "the CLI version must be pinned in generated CI");
         if std::env::var_os("ENTWINE_UPDATE_GOLDEN").is_some() {
             fs::write(golden.join(name), &text).unwrap();
         }
