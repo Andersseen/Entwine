@@ -11,7 +11,7 @@ pipelines:
               includePaths:
                 - "docs/**"
           script:
-            - npm install --global "@entwine/cli@0.1.0"
+            - npm install --global "@entwine/cli@{{VERSION}}"
             - entwine check
   branches:
     "main":
@@ -23,7 +23,7 @@ pipelines:
               includePaths:
                 - "docs/**"
           script:
-            - npm install --global "@entwine/cli@0.1.0"
+            - npm install --global "@entwine/cli@{{VERSION}}"
             - entwine check
             - entwine build
             # One-time setup: a repository named <workspace>.bitbucket.io and a secured
