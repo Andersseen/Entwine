@@ -109,6 +109,20 @@ fn resolve(
         .or_else(|| targets.get(&format!("{normalized}.md")))
         .or_else(|| targets.get(&format!("{}/index.md", normalized.trim_end_matches('/'))))
         .or_else(|| {
+            // Authored routes win over generated case-equivalent directory indexes.
+            if targets
+                .keys()
+                .any(|id| id.starts_with(&(normalized.clone() + "/")))
+            {
+                let directory = format!("/{}/", normalized.trim_matches('/'));
+                targets
+                    .values()
+                    .find(|(_, route, _)| route.as_str().eq_ignore_ascii_case(&directory))
+            } else {
+                None
+            }
+        })
+        .or_else(|| {
             if normalized.is_empty() {
                 targets.get("index.md").or_else(|| targets.get("README.md"))
             } else {
@@ -175,11 +189,17 @@ pub(crate) fn links(
     docs: &Path,
     repository: &Path,
     source: Option<&RepositorySource>,
+    dependencies: &mut Vec<String>,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     for (link, index) in parsed.document.links.iter_mut().zip(&parsed.link_events) {
-        let reference =
-            repository_reference(docs, repository, &parsed.document.id.0, &link.destination);
+        let reference = repository_reference(
+            docs,
+            repository,
+            &parsed.document.id.0,
+            &link.destination,
+            dependencies,
+        );
         match resolve(
             &parsed.document.id.0,
             &parsed.document.route,
@@ -263,6 +283,7 @@ fn repository_reference(
     repository: &Path,
     source: &str,
     destination: &str,
+    dependencies: &mut Vec<String>,
 ) -> Result<Option<String>, String> {
     if destination.starts_with('/') || destination.contains(':') {
         return Ok(None);
@@ -314,6 +335,10 @@ fn repository_reference(
     }
     if target.starts_with(docs) {
         return Ok(None);
+    }
+    dependencies.push(parts.join("/"));
+    if target.is_dir() {
+        return Err(format!("Repository reference points to a directory: {}; link to a regular file such as its README instead", parts.join("/")));
     }
     if !target.is_file() {
         return Err(format!(

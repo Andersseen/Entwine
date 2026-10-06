@@ -328,3 +328,44 @@ fn structured_context_preserves_full_source_including_unknown_frontmatter() {
     assert_eq!(c.context.documents[0].role, KnowledgeRole::Architecture);
     assert!(!c.knowledge.documents[0].html.contains("custom:"));
 }
+
+#[test]
+fn authored_uppercase_route_wins_over_case_equivalent_generated_directory() {
+    let temporary = tempfile::tempdir().unwrap();
+    write(
+        temporary.path(),
+        "docs/index.md",
+        "# Project\n[Roadmap](roadmap/)",
+    );
+    write(
+        temporary.path(),
+        "docs/ROADMAP.md",
+        "# Roadmap\n[Plan](roadmap/v1/plan.md)",
+    );
+    write(temporary.path(), "docs/roadmap/v1/plan.md", "# Plan");
+    let c = compile(temporary.path()).unwrap();
+    assert!(!c.has_errors(), "{:?}", c.diagnostics);
+    assert_eq!(
+        c.site
+            .pages
+            .iter()
+            .filter(|p| p.route.as_str().eq_ignore_ascii_case("/roadmap/"))
+            .count(),
+        1
+    );
+    assert!(c
+        .knowledge
+        .documents
+        .iter()
+        .find(|d| d.id.0 == "index.md")
+        .unwrap()
+        .html
+        .contains("href=\"ROADMAP/\""));
+    let home = render(&c)
+        .into_iter()
+        .find(|f| f.path == "index.html")
+        .unwrap();
+    let html = String::from_utf8(home.contents).unwrap();
+    assert!(!html.contains("href=\"roadmap/\""));
+    assert!(html.contains("href=\"ROADMAP/\""));
+}

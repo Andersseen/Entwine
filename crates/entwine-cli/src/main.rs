@@ -90,18 +90,22 @@ fn diagnostics(compilation: &Compilation) {
         let line = diagnostic.line.map_or(String::new(), |l| format!(":{l}"));
         eprintln!(
             "{severity}: docs/{}{line}: {}",
-            diagnostic.source, diagnostic.message
+            diagnostic.source.trim_start_matches("docs/"),
+            diagnostic.message
         );
     }
 }
-fn checked(project: &Path) -> Result<Compilation, Box<dyn std::error::Error>> {
+fn compile_project(project: &Path) -> io::Result<Compilation> {
     let repository = provider::inspect(project);
     let source = provider::source(&repository);
-    let compilation = compile_with_source(
+    compile_with_source(
         project,
         repository.root.as_deref().unwrap_or(project),
         source.as_ref(),
-    )?;
+    )
+}
+fn checked(project: &Path) -> Result<Compilation, Box<dyn std::error::Error>> {
+    let compilation = compile_project(project)?;
     diagnostics(&compilation);
     if compilation.has_errors() {
         return Err("Documentation validation failed; output was not changed".into());

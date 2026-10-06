@@ -49,13 +49,16 @@ CI uses small distilled regression fixtures instead of external repositories.
 
 | Consumer | Documents | Relationships | Repository references | HTML pages | Result | Warnings |
 | --- | ---: | ---: | ---: | ---: | --- | ---: |
-| ForgeCMS | 89 | 176 | 18 | 94 | 3 valid missing-path errors | 27 |
+| ForgeCMS | 89 | 176 | 18 | 93 | 2 missing files + 1 directory limitation | 27 |
 | Flowview | 2 | 1 | 0 | 5 | Compile + isolated-copy build passed | 1 |
 | Agentyx | 10 | 15 | 7 | 14 | Compile + isolated-copy build passed | 2 |
 
-ForgeCMS’s remaining errors are `DEMO-FINDINGS.md` lines 3, 77, and 114: its
-`apps/demo-aesthetics` path and two files below it no longer exist. These are
-repository content problems; Entwine correctly rejects them. Its raw anchors,
+ForgeCMS’s remaining errors are `DEMO-FINDINGS.md` lines 3, 77, and 114.
+Line 3 references the repository directory `apps/demo-aesthetics`, an intentional
+file-reference limitation. Lines 77 and 114 reference files below that directory
+that no longer exist, which are repository content problems. The diagnostic now
+distinguishes directory references from missing files. Authored `ROADMAP.md` also
+wins over a generated case-equivalent `roadmap/` landing on portable hosts. Its raw anchors,
 README entrypoint, directory links, and eighteen existing repository references
 now resolve. ForgeCMS has project, architecture, state, roadmap, and spec coverage,
 but no decision documents. Flowview and Agentyx have custom knowledge without the
@@ -190,3 +193,46 @@ YAML. Only package version text is normalized.
 
 macOS arm64 is the local execution platform. Linux/macOS/Windows hosted regression
 results and this branch’s public deployment are recorded after remote CI runs.
+
+## Milestone assessment
+
+These scores assess the implementation and observed evidence, not hypothetical
+integrations or maturity beyond pre-1.0.
+
+| Area | Score / 10 | Remaining constraint |
+| --- | ---: | --- |
+| Product differentiation | 9 | Adoption evidence is still early |
+| Architecture | 9 | Rust API remains experimental |
+| CLI / DX | 9 | Manual browser refresh remains deliberate |
+| Knowledge Convention | 9 | Presence does not establish content quality |
+| Human documentation UX | 9 | Dense visual graphs still benefit from text views |
+| Agent/context model | 9 | Schema 0.3 requires version-aware consumers |
+| Repository compatibility | 9 | Repository directories and external-doc images are deferred |
+| Provider-native deployment | 8 | No dedicated hosted consumer/provider test repositories used |
+| Distribution/release | 8.5 | New changes await release-please publication; binaries are unsigned |
+| Graph usability | 9 | Full dense SVG is optional; the complete text index is primary |
+| Accessibility | 9 | Automated/browser checks do not replace screen-reader testing |
+| OSS readiness | 9 | Hosted cross-platform checks must remain green |
+| Demo/presentation quality | 8.5 | Updated public deployment awaits merging the PR |
+
+Below-nine constraints require hosted test accounts/repositories or publication;
+they are reported explicitly instead of claiming verification that did not occur.
+
+## Integration gate
+
+| Gate | Answer and evidence |
+| --- | --- |
+| 1. Real published installation | Yes: npm 0.1.0 and native archive smoke passed |
+| 2. Adopt convention without renaming | Yes: explicit roles and README fallback |
+| 3. Safe realistic repository links | Yes in current source: references are distinct and confined |
+| 4. Comfortable human navigation | Yes: responsive/browser/a11y matrix passed |
+| 5. Structured knowledge from one source | Yes: deterministic schema 0.3 with complete source |
+| 6. GitHub Pages automation | Implemented and contract-tested; consumer hosted execution unverified |
+| 7. Truthful GitLab Pages setup | Yes: 17.10+ contract, hosted execution unverified |
+| 8. Bitbucket native publishing | Yes: workspace-site contract, hosted execution unverified |
+| 9. Optional providers and static dist | Yes: non-Git isolated consumers build successfully |
+| 10. Updated public demonstration | Pending PR merge and public deployment |
+| 11. Independent of Etyma | Yes |
+| 12. Independent of Agentyx | Yes; validation input only |
+| 13. Independent of Flowview | Yes; validation input only |
+| 14. No built-in AI/LLM dependency | Yes |

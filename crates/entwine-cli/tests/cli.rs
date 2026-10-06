@@ -212,7 +212,11 @@ fn dev_serves_rebuilds_preserves_last_good_output_and_rejects_traversal() {
     assert!(get(port, "/").unwrap().contains(">Repository watch</h1>"));
     fs::write(temp.path().join("README.md"), "# Restored repository file").unwrap();
     let deadline = Instant::now() + Duration::from_secs(10);
-    while fs::metadata(&published).unwrap().modified().unwrap() == previous {
+    while fs::metadata(&published)
+        .ok()
+        .and_then(|m| m.modified().ok())
+        .is_none_or(|modified| modified == previous)
+    {
         assert!(
             Instant::now() < deadline,
             "repository reference change did not rebuild"
@@ -232,6 +236,21 @@ fn dev_serves_rebuilds_preserves_last_good_output_and_rejects_traversal() {
     .unwrap();
     std::thread::sleep(Duration::from_millis(600));
     assert!(get(port, "/").unwrap().contains(">Updated project</h1>"));
+    fs::write(
+        temp.path().join("docs/index.md"),
+        "# Missing repository target\n[New](../source/new.txt)",
+    )
+    .unwrap();
+    std::thread::sleep(Duration::from_millis(600));
+    assert!(get(port, "/").unwrap().contains(">Updated project</h1>"));
+    fs::create_dir(temp.path().join("source")).unwrap();
+    std::thread::sleep(Duration::from_millis(400));
+    fs::write(
+        temp.path().join("source/new.txt"),
+        "created after invalid edit",
+    )
+    .unwrap();
+    wait_for(port, ">Missing repository target</h1>", &mut process);
     fs::write(temp.path().join("docs/index.md"), "# Recovered project").unwrap();
     wait_for(port, ">Recovered project</h1>", &mut process);
     fs::create_dir_all(temp.path().join("docs/new/deep")).unwrap();

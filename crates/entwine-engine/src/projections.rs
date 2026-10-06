@@ -79,6 +79,7 @@ pub(crate) fn project(knowledge: &KnowledgeBase) -> (SiteModel, GraphModel, Cont
         }
         branch.page = Some(reference);
     }
+    merge_directory_entries(&mut tree);
     let mut nav = navigation(tree, "");
     let needs_index = home.is_none();
     nav.insert(
@@ -123,7 +124,10 @@ pub(crate) fn project(knowledge: &KnowledgeBase) -> (SiteModel, GraphModel, Cont
         })
         .collect();
     for directory in directory_routes(knowledge) {
-        if pages.iter().any(|p| p.route == directory) {
+        if pages
+            .iter()
+            .any(|p| p.route.as_str().eq_ignore_ascii_case(directory.as_str()))
+        {
             continue;
         }
         let html = format!(
@@ -337,5 +341,39 @@ pub(crate) fn source_links(
                 .filter(|s| s.files.as_ref().is_none_or(|files| files.contains(&path)))
                 .map(|s| crate::resolve::source_url(s, &path, ""));
         }
+    }
+}
+
+/// An authored route such as /ROADMAP/ also owns a case-equivalent directory
+/// landing on portable hosts. Merge its leaf navigation into the directory group.
+fn merge_directory_entries(tree: &mut Tree) {
+    let groups: Vec<_> = tree
+        .children
+        .iter()
+        .filter(|(_, branch)| !branch.children.is_empty())
+        .map(|(name, _)| name.clone())
+        .collect();
+    for name in groups {
+        let leaf = tree
+            .children
+            .iter()
+            .find(|(other, branch)| {
+                *other != &name
+                    && other.eq_ignore_ascii_case(&name)
+                    && branch.children.is_empty()
+                    && branch.page.is_some()
+            })
+            .map(|(other, _)| other.clone());
+        if let Some(leaf) = leaf {
+            let page = tree.children.remove(&leaf).and_then(|branch| branch.page);
+            if let Some(group) = tree.children.get_mut(&name) {
+                if group.page.is_none() {
+                    group.page = page;
+                }
+            }
+        }
+    }
+    for branch in tree.children.values_mut() {
+        merge_directory_entries(branch);
     }
 }

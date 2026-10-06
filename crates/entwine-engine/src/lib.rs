@@ -25,6 +25,8 @@ pub struct Compilation {
     pub diagnostics: Vec<Diagnostic>,
     /// Validated static assets, stored relative to docs/.
     pub assets: Vec<StaticFile>,
+    /// Validated repository paths used by links, including missing file targets.
+    pub repository_dependencies: Vec<String>,
 }
 impl Compilation {
     /// Fatal diagnostics prevent output publication.
@@ -292,6 +294,7 @@ pub fn compile_with_source(
         .iter()
         .map(|a| a.path.clone())
         .collect::<BTreeSet<_>>();
+    let mut repository_dependencies = Vec::new();
     for document in &mut parsed {
         resolve::links(
             document,
@@ -300,6 +303,7 @@ pub fn compile_with_source(
             &root,
             &repository,
             source,
+            &mut repository_dependencies,
             &mut diagnostics,
         );
     }
@@ -409,6 +413,8 @@ pub fn compile_with_source(
     }
     diagnostics
         .sort_by(|a, b| (&a.source, a.line, &a.message).cmp(&(&b.source, b.line, &b.message)));
+    repository_dependencies.sort();
+    repository_dependencies.dedup();
     Ok(Compilation {
         knowledge,
         site,
@@ -416,6 +422,7 @@ pub fn compile_with_source(
         context,
         diagnostics,
         assets,
+        repository_dependencies,
     })
 }
 
