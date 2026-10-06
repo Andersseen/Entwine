@@ -1,6 +1,13 @@
 //! CLI presentation, safe output publication, and local development lifecycle.
+mod ci;
+mod fsafe;
+mod init;
+mod knowledge;
 mod output;
+mod provider;
 mod server;
+mod setup;
+mod templates;
 use clap::{Parser, Subcommand};
 use entwine_core::DiagnosticSeverity;
 use entwine_engine::{compile, context_json, context_markdown, Compilation};
@@ -35,10 +42,35 @@ enum Command {
         #[arg(default_value = ".")]
         project: PathBuf,
     },
-    /// Validate documentation without writing output.
+    /// Validate documentation and report recommended knowledge coverage.
     Check {
         #[arg(default_value = ".")]
         project: PathBuf,
+        /// Fail when a recommended knowledge area is missing.
+        #[arg(long)]
+        strict_knowledge: bool,
+    },
+    /// Scaffold the recommended project knowledge files without overwriting anything.
+    Init {
+        #[arg(default_value = ".")]
+        project: PathBuf,
+        /// Create missing files without prompting.
+        #[arg(long, short)]
+        yes: bool,
+        /// Show what would be created.
+        #[arg(long)]
+        dry_run: bool,
+    },
+    /// Configure repository-native validation and publishing (GitHub, GitLab, Bitbucket).
+    Setup {
+        #[arg(default_value = ".")]
+        project: PathBuf,
+        /// Show the plan without changing any file.
+        #[arg(long)]
+        dry_run: bool,
+        /// Override provider detection, for example for self-hosted GitLab.
+        #[arg(long, value_enum)]
+        provider: Option<setup::ProviderChoice>,
     },
     /// Write deterministic project context to stdout.
     Context {
@@ -99,12 +131,37 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             );
             Ok(())
         }
-        Command::Check { project } => {
+        Command::Check {
+            project,
+            strict_knowledge,
+        } => {
             let compilation = checked(&project.canonicalize()?)?;
             summary(&compilation);
-            eprintln!("✓ validation passed");
+            let missing = knowledge::report(&compilation, strict_knowledge);
+            if strict_knowledge && !missing.is_empty() {
+                return Err(format!(
+                    "{} recommended knowledge area{} missing (--strict-knowledge)",
+                    missing.len(),
+                    if missing.len() == 1 { " is" } else { "s are" }
+                )
+                .into());
+            }
+            eprintln!("\n✓ validation passed");
             Ok(())
         }
+        Command::Init {
+            project,
+            yes,
+            dry_run,
+        } => init::run(&project.canonicalize()?, &init::Options { yes, dry_run }),
+        Command::Setup {
+            project,
+            dry_run,
+            provider,
+        } => setup::run(
+            &project.canonicalize()?,
+            &setup::Options { dry_run, provider },
+        ),
         Command::Context { project, json } => {
             let compilation = checked(&project.canonicalize()?)?;
             let content = if json {

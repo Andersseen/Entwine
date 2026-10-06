@@ -1,4 +1,4 @@
-use entwine_engine::{render_graph, render_site, Compilation};
+use entwine_engine::{render, Compilation};
 use std::{fs, io, path::Path};
 
 /// Stage a full output tree, preserving the last successful build on failure.
@@ -22,10 +22,7 @@ pub(crate) fn publish(project: &Path, compilation: &Compilation) -> io::Result<(
     let stage = tempfile::Builder::new()
         .prefix(".entwine-stage-")
         .tempdir_in(project)?;
-    let mut files = render_site(&compilation.site);
-    files.push(render_graph(&compilation.graph));
-    files.extend(compilation.assets.clone());
-    for file in files {
+    for file in render(compilation) {
         let path = stage.path().join(&file.path);
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;

@@ -53,7 +53,7 @@ fn real_cli_build_check_graph_and_context_work() {
     let context = cli("context", temp.path(), &["--json"]);
     assert!(context.status.success());
     let parsed: serde_json::Value = serde_json::from_slice(&context.stdout).unwrap();
-    assert_eq!(parsed["documents"].as_array().unwrap().len(), 7);
+    assert_eq!(parsed["documents"].as_array().unwrap().len(), 12);
     assert_eq!(
         context.stdout,
         cli("context", temp.path(), &["--json"]).stdout

@@ -1,4 +1,4 @@
-use crate::error;
+use crate::{error, warning};
 use entwine_core::*;
 use pulldown_cmark::{html, CowStr, Event, Options, Parser, Tag, TagEnd};
 use std::collections::BTreeSet;
@@ -152,12 +152,17 @@ pub(crate) fn parse(
         });
     }
     let title = document_title(&metadata, &headings, source);
+    let (role, conflict) = classify(source, metadata.kind.as_deref());
+    if let Some(message) = conflict {
+        diagnostics.push(warning(source, None, message));
+    }
     Parsed {
         document: Document {
             id: DocumentId(source.into()),
             route,
             title,
             metadata,
+            role,
             headings,
             links,
             content: body.into(),
@@ -189,4 +194,12 @@ fn slug(text: &str) -> String {
 pub(crate) fn finish(mut parsed: Parsed) -> Document {
     html::push_html(&mut parsed.document.html, parsed.events.into_iter());
     parsed.document
+}
+
+/// Light scan for init: `(path relative to docs/, role)` using the same frontmatter and
+/// classification rules as a full compilation, tolerating otherwise-invalid documents.
+pub(crate) fn role_of(source: &str, text: &str) -> KnowledgeRole {
+    let mut ignored = Vec::new();
+    let (metadata, _, _) = frontmatter(source, text, &mut ignored);
+    classify(source, metadata.kind.as_deref()).0
 }

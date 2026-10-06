@@ -18,7 +18,7 @@ fn write(root: &Path, name: &str, text: &str) {
 fn kitchen_sink_compiles_real_documents_and_all_projections() {
     let compilation = compile(&kitchen()).unwrap();
     assert!(!compilation.has_errors(), "{:?}", compilation.diagnostics);
-    assert_eq!(compilation.knowledge.documents.len(), 7);
+    assert_eq!(compilation.knowledge.documents.len(), 12);
     let auth = compilation
         .knowledge
         .documents
@@ -54,7 +54,8 @@ fn kitchen_sink_compiles_real_documents_and_all_projections() {
         "Harbor architecture",
         "aria-current=\"page\"",
         "On this page",
-        "Project graph",
+        ">Knowledge</a>",
+        ">Graph</a>",
         "<pre><code",
     ] {
         assert!(auth_html.contains(fragment), "missing {fragment}");
@@ -69,7 +70,7 @@ fn kitchen_sink_compiles_real_documents_and_all_projections() {
     assert!(architecture.html.contains("<table>"));
     assert!(compilation.knowledge.documents[0].id.0 < compilation.knowledge.documents[1].id.0);
     let graph = String::from_utf8(render_graph(&compilation.graph).contents).unwrap();
-    assert_eq!(graph.matches("data-node=").count(), 7);
+    assert_eq!(graph.matches("data-node=").count(), 12);
     assert_eq!(
         graph.matches("data-source=").count(),
         compilation.graph.edges.len()
@@ -77,8 +78,8 @@ fn kitchen_sink_compiles_real_documents_and_all_projections() {
     assert!(graph.contains("../../specs/authentication/"));
     let context: serde_json::Value =
         serde_json::from_str(&context_json(&compilation.context).unwrap()).unwrap();
-    assert_eq!(context["schema_version"], "0.1");
-    assert_eq!(context["documents"].as_array().unwrap().len(), 7);
+    assert_eq!(context["schema_version"], "0.2");
+    assert_eq!(context["documents"].as_array().unwrap().len(), 12);
     let markdown = context_markdown(&compilation.context);
     for part in [
         "# Project: Harbor",
@@ -312,4 +313,145 @@ fn symlinks_cannot_escape_docs() {
 fn self_documentation_is_a_healthy_consumer() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     assert!(!compile(&root).unwrap().has_errors());
+}
+
+#[test]
+fn roles_come_from_recognized_type_then_canonical_path_and_keep_raw_metadata() {
+    use entwine_core::{DiagnosticSeverity, KnowledgeRole::*};
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path();
+    write(root, "index.md", "# P\n[a](architecture.md) [s](design/system.md) [d](decisions/one.md) [g](guide.md) [r](specs/index.md)");
+    write(
+        root,
+        "architecture.md",
+        "---\ntype: roadmap\n---\n# Conflict",
+    );
+    write(
+        root,
+        "design/system.md",
+        "---\ntype: Architecture\n---\n# System",
+    );
+    write(root, "decisions/one.md", "# One");
+    write(root, "specs/index.md", "# Specs landing");
+    write(root, "guide.md", "---\ntype: guide\n---\n# Guide");
+    let compilation = compile(root).unwrap();
+    assert!(!compilation.has_errors());
+    let role = |id: &str| {
+        compilation
+            .knowledge
+            .documents
+            .iter()
+            .find(|d| d.id.0 == id)
+            .unwrap()
+    };
+    assert_eq!(role("index.md").role, Project);
+    assert_eq!(role("architecture.md").role, Roadmap);
+    assert_eq!(role("design/system.md").role, Architecture);
+    assert_eq!(role("decisions/one.md").role, Decision);
+    assert_eq!(role("specs/index.md").role, Other);
+    assert_eq!(role("guide.md").role, Other);
+    assert_eq!(role("guide.md").metadata.kind.as_deref(), Some("guide"));
+    let conflicts: Vec<_> = compilation
+        .diagnostics
+        .iter()
+        .filter(|d| d.message.contains("canonical path"))
+        .collect();
+    assert_eq!(conflicts.len(), 1);
+    assert_eq!(conflicts[0].severity, DiagnosticSeverity::Warning);
+    assert_eq!(conflicts[0].source, "architecture.md");
+}
+
+#[test]
+fn knowledge_overview_lists_present_and_missing_areas_without_calling_them_errors() {
+    let temp = tempfile::tempdir().unwrap();
+    write(temp.path(), "index.md", "# P\n[s](state.md)");
+    write(temp.path(), "state.md", "# S\n[p](index.md)");
+    let compilation = compile(temp.path()).unwrap();
+    let page =
+        String::from_utf8(entwine_engine::render_knowledge(&compilation.site).contents).unwrap();
+    for part in [
+        "Project: <a href=\"../../\">P</a>",
+        "Current state: <a href=\"../../state/\">S</a>",
+        "Architecture <span class=\"state-text\">not found</span>",
+        "No decision documents found.",
+        "No specification documents found.",
+    ] {
+        assert!(page.contains(part), "missing {part}\n{page}");
+    }
+    assert!(!page.to_lowercase().contains("error"));
+    assert!(!page.contains("Other knowledge"));
+}
+
+/// Regression fixtures distilled from running Entwine on real repositories
+/// (ForgeCMS, Flowview, Agentyx). They pin both what works and what is known to fail.
+#[test]
+fn patterns_found_in_real_repositories() {
+    use entwine_core::KnowledgeRole::*;
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path();
+    // Uppercase canonical names and numbered specs are recognized without renames.
+    write(
+        root,
+        "README.md",
+        "# Docs\n[a](ARCHITECTURE.md) [s](STATE.md) [r](ROADMAP.md) [x](specs/001-list-filter.md)",
+    );
+    write(root, "ARCHITECTURE.md", "# Architecture\n[s](STATE.md)");
+    write(
+        root,
+        "STATE.md",
+        "# STATE — Current status\n[r](ROADMAP.md)",
+    );
+    write(root, "ROADMAP.md", "# Roadmap\n[a](ARCHITECTURE.md)");
+    write(
+        root,
+        "specs/001-list-filter.md",
+        "# Spec 001\n[s](../STATE.md)",
+    );
+    let compilation = compile(root).unwrap();
+    assert!(!compilation.has_errors(), "{:?}", compilation.diagnostics);
+    let roles: Vec<_> = compilation
+        .knowledge
+        .documents
+        .iter()
+        .map(|d| (d.id.0.as_str(), d.role))
+        .collect();
+    assert!(roles.contains(&("ARCHITECTURE.md", Architecture)));
+    assert!(roles.contains(&("STATE.md", State)));
+    assert!(roles.contains(&("ROADMAP.md", Roadmap)));
+    assert!(roles.contains(&("specs/001-list-filter.md", Spec)));
+    assert!(roles.contains(&("README.md", Other)));
+}
+
+#[test]
+fn known_real_world_failures_have_actionable_line_accurate_errors() {
+    let temp = tempfile::tempdir().unwrap();
+    write(
+        temp.path(),
+        "index.md",
+        "# Home\n\n[Outside](../CLAUDE.md)\n\nSee [specs](specs/).\n\n[Jump](#status-07)\n\n<a id=\"status-07\"></a>\n",
+    );
+    write(temp.path(), "specs/one.md", "# One\n[home](../index.md)");
+    let compilation = compile(temp.path()).unwrap();
+    let messages: Vec<_> = compilation
+        .diagnostics
+        .iter()
+        .filter(|d| d.severity == entwine_core::DiagnosticSeverity::Error)
+        .map(|d| (d.line, d.message.as_str()))
+        .collect();
+    assert!(
+        messages.contains(&(Some(3), "Link traverses outside docs/")),
+        "{messages:?}"
+    );
+    assert!(
+        messages
+            .iter()
+            .any(|(l, m)| *l == Some(5) && m.contains("docs/specs")),
+        "{messages:?}"
+    );
+    assert!(
+        messages
+            .iter()
+            .any(|(l, m)| *l == Some(7) && m.contains("#status-07")),
+        "{messages:?}"
+    );
 }

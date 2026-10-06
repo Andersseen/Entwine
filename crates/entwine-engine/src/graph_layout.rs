@@ -32,8 +32,14 @@ pub(crate) fn layout(graph: &GraphModel) -> Layout {
     let mut ordered: Vec<_> = degrees.into_iter().collect();
     ordered.sort_by(|(a, da), (b, db)| db.cmp(da).then_with(|| a.cmp(b)));
     let hub = ordered.first().map(|(id, _)| id.clone());
+    let ranks: BTreeMap<_, _> = graph
+        .nodes
+        .iter()
+        .map(|n| (n.id.clone(), n.role.rank()))
+        .collect();
     let mut remaining: Vec<_> = ordered.into_iter().skip(1).map(|(id, _)| id).collect();
-    remaining.sort();
+    // Role-aware but deterministic: convention roles first, then by id.
+    remaining.sort_by(|a, b| (ranks.get(a), a).cmp(&(ranks.get(b), b)));
     let mut rings = Vec::new();
     let mut start = 0;
     let mut ring = 1;
@@ -137,6 +143,7 @@ mod tests {
                 label: name.into(),
                 route: Route::home(),
                 metadata: DocumentMetadata::default(),
+                role: KnowledgeRole::Other,
             })
             .collect();
         let graph = GraphModel {
@@ -183,6 +190,7 @@ mod tests {
                         label: format!("Document {i}"),
                         route: Route::home(),
                         metadata: DocumentMetadata::default(),
+                        role: KnowledgeRole::Other,
                     })
                     .collect(),
                 edges: Vec::new(),

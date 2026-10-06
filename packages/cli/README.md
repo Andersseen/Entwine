@@ -6,8 +6,10 @@ documentation, backlinks, a project graph, validation, and structured context.
 
 ```sh
 npm install --global @entwine/cli
-entwine check
-entwine dev
+entwine init      # scaffold recommended project knowledge
+entwine dev       # read it locally
+entwine check     # validate it and see knowledge coverage
+entwine setup     # GitHub Pages, GitLab Pages, or Bitbucket publishing
 ```
 
 This package is a launcher for the native Rust binary, delivered through the
