@@ -138,7 +138,8 @@ Existing gates remain. New CI adds macOS/Windows regression tests and real regis
 consumer smoke. Release hardening adds early version/lock checks, exact-ref quality
 gates, explicit retry of an existing draft tag, and a registry smoke before release
 visibility. Already published npm versions are skipped; assets use clobber uploads.
-Release-please remains authoritative. The existing Cargo.lock sync is retained.
+Release-please remains authoritative. The existing Cargo.lock sync is retained; CI is explicitly dispatched on its
+final branch SHA because GITHUB_TOKEN pushes do not trigger normal push/PR CI.
 Generated provider triggers cover repository changes, including referenced files
 outside docs/. Default-branch publication restrictions remain enforced.
 Bitbucket validates provider-derived workspace/repository slugs before filesystem

@@ -30,6 +30,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      actions: write # Explicit CI dispatch after GITHUB_TOKEN branch updates.
     outputs:
       created: ${{ steps.resume.outputs.created || steps.rp.outputs.release_created }}
       tag: ${{ steps.resume.outputs.tag || steps.rp.outputs.tag_name }}
@@ -72,8 +73,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ fromJSON(steps.rp.outputs.prs)[0].headBranchName }}
-      - name: Sync Cargo.lock
+      - name: Sync Cargo.lock and validate the final release PR SHA
         if: steps.rp.outputs.prs_created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_BRANCH: ${{ fromJSON(steps.rp.outputs.prs)[0].headBranchName }}
         run: |
           cargo update --workspace
           if ! git diff --quiet Cargo.lock; then
@@ -82,6 +86,9 @@ jobs:
             git commit -m "chore: sync Cargo.lock" Cargo.lock
             git push
           fi
+          # GITHUB_TOKEN pushes do not trigger pull_request/push CI. A manual
+          # dispatch is explicitly supported and validates the synchronized SHA.
+          gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$RELEASE_BRANCH"
 
   # Same gates as every pull request: fmt, clippy, tests, lint, types, showcase,
   # self-dogfood, and the npm distribution smoke test.

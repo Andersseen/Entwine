@@ -21,6 +21,13 @@ fn release_retry_and_visibility_preserve_quality_and_registry_gates() {
     assert!(needs.iter().any(|v| v.as_str() == Some("npm")));
     assert!(needs.iter().any(|v| v.as_str() == Some("github-assets")));
     assert!(text.contains("Retry only an existing draft release"));
+    assert!(text.contains(
+        "gh workflow run ci.yml --repo \"$GITHUB_REPOSITORY\" --ref \"$RELEASE_BRANCH\""
+    ));
+    assert_eq!(
+        workflow["jobs"]["release-please"]["permissions"]["actions"],
+        "write"
+    );
     assert!(text.contains("node tooling/check-versions.ts \"$VERSION\""));
     assert!(text.contains("node tooling/smoke-public.ts --version \"$VERSION\""));
     let ci: Value =
