@@ -98,6 +98,10 @@ Precedence:
    `decisions/**/*.md`, `specs/**/*.md`, relative to `docs/`.
 3. Otherwise `other`.
 
+When `docs/index.md` is absent, root `docs/README.md` is the fallback project
+entrypoint. A recognized explicit type still wins. Other READMEs remain ordinary
+documents; the convention continues recommending `index.md`.
+
 A landing page directly inside `decisions/` or `specs/` (its `index.md`) explains
 the section; it does not count as a decision or specification unless its `type`
 says so. Unknown types such as `guide` or `plan` keep their text and get the role

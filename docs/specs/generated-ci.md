@@ -5,9 +5,9 @@ See [deployment](../deployment.md) for the provider details.
 
 ## Behavior
 
-- A pull or merge request changing `docs/**` runs `entwine check` and fails on
+- A pull or merge request changing repository files runs `entwine check` and fails on
   Entwine validation errors only. Recommended-knowledge gaps are warnings.
-- A change to `docs/**` on the default branch runs `entwine check`, then
+- A repository change on the default branch runs `entwine check`, then
   `entwine build`, then publishes the artifact that build produced, without
   rebuilding differently at deploy time.
 - Unrelated source changes do not trigger documentation builds.
@@ -26,3 +26,6 @@ See [deployment](../deployment.md) for the provider details.
 
 No `entwine publish`, no hosted service, and no code-to-documentation drift
 detection. These are tracked in the [roadmap](../roadmap.md).
+
+Repository references may point outside `docs/`, so generated triggers cover the
+whole repository. PR/MR events validate; only default-branch events publish.

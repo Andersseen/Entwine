@@ -1,6 +1,6 @@
 # Current state
 
-Version 0.1.0 implements a zero-config compiler for `docs/**/*.md`, the
+The first public release was v0.1.0. The current source implements a zero-config compiler for `docs/**/*.md`, the
 [Entwine Knowledge Convention](convention.md) v0.1, provider-native publishing
 setup, and a public showcase built from its own output.
 
@@ -27,7 +27,17 @@ then humanized filename. Repeated headings get suffixes starting at `-2`.
 
 Document links, extensionless routes, anchors, and local assets are resolved.
 Repeated links yield one document relationship. Orphans are warnings.
-Projects without an index document receive an automatically generated landing page.
+`docs/index.md` is canonical; root `docs/README.md` falls back to `/` and
+`project` only when the index is absent. With both present, README keeps
+`/README/` and `other` unless explicitly typed. Nested READMEs keep ordinary
+routes. Documentation directories with descendants receive navigation-only
+landing pages when no document already occupies that route.
+
+Links to existing repository files outside `docs/` become repository references,
+never knowledge relationships. Paths outside the repository and symlink crossings
+fail. Local Git metadata can provide credential-free, encoded file links for
+GitHub, GitLab, and Bitbucket; unknown providers or files absent at the local
+commit render labeled paths. Repository files are never copied to `dist/`.
 
 ## Knowledge roles
 
@@ -43,11 +53,13 @@ Documentation uses neutral gray surfaces with automatic light/dark support.
 Mobile navigation and page headings use native collapsible menus. Pages show a
 role badge, and the sidebar links to two Entwine-native views: the generated
 Project knowledge overview at `/__entwine/knowledge/` (what exists) and the graph
-(how it is connected). The graph centers the most connected document,
-distributes the rest in radial rings ordered by role, and draws directed curved
-edges. Node names include the role, and document lists are grouped by role, so
-meaning never depends on color. Document and relationship lists remain
-available as accessible collapsible sections.
+(how it is connected). Small graphs center the most connected document. Graphs above twelve nodes
+use deterministic role bands and directed curved edges. Above fifty nodes or
+two hundred edges, an open role-grouped text index becomes primary; the full
+visual graph remains available in a native disclosure. Node names include the role, and document lists are grouped by role, so
+meaning never depends on color. Document and relationship lists remain complete. Pages show outgoing references,
+backlinks, and Markdown source paths. Large sibling navigation lists show twenty
+entries plus the current page/ancestors and a link to the complete Knowledge index.
 
 ## Public showcase and distribution
 
@@ -60,9 +72,8 @@ and verifies every relative link, asset, and fragment under both mount points.
 Tagged `v*` releases publish native binaries for Linux x86_64, macOS arm64, macOS
 x86_64, and Windows x86_64 on GitHub Releases, with SHA-256 checksums, and the
 same binaries to npm as `@entwine/cli` plus one `@entwine/cli-<platform>` package
-per target. The release automation exists, but as of this milestone no release
-has been published. Generated CI therefore pins `@entwine/cli` at the CLI's own
-version, which resolves once that release exists; see [deployment](deployment.md).
+per target. Version 0.1.0 is published on npm and GitHub Releases. Generated CI pins
+`@entwine/cli` at the CLI's own version; see [deployment](deployment.md).
 
 ## Provider-native publishing
 
@@ -85,12 +96,26 @@ graphs of 1, 5, 20, 50, and 100 nodes.
 
 No search, theme configuration, graph dragging or physics, incremental
 compilation, or browser reload. Refresh after dev rebuilds. The graph uses a
-fixed SVG layout with a complete text relationship list; at 100 nodes it is a wide
-scrollable canvas, not a readable overview. Binaries are unsigned, and Linux builds
+fixed SVG layout with a complete text relationship list; large graphs prioritize an open role-grouped index, with the full SVG available
+on demand. Binaries are unsigned, and Linux builds
 link the system glibc. Generated GitLab and Bitbucket pipelines are verified for
 syntax and structure but have not been run on those providers; GitLab needs 17.10
 or later. A page that links to its own heading counts as referencing itself. Raw
-HTML is escaped. Symbolic links are rejected. Builds own `dist/` entirely.
-Context schema 0.2 is experimental. API compatibility is not guaranteed before 1.0.
+HTML is escaped except empty anchors with a single safe quoted `id` or `name`. Symbolic links are rejected. Builds own `dist/` entirely.
+Context schema 0.3 is experimental. API compatibility is not guaranteed before 1.0.
 
 Read the [architecture](architecture.md) and [future roadmap](roadmap.md).
+
+## Provider evidence
+
+| Provider | Generated + YAML/contract tests | Real generated CI | Real native publishing |
+| --- | --- | --- | --- |
+| GitHub | Yes | No | No |
+| GitLab | Yes | No | No |
+| Bitbucket Cloud | Yes | No | No |
+
+Entwine’s own GitHub CI, release workflow, and Cloudflare showcase deployment
+were verified successful on the v0.1.0 main commit. Those are different from a
+consumer’s generated GitHub Pages workflow. No dedicated hosted provider test
+repository or GitLab/Bitbucket credentials were used. See
+[hardening evidence](hardening.md) for exact validation and measurements.

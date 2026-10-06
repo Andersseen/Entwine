@@ -32,7 +32,7 @@ fn kitchen_sink_compiles_real_documents_and_all_projections() {
     assert!(auth.html.contains("href=\"../search/#query-contract\""));
     assert!(auth.headings.iter().any(|h| h.id == "session-boundary"));
     assert!(compilation.knowledge.backlinks(&auth.id).len() >= 3);
-    assert_eq!(compilation.site.pages.len(), compilation.graph.nodes.len());
+    assert!(compilation.site.pages.len() >= compilation.graph.nodes.len());
     assert_eq!(compilation.graph.edges, compilation.knowledge.relations);
     assert_eq!(
         compilation.context.relationships,
@@ -56,7 +56,7 @@ fn kitchen_sink_compiles_real_documents_and_all_projections() {
         "On this page",
         ">Knowledge</a>",
         ">Graph</a>",
-        "<pre><code",
+        "<pre tabindex=\"0\"><code",
     ] {
         assert!(auth_html.contains(fragment), "missing {fragment}");
     }
@@ -67,7 +67,7 @@ fn kitchen_sink_compiles_real_documents_and_all_projections() {
         .iter()
         .find(|d| d.id.0 == "architecture.md")
         .unwrap();
-    assert!(architecture.html.contains("<table>"));
+    assert!(architecture.html.contains("<table tabindex=\"0\">"));
     assert!(compilation.knowledge.documents[0].id.0 < compilation.knowledge.documents[1].id.0);
     let graph = String::from_utf8(render_graph(&compilation.graph).contents).unwrap();
     assert_eq!(graph.matches("data-node=").count(), 12);
@@ -78,7 +78,7 @@ fn kitchen_sink_compiles_real_documents_and_all_projections() {
     assert!(graph.contains("../../specs/authentication/"));
     let context: serde_json::Value =
         serde_json::from_str(&context_json(&compilation.context).unwrap()).unwrap();
-    assert_eq!(context["schema_version"], "0.2");
+    assert_eq!(context["schema_version"], "0.3");
     assert_eq!(context["documents"].as_array().unwrap().len(), 12);
     let markdown = context_markdown(&compilation.context);
     for part in [
@@ -179,8 +179,11 @@ fn heading_ids_links_escaping_assets_and_relations_are_consistent() {
 #[test]
 fn malformed_paths_metadata_anchors_and_schemes_fail_without_panics() {
     for (text, expected) in [
-        ("# Home\n[x](../outside.md)", "outside docs/"),
-        ("# Home\n[x](%2e%2e/outside.md)", "outside docs/"),
+        ("# Home\n[x](../../outside.md)", "outside the repository"),
+        (
+            "# Home\n[x](%2e%2e/%2e%2e/outside.md)",
+            "outside the repository",
+        ),
         ("# Home\n[x](javascript:alert)", "scheme"),
         ("# Home\n[x](#missing)", "heading anchor"),
         ("---\ntitle: [\n---\n# Home", "Invalid frontmatter"),
@@ -419,39 +422,32 @@ fn patterns_found_in_real_repositories() {
     assert!(roles.contains(&("STATE.md", State)));
     assert!(roles.contains(&("ROADMAP.md", Roadmap)));
     assert!(roles.contains(&("specs/001-list-filter.md", Spec)));
-    assert!(roles.contains(&("README.md", Other)));
+    assert!(roles.contains(&("README.md", Project)));
 }
 
 #[test]
-fn known_real_world_failures_have_actionable_line_accurate_errors() {
+fn real_world_links_directories_and_safe_anchors_are_distinct() {
     let temp = tempfile::tempdir().unwrap();
-    write(
-        temp.path(),
-        "index.md",
-        "# Home\n\n[Outside](../CLAUDE.md)\n\nSee [specs](specs/).\n\n[Jump](#status-07)\n\n<a id=\"status-07\"></a>\n",
-    );
+    fs::write(temp.path().join("AGENTS.md"), "Repository instructions").unwrap();
+    write(temp.path(), "index.md", "# Home\n\n[Repository](../AGENTS.md)\n\n[Specs](specs/)\n\n[Jump](#status-07)\n\n<a id=\"status-07\"></a>\n");
     write(temp.path(), "specs/one.md", "# One\n[home](../index.md)");
     let compilation = compile(temp.path()).unwrap();
-    let messages: Vec<_> = compilation
-        .diagnostics
+    assert!(!compilation.has_errors(), "{:?}", compilation.diagnostics);
+    let home = compilation
+        .knowledge
+        .documents
         .iter()
-        .filter(|d| d.severity == entwine_core::DiagnosticSeverity::Error)
-        .map(|d| (d.line, d.message.as_str()))
-        .collect();
-    assert!(
-        messages.contains(&(Some(3), "Link traverses outside docs/")),
-        "{messages:?}"
-    );
-    assert!(
-        messages
-            .iter()
-            .any(|(l, m)| *l == Some(5) && m.contains("docs/specs")),
-        "{messages:?}"
-    );
-    assert!(
-        messages
-            .iter()
-            .any(|(l, m)| *l == Some(7) && m.contains("#status-07")),
-        "{messages:?}"
-    );
+        .find(|d| d.id.0 == "index.md")
+        .unwrap();
+    assert_eq!(home.repository_references.len(), 1);
+    assert_eq!(home.repository_references[0].path, "AGENTS.md");
+    assert_eq!(home.repository_references[0].line, 3);
+    assert!(home.html.contains("<span id=\"status-07\"></span>"));
+    assert!(!home.html.contains("href=\"../AGENTS.md"));
+    assert!(compilation
+        .site
+        .pages
+        .iter()
+        .any(|p| p.route.as_str() == "/specs/"));
+    assert_eq!(compilation.knowledge.relations.len(), 2); // self anchor + actual backlink
 }

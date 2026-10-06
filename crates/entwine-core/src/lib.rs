@@ -176,6 +176,23 @@ pub struct Link {
     pub href: String,
 }
 
+/// A safe file reference inside the repository, distinct from knowledge relations.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RepositoryReference {
+    pub path: String,
+    pub source: DocumentId,
+    pub line: usize,
+    pub destination: String,
+}
+
+/// Provider-neutral source URL prefix supplied by the I/O layer.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RepositorySource {
+    pub file_base_url: String,
+    /// Optional inventory of files present at the source ref; uncommitted files degrade to paths.
+    pub files: Option<BTreeSet<String>>,
+}
+
 /// Canonical document: source content, compiled body, and extracted structure.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Document {
@@ -186,6 +203,8 @@ pub struct Document {
     pub role: KnowledgeRole,
     pub headings: Vec<Heading>,
     pub links: Vec<Link>,
+    pub anchors: Vec<String>,
+    pub repository_references: Vec<RepositoryReference>,
     pub content: String,
     pub html: String,
 }
@@ -298,6 +317,9 @@ pub struct SitePage {
     pub metadata: DocumentMetadata,
     pub role: KnowledgeRole,
     pub backlinks: Vec<PageReference>,
+    pub references: Vec<PageReference>,
+    pub source_path: Option<String>,
+    pub source_url: Option<String>,
 }
 /// Complete input for a replaceable site renderer.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -307,6 +329,7 @@ pub struct SiteModel {
     pub graph_route: String,
     pub knowledge_route: String,
     pub knowledge: Vec<KnowledgeGroup>,
+    pub repository_reference_count: usize,
 }
 /// Pages of one knowledge role, for the generated Project Knowledge overview.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -347,6 +370,8 @@ pub struct ContextDocument {
     pub headings: Vec<Heading>,
     pub links: Vec<Link>,
     pub backlinks: Vec<DocumentId>,
+    pub anchors: Vec<String>,
+    pub repository_references: Vec<RepositoryReference>,
     pub content: String,
 }
 /// Resolve the title consistently, including for index pages.

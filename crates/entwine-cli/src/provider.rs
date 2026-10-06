@@ -60,7 +60,16 @@ pub(crate) fn parse_remote(url: &str) -> Option<Remote> {
         && host
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-');
-    (valid_host && !path.is_empty()).then_some(Remote { host, path })
+    let valid_path = !path.is_empty()
+        && path.split('/').all(|part| {
+            !part.is_empty()
+                && part != "."
+                && part != ".."
+                && part
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c))
+        });
+    (valid_host && valid_path).then_some(Remote { host, path })
 }
 
 /// Classify by host. Only well-known forges and unmistakable `gitlab.*` hosts are
@@ -273,5 +282,91 @@ mod tests {
             order_remotes(names(&["b", "a"]), Some("missing")),
             ["a", "b"]
         );
+    }
+}
+
+/// Immutable file links use the local commit, never a branch or remote path as
+/// filesystem input. Unknown hosts receive no guessed URL.
+pub(crate) fn source(repository: &Repository) -> Option<entwine_core::RepositorySource> {
+    let remote = repository.remote.as_ref()?;
+    let commit = git(repository.root.as_ref()?, &["rev-parse", "HEAD"])?;
+    if commit.len() < 40 || !commit.chars().all(|c| c.is_ascii_hexdigit()) {
+        return None;
+    }
+    let mut source = source_at(remote, repository.provider, &commit)?;
+    source.files = Some(
+        git(
+            repository.root.as_ref()?,
+            &["ls-tree", "-rz", "--name-only", "HEAD"],
+        )?
+        .split('\0')
+        .filter(|p| !p.is_empty())
+        .map(str::to_string)
+        .collect(),
+    );
+    Some(source)
+}
+fn source_at(
+    remote: &Remote,
+    provider: Provider,
+    reference: &str,
+) -> Option<entwine_core::RepositorySource> {
+    if remote.path.split('/').any(|p| {
+        p.is_empty()
+            || p == "."
+            || p == ".."
+            || !p
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c))
+    }) {
+        return None;
+    }
+    let ref_url =
+        percent_encoding::utf8_percent_encode(reference, percent_encoding::NON_ALPHANUMERIC)
+            .to_string();
+    let segment = match provider {
+        Provider::GitHub => "blob",
+        Provider::GitLab => "-/blob",
+        Provider::Bitbucket => "src",
+        Provider::Unknown => return None,
+    };
+    Some(entwine_core::RepositorySource {
+        files: None,
+        file_base_url: format!(
+            "https://{}/{}/{segment}/{ref_url}/",
+            remote.host, remote.path
+        ),
+    })
+}
+#[cfg(test)]
+mod source_tests {
+    use super::*;
+    #[test]
+    fn source_urls_are_portable_and_never_contain_remote_credentials() {
+        for (remote, segment) in [
+            ("https://user:secret@github.com/org/repo.git", "blob"),
+            ("git@github.com:org/repo.git", "blob"),
+            ("git@gitlab.com:group/sub/repo.git", "-/blob"),
+            ("ssh://git@bitbucket.org:22/team/repo.git", "src"),
+            ("https://gitlab.internal/group/repo.git", "-/blob"),
+        ] {
+            let r = parse_remote(remote).unwrap();
+            let s = source_at(&r, classify(&r.host), "feature/a?#").unwrap();
+            assert!(s
+                .file_base_url
+                .contains(&format!("/{segment}/feature%2Fa%3F%23/")));
+            assert!(!s.file_base_url.contains("secret"));
+        }
+        for remote in [
+            "https://unknown.example/org/repo",
+            "https://github.com/org/../repo",
+            "https://github.com/org/repo?token=secret",
+            "https://github.com/org/%2e%2e/repo",
+            "https://github.com/org/repo#secret",
+        ] {
+            if let Some(r) = parse_remote(remote) {
+                assert!(source_at(&r, classify(&r.host), "main").is_none());
+            }
+        }
     }
 }

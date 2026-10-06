@@ -4,6 +4,11 @@ on:
     branches: [main]
   pull_request:
   workflow_call:
+    inputs:
+      release-ref:
+        required: false
+        type: string
+        default: ""
 permissions:
   contents: read
 jobs:
@@ -11,6 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release-ref || github.sha }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -21,6 +28,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: node tooling/check-versions.ts
       - run: cargo build --workspace --locked
       - run: cargo fmt --check
       - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
@@ -44,3 +52,20 @@ jobs:
           path: deployment
           if-no-files-found: error
           retention-days: 3
+
+  portability:
+    strategy:
+      matrix:
+        os: [macos-14, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release-ref || github.sha }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: cargo test --workspace --locked
+      - run: node tooling/smoke-public.ts --version 0.1.0

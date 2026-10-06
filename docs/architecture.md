@@ -39,7 +39,8 @@ Headings get stable unique IDs. SVG positions depend only on sorted node order
 (convention roles first, then path). Links are relative for subpath hosting.
 Symbolic links and escaping paths are rejected, including by `init` and `setup`,
 which never write through a symlink and never overwrite existing files.
-Raw HTML is displayed as text and unsafe URL schemes are errors.
+Raw HTML is displayed as text except narrowly recognized empty anchors; unsafe
+URL schemes are errors. Repository references never become knowledge relations.
 
 The CLI stages a complete tree before replacing owned `dist/` output. Validation
 errors preserve the last successful build. Unrelated `dist/` directories are
@@ -47,3 +48,9 @@ never replaced automatically.
 
 See [current state](state.md) and [roadmap](roadmap.md) for the product boundary,
 and [deployment](deployment.md) for how the portable `dist/` output is published.
+
+## Repository sources
+
+The [workspace manifest](../Cargo.toml) defines the implementation crates.
+[Project instructions](../AGENTS.md) describe repository development rules.
+Repository files remain references, distinct from Markdown knowledge relationships.

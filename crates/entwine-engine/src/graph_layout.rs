@@ -16,6 +16,9 @@ pub(crate) struct Layout {
 }
 
 pub(crate) fn layout(graph: &GraphModel) -> Layout {
+    if graph.nodes.len() > 12 {
+        return role_layout(graph);
+    }
     let mut degrees: BTreeMap<_, usize> = graph
         .nodes
         .iter()
@@ -81,6 +84,38 @@ pub(crate) fn layout(graph: &GraphModel) -> Layout {
         size,
         positions,
         hub,
+    }
+}
+
+/// Role bands group presentation only; edges still come from Markdown.
+fn role_layout(graph: &GraphModel) -> Layout {
+    let mut ordered: Vec<_> = graph.nodes.iter().collect();
+    ordered.sort_by(|a, b| (a.role.rank(), &a.id).cmp(&(b.role.rank(), &b.id)));
+    let columns = 5usize;
+    let mut rows = Vec::new();
+    for rank in 0..=6 {
+        let group: Vec<_> = ordered.iter().filter(|n| n.role.rank() == rank).collect();
+        for chunk in group.chunks(columns) {
+            rows.push(chunk.to_vec());
+        }
+    }
+    let size = ((rows.len() as f64 * 160.0 + 140.0).max(1100.0)).ceil();
+    let mut positions = BTreeMap::new();
+    for (row, nodes) in rows.iter().enumerate() {
+        for (column, node) in nodes.iter().enumerate() {
+            positions.insert(
+                node.id.clone(),
+                Point {
+                    x: size / 2.0 + (column as f64 - (nodes.len() as f64 - 1.0) / 2.0) * 190.0,
+                    y: 100.0 + row as f64 * 160.0,
+                },
+            );
+        }
+    }
+    Layout {
+        size,
+        positions,
+        hub: None,
     }
 }
 

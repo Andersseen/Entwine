@@ -20,6 +20,11 @@ fn fixture() -> tempfile::TempDir {
         }
     }
     copy(&source, &temp.path().join("docs"));
+    fs::copy(
+        source.parent().unwrap().join("README.md"),
+        temp.path().join("README.md"),
+    )
+    .unwrap();
     temp
 }
 fn cli(command: &str, project: &Path, flags: &[&str]) -> Output {
@@ -192,6 +197,30 @@ fn dev_serves_rebuilds_preserves_last_good_output_and_rejects_traversal() {
         .starts_with("HTTP/1.1 403"));
     fs::write(
         temp.path().join("docs/index.md"),
+        "# Repository watch\n[Repository](../README.md)",
+    )
+    .unwrap();
+    wait_for(port, ">Repository watch</h1>", &mut process);
+    let published = temp.path().join("dist/index.html");
+    let previous = fs::metadata(&published).unwrap().modified().unwrap();
+    fs::remove_file(temp.path().join("README.md")).unwrap();
+    std::thread::sleep(Duration::from_millis(600));
+    assert_eq!(
+        fs::metadata(&published).unwrap().modified().unwrap(),
+        previous
+    );
+    assert!(get(port, "/").unwrap().contains(">Repository watch</h1>"));
+    fs::write(temp.path().join("README.md"), "# Restored repository file").unwrap();
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while fs::metadata(&published).unwrap().modified().unwrap() == previous {
+        assert!(
+            Instant::now() < deadline,
+            "repository reference change did not rebuild"
+        );
+        std::thread::sleep(Duration::from_millis(25));
+    }
+    fs::write(
+        temp.path().join("docs/index.md"),
         "# Updated project\n\n[Architecture](architecture.md)",
     )
     .unwrap();
@@ -205,4 +234,45 @@ fn dev_serves_rebuilds_preserves_last_good_output_and_rejects_traversal() {
     assert!(get(port, "/").unwrap().contains(">Updated project</h1>"));
     fs::write(temp.path().join("docs/index.md"), "# Recovered project").unwrap();
     wait_for(port, ">Recovered project</h1>", &mut process);
+    fs::create_dir_all(temp.path().join("docs/new/deep")).unwrap();
+    fs::write(
+        temp.path().join("docs/new/deep/page.md"),
+        "# New nested page",
+    )
+    .unwrap();
+    fs::write(temp.path().join("docs/new/image.svg"), "<svg/>").unwrap();
+    fs::write(
+        temp.path().join("docs/index.md"),
+        "# Nested project\n[Directory](new/)\n![Asset](new/image.svg)",
+    )
+    .unwrap();
+    wait_for(port, ">Nested project</h1>", &mut process);
+    assert!(get(port, "/new/").unwrap().contains("New nested page"));
+    assert!(get(port, "/new/image.svg")
+        .unwrap()
+        .starts_with("HTTP/1.1 200"));
+    fs::rename(
+        temp.path().join("docs/new/deep/page.md"),
+        temp.path().join("docs/new/deep/renamed.md"),
+    )
+    .unwrap();
+    fs::write(
+        temp.path().join("docs/index.md"),
+        "# Renamed project\n[Directory](new/)",
+    )
+    .unwrap();
+    wait_for(port, ">Renamed project</h1>", &mut process);
+    assert!(get(port, "/new/deep/page/")
+        .unwrap()
+        .starts_with("HTTP/1.1 404"));
+    assert!(get(port, "/new/deep/renamed/")
+        .unwrap()
+        .starts_with("HTTP/1.1 200"));
+    fs::remove_dir_all(temp.path().join("docs/new")).unwrap();
+    fs::write(temp.path().join("docs/index.md"), "# Deleted project").unwrap();
+    wait_for(port, ">Deleted project</h1>", &mut process);
+    assert!(get(port, "/new/").unwrap().starts_with("HTTP/1.1 404"));
+    assert!(get(port, "/new/image.svg")
+        .unwrap()
+        .starts_with("HTTP/1.1 404"));
 }
