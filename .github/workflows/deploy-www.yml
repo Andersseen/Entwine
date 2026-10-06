@@ -23,7 +23,7 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -52,7 +52,7 @@ jobs:
     env:
       PAGES_PROJECT: ${{ vars.CLOUDFLARE_PAGES_PROJECT_NAME }}
     steps:
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       # Nothing is rebuilt here: the validated artifact is deployed as-is.
