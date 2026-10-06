@@ -115,12 +115,12 @@ jobs:
         run: |
           exe=entwine; [[ "${{ matrix.target }}" == *windows* ]] && exe=entwine.exe
           node tooling/stage-npm.ts platform --target ${{ matrix.target }} --binary "target/${{ matrix.target }}/release/$exe" --version "$VERSION" --out "npm/${{ matrix.target }}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: archive-${{ matrix.target }}
           path: ${{ env.NAME }}.${{ matrix.archive }}
           if-no-files-found: error
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: npm-${{ matrix.target }}
           path: npm/${{ matrix.target }}

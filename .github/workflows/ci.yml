@@ -38,7 +38,7 @@ jobs:
       - run: pnpm smoke:setup
       # Stage, pack, install, and run the npm distribution for this platform.
       - run: pnpm smoke:npm
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: showcase
           path: deployment
