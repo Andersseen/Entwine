@@ -53,7 +53,10 @@ fn tree(root: &Path) -> BTreeMap<String, Vec<u8>> {
                 walk(root, &path, out);
             } else {
                 out.insert(
-                    path.strip_prefix(root).unwrap().to_string_lossy().into(),
+                    path.strip_prefix(root)
+                        .unwrap()
+                        .to_string_lossy()
+                        .replace('\\', "/"),
                     fs::read(&path).unwrap(),
                 );
             }
