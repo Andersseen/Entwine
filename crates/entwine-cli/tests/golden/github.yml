@@ -18,7 +18,7 @@ permissions:
   contents: read
 
 env:
-  ENTWINE_VERSION: "0.1.0"
+  ENTWINE_VERSION: "{{VERSION}}"
 
 jobs:
   build:

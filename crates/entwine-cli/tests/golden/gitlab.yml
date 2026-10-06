@@ -4,7 +4,7 @@
   image: $ENTWINE_IMAGE
   variables:
     ENTWINE_IMAGE: "node:22"
-    ENTWINE_VERSION: "0.1.0"
+    ENTWINE_VERSION: "{{VERSION}}"
 
 # Merge requests: validate only.
 entwine:check:
