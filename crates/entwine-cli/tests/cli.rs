@@ -155,19 +155,44 @@ fn get(port: u16, route: &str) -> Option<String> {
 fn dev_serves_rebuilds_preserves_last_good_output_and_rejects_traversal() {
     use std::time::{Duration, Instant};
     let temp = fixture();
-    let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
-    let port = listener.local_addr().unwrap().port();
-    drop(listener);
-    let mut process = DevProcess(
-        Command::new(env!("CARGO_BIN_EXE_entwine"))
-            .arg("dev")
-            .arg(temp.path())
-            .args(["--port", &port.to_string()])
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .spawn()
-            .unwrap(),
-    );
+    let stderr_log = temp.path().join("dev-stderr.log");
+    // A free port picked up front can be taken before `dev` binds it on a busy
+    // runner, so retry on a fresh port when the server exits during startup.
+    let mut attempt = 0;
+    let (mut process, port) = loop {
+        let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let port = listener.local_addr().unwrap().port();
+        drop(listener);
+        let mut process = DevProcess(
+            Command::new(env!("CARGO_BIN_EXE_entwine"))
+                .arg("dev")
+                .arg(temp.path())
+                .args(["--port", &port.to_string()])
+                .stdout(std::process::Stdio::null())
+                .stderr(fs::File::create(&stderr_log).unwrap())
+                .spawn()
+                .unwrap(),
+        );
+        let started = Instant::now();
+        while Instant::now() < started + Duration::from_secs(10) {
+            if get(port, "/").is_some_and(|r| r.contains(">Harbor</h1>")) {
+                break;
+            }
+            if process.0.try_wait().unwrap().is_some() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(25));
+        }
+        if process.0.try_wait().unwrap().is_none() {
+            break (process, port);
+        }
+        attempt += 1;
+        assert!(
+            attempt < 3,
+            "dev exited during startup: {}",
+            fs::read_to_string(&stderr_log).unwrap_or_default()
+        );
+    };
     fn wait_for(port: u16, text: &str, process: &mut DevProcess) -> String {
         let deadline = Instant::now() + Duration::from_secs(10);
         loop {
