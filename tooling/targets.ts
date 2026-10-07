@@ -28,3 +28,13 @@ export function hostTarget(): Target {
     );
   return found;
 }
+
+/** Cargo writes `entwine.exe` on Windows; callers pass the extension-less path. */
+export function binaryPath(
+  path: string,
+  platform: string = process.platform,
+): string {
+  return platform === "win32" && !path.toLowerCase().endsWith(".exe")
+    ? `${path}.exe`
+    : path;
+}

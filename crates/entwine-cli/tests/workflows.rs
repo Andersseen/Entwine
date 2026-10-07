@@ -29,7 +29,7 @@ fn release_retry_and_visibility_preserve_quality_and_registry_gates() {
         "write"
     );
     assert!(text.contains("node tooling/check-versions.ts \"$VERSION\""));
-    assert!(text.contains("node tooling/smoke-public.ts --version \"$VERSION\""));
+    assert!(text.contains("tooling/smoke-public.ts --version \"$VERSION\""));
     let ci: Value =
         serde_yaml::from_str(include_str!("../../../.github/workflows/ci.yml")).unwrap();
     let matrix = ci["jobs"]["portability"]["strategy"]["matrix"]["os"]
@@ -37,6 +37,42 @@ fn release_retry_and_visibility_preserve_quality_and_registry_gates() {
         .unwrap();
     assert!(matrix.iter().any(|v| v.as_str() == Some("macos-14")));
     assert!(matrix.iter().any(|v| v.as_str() == Some("windows-latest")));
+}
+
+#[test]
+fn unresolved_draft_releases_cannot_reach_release_please() {
+    let text = include_str!("../../../.github/workflows/release.yml");
+    let workflow: Value = serde_yaml::from_str(text).unwrap();
+    // Regression: a draft has no tag, so release-please must never run while one exists.
+    assert_eq!(
+        workflow["jobs"]["release-please"]["needs"].as_str(),
+        Some("guard")
+    );
+    assert_eq!(
+        workflow["jobs"]["release-please"]["if"].as_str(),
+        Some("needs.guard.outputs.pending == 'none'")
+    );
+    assert_eq!(
+        workflow["jobs"]["guard"]["permissions"]["contents"].as_str(),
+        Some("write"),
+        "drafts are invisible to read-only tokens"
+    );
+    assert!(text.contains("release-state.ts guard"));
+    // Publishing is idempotent and verification gates the GitHub release.
+    assert!(text.contains("publish-npm.ts"));
+    let publish_needs = workflow["jobs"]["publish-release"]["needs"]
+        .as_sequence()
+        .unwrap();
+    assert!(publish_needs.iter().any(|v| v.as_str() == Some("npm")));
+}
+
+#[test]
+fn portability_exercises_current_source_not_a_public_package() {
+    let ci = include_str!("../../../.github/workflows/ci.yml");
+    let portability = &ci[ci.find("  portability:").unwrap()..];
+    assert!(!portability.contains("smoke-public"));
+    assert!(portability.contains("pnpm smoke:npm"));
+    assert!(portability.contains("pnpm smoke:setup"));
 }
 
 #[cfg(unix)]

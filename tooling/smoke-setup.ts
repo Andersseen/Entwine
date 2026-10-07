@@ -18,10 +18,11 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
+import { binaryPath } from "./targets.ts";
 
 const { values } = parseArgs({ options: { binary: { type: "string" } } });
 if (!values.binary) throw new Error("--binary is required");
-const binary = resolve(values.binary);
+const binary = resolve(binaryPath(values.binary));
 
 const providers = [
   {

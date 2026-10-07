@@ -16,7 +16,7 @@ import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { root } from "./paths.ts";
 import { stageMain, stagePlatform } from "./stage-npm.ts";
-import { hostTarget, platformPackage } from "./targets.ts";
+import { binaryPath, hostTarget, platformPackage } from "./targets.ts";
 
 const { values } = parseArgs({ options: { binary: { type: "string" } } });
 if (!values.binary) throw new Error("--binary is required");
@@ -41,7 +41,7 @@ const work = mkdtempSync(join(tmpdir(), "entwine-npm-"));
 try {
   stagePlatform(
     target,
-    resolve(values.binary),
+    resolve(binaryPath(values.binary)),
     version,
     join(work, "platform"),
   );

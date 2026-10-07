@@ -7,6 +7,12 @@ name: Release
 #   3. Merging that PR creates a *draft* GitHub release. This workflow then runs
 #      the full CI, builds native binaries, uploads them, publishes the npm
 #      packages with provenance, and only then un-drafts the release.
+#
+# Invariant: a draft release has no Git tag, so release-please would count every
+# already-shipped commit as unreleased. While any release is still a draft the
+# `guard` job therefore skips release-please entirely (cleanly, not red). A failed
+# draft is resumed with "Run workflow" and the tag; it reuses published packages
+# and attached assets.
 on:
   push:
     branches: [main]
@@ -25,13 +31,38 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Drafts are only visible to tokens with write access to contents.
+  guard:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      pending: ${{ steps.guard.outputs.pending || 'none' }}
+    steps:
+      - uses: actions/checkout@v4
+        if: github.event_name == 'push'
+      - uses: actions/setup-node@v7
+        if: github.event_name == 'push'
+        with:
+          node-version: 22
+      - id: guard
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName,isDraft > "$RUNNER_TEMP/releases.json"
+          node tooling/release-state.ts guard --releases "$RUNNER_TEMP/releases.json"
+
   release-please:
+    needs: guard
+    if: needs.guard.outputs.pending == 'none'
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
       actions: write # Explicit CI dispatch after GITHUB_TOKEN branch updates.
     outputs:
+      needs_build: ${{ steps.plan.outputs.needs_build || 'true' }}
       created: ${{ steps.resume.outputs.created || steps.rp.outputs.release_created }}
       tag: ${{ steps.resume.outputs.tag || steps.rp.outputs.tag_name }}
       version: ${{ steps.resume.outputs.version || steps.rp.outputs.version }}
@@ -68,6 +99,32 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         with:
           ref: ${{ steps.draft.outputs.sha }}
+      # Release code comes from the draft's commit; release tooling always comes from
+      # the workflow's own ref, so a repaired workflow can resume an older draft.
+      - uses: actions/checkout@v4
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          path: .release-tooling
+          ref: ${{ github.sha }}
+          sparse-checkout: |
+            tooling
+            package.json
+            tsconfig.base.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v7
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          node-version: 22
+      # Reuse what an earlier attempt already shipped: skip the build when every
+      # package is public and every asset is attached.
+      - id: plan
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '[.assets[].name]' > "$RUNNER_TEMP/assets.json"
+          node .release-tooling/tooling/release-state.ts plan --tag "$RELEASE_TAG" --assets "$RUNNER_TEMP/assets.json"
       - id: resume
         if: github.event_name == 'workflow_dispatch'
         env:
@@ -105,7 +162,7 @@ jobs:
   # self-dogfood, and the npm distribution smoke test.
   quality:
     needs: release-please
-    if: needs.release-please.outputs.created == 'true'
+    if: needs.release-please.outputs.created == 'true' && needs.release-please.outputs.needs_build == 'true'
     uses: ./.github/workflows/ci.yml
     with:
       release-ref: ${{ needs.release-please.outputs.sha }}
@@ -198,6 +255,12 @@ jobs:
 
   npm:
     needs: [release-please, build]
+    # A skipped build is fine only when the plan said nothing needed building; a
+    # skipped build because quality failed must never reach the registry.
+    if: >-
+      ${{ !cancelled() && needs.release-please.outputs.created == 'true' &&
+      (needs.build.result == 'success' ||
+      (needs.release-please.outputs.needs_build == 'false' && needs.build.result == 'skipped')) }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -205,42 +268,53 @@ jobs:
     env:
       VERSION: ${{ needs.release-please.outputs.version }}
       NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      BUILT: ${{ needs.release-please.outputs.needs_build }}
     steps:
       - uses: actions/checkout@v4
+        if: env.BUILT == 'true'
         with:
           ref: ${{ needs.release-please.outputs.sha }}
+      - uses: actions/checkout@v4
+        with:
+          path: .release-tooling
+          ref: ${{ github.sha }}
+          sparse-checkout: |
+            tooling
+            package.json
+            tsconfig.base.json
+          sparse-checkout-cone-mode: false
       - uses: pnpm/action-setup@v4
+        if: env.BUILT == 'true'
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: pnpm
+          cache: ${{ env.BUILT == 'true' && 'pnpm' || '' }}
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
+        if: env.BUILT == 'true'
       - run: pnpm --filter @entwine/cli build
+        if: env.BUILT == 'true'
       - uses: actions/download-artifact@v4
+        if: env.BUILT == 'true'
         with:
           pattern: npm-*
           path: npm-staged
       - name: Stage the launcher package
+        if: env.BUILT == 'true'
         run: node tooling/stage-npm.ts main --version "$VERSION" --out npm-staged/main
+      # Idempotent: a package whose exact version is already public is skipped.
       - name: Publish platform packages first, launcher last
-        run: |
-          publish() {
-            dir="$1"
-            name=$(node -p "require('./$dir/package.json').name")
-            if npm view "$name@$VERSION" version >/dev/null 2>&1; then
-              echo "$name@$VERSION already published; skipping"
-            else
-              (cd "$dir" && npm publish --access public --provenance)
-            fi
-          }
-          for dir in npm-staged/npm-*; do publish "$dir"; done
-          publish npm-staged/main
-      - name: Smoke-test the public registry before exposing the release
-        run: node tooling/smoke-public.ts --version "$VERSION"
+        if: env.BUILT == 'true'
+        run: node .release-tooling/tooling/publish-npm.ts npm-staged/npm-* npm-staged/main
+      - name: Verify the public registry before exposing the release
+        run: node .release-tooling/tooling/smoke-public.ts --version "$VERSION"
 
   publish-release:
     needs: [release-please, github-assets, npm]
+    if: >-
+      ${{ !cancelled() && needs.npm.result == 'success' &&
+      (needs.github-assets.result == 'success' ||
+      (needs.release-please.outputs.needs_build == 'false' && needs.github-assets.result == 'skipped')) }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

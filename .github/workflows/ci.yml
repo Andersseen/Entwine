@@ -34,6 +34,7 @@ jobs:
       - run: cargo fmt --check
       - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
       - run: cargo test --workspace --locked
+      - run: pnpm test:tooling
       - run: pnpm lint
       - run: pnpm format:check
       - run: pnpm typecheck
@@ -65,8 +66,15 @@ jobs:
           ref: ${{ inputs.release-ref || github.sha }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - run: cargo test --workspace --locked
-      - run: node tooling/smoke-public.ts --version 0.1.0
+      - run: pnpm test:tooling
+      # Current source, not an old public package: stage, pack, install and run this
+      # commit's launcher and binary, and exercise init/setup for every provider.
+      - run: pnpm smoke:npm
+      - run: pnpm smoke:setup
