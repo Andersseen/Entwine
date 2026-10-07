@@ -72,12 +72,12 @@ jobs:
         if: steps.rp.outputs.prs_created == 'true'
         uses: actions/checkout@v4
         with:
-          ref: ${{ fromJSON(steps.rp.outputs.prs)[0].headBranchName }}
+          ref: ${{ fromJSON(steps.rp.outputs.prs || '[{}]')[0].headBranchName }}
       - name: Sync Cargo.lock and validate the final release PR SHA
         if: steps.rp.outputs.prs_created == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_BRANCH: ${{ fromJSON(steps.rp.outputs.prs)[0].headBranchName }}
+          RELEASE_BRANCH: ${{ fromJSON(steps.rp.outputs.prs || '[{}]')[0].headBranchName }}
         run: |
           cargo update --workspace
           if ! git diff --quiet Cargo.lock; then
