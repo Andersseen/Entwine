@@ -72,10 +72,10 @@ fn instruction_item(from: &str, entry: &AgentEntry) -> String {
     )
 }
 
-fn skill_card(from: &str, entry: &AgentEntry) -> String {
+fn skill_card(from: &str, entry: &AgentEntry, level: u8) -> String {
     let details = &entry.details;
     format!(
-        "<li class=\"agent-card\"><h3>{}</h3><p>{}</p><p><code>{}</code></p><p>{} · {}</p></li>",
+        "<li class=\"agent-card\"><h{level}>{}</h{level}><p>{}</p><p><code>{}</code></p><p>{} · {}</p></li>",
         link(from, &entry.route, &entry.title),
         escape(
             details
@@ -129,7 +129,7 @@ pub fn render_agents(site: &SiteModel) -> Vec<StaticFile> {
             "<section><h2>Skills</h2><ul class=\"agent-grid\">{}</ul></section>",
             skills
                 .iter()
-                .map(|e| skill_card(HOME, e))
+                .map(|e| skill_card(HOME, e, 3))
                 .collect::<String>()
         ));
     }
@@ -180,7 +180,7 @@ pub fn render_agents(site: &SiteModel) -> Vec<StaticFile> {
     } else {
         format!(
             "<p class=\"note\">Each skill is a folder with a <code>SKILL.md</code> manifest and optional supporting resources. Resources are listed, never run or copied.</p><ul class=\"agent-grid\">{}</ul>",
-            skills.iter().map(|e| skill_card(route, e)).collect::<String>()
+            skills.iter().map(|e| skill_card(route, e, 2)).collect::<String>()
         )
     };
     files.push(shell(route, "Skills", &body, "Skills"));

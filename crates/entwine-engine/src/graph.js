@@ -516,7 +516,10 @@
     if (e.detail === 0) select(target.getAttribute("data-node"), true);
   });
   svg.addEventListener("dblclick", (e) => {
-    const target = e.target.closest?.(".graph-node");
+    // Pointer capture retargets click events to the svg, so find the node under the pointer.
+    const hit = document.elementFromPoint(e.clientX, e.clientY);
+    const target =
+      hit?.closest?.(".graph-node") ?? e.target.closest?.(".graph-node");
     const n = target && nodes.get(target.getAttribute("data-node"));
     if (n?.d.href) location.href = n.d.href;
   });

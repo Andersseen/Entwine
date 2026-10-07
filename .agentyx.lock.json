@@ -1,0 +1,557 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "kind": "skill",
+      "path": ".agents/skills/api-design/SKILL.md",
+      "skill": "api-design",
+      "targets": [
+        "codex"
+      ],
+      "hash": "01b1dc1bf367367097909f3ec6267fe67083053ce1c503d0c34caa42135e70d7"
+    },
+    {
+      "kind": "skill",
+      "path": ".agents/skills/api-documentation/SKILL.md",
+      "skill": "api-documentation",
+      "targets": [
+        "codex"
+      ],
+      "hash": "dff47f81855956f4c93b892f9671a88363df84e4cd40a11bde89ddaaac6e8e36"
+    },
+    {
+      "kind": "skill",
+      "path": ".agents/skills/auth-patterns/SKILL.md",
+      "skill": "auth-patterns",
+      "targets": [
+        "codex"
+      ],
+      "hash": "ee37df8a65d8d56b65c7645c954607b00da91b1d7dc5f1c2e7da0334583a1c64"
+    },
+    {
+      "kind": "skill",
+      "path": ".agents/skills/branching-strategy/SKILL.md",
+      "skill": "branching-strategy",
+      "targets": [
+        "codex"
+      ],
+      "hash": "138eda6f5f394a4f009bcaabaa6032d536374afb50797dab13efd7b72bc6740a"
+    },
+    {
+      "kind": "skill",
+      "path": ".agents/skills/cargo-workspace-verification/SKILL.md",
+      "skill": "cargo-workspace-verification",
+      "targets": [
+        "codex"
+      ],
+      "hash": "619016c6745be64279765d4e514b23af6f4769a4a0b3e08a1721b0db9c7b8e55"
+    },
+    {
+      "kind": "skill",
+      "path": ".agents/skills/ci-pipelines/SKILL.md",
+      "skill": "ci-pipelines",
+      "targets": [
+        "codex"
+      ],
+      "hash": "9474badebf768a298f0952dc96169c16e780f460907548b4ff1d2862d834a4cb"
+    },
+    {
+      "kind": "skill",
+      "path": ".agents/skills/code-quality/SKILL.md",
+      "skill": "code-quality",
+      "targets": [
+        "codex"
+      ],
+      "hash": "c7fef0865643838f0c375d2a7523bbc724d14e45b3329b8ae43215519ba5b12b"
+    },
+    {
+      "kind": "skill",
+      "path": ".agents/skills/code-review/SKILL.md",
+      "skill": "code-review",
+      "targets": [
+        "codex"
+      ],
+      "hash": "87e989466034507de357f2abe0c2b0930304baaa6006bbd6cf24d5723334ce8f"
+    },
+    {
+      "kind": "skill",
+      "path": ".agents/skills/commit-hygiene/SKILL.md",
+      "skill": "commit-hygiene",
+      "targets": [
+        "codex"
+      ],
+      "hash": "ca501d59eeee6e0bda83cc7baf17050ca3740568433490faabd40581346d71b7"
+    },
+    {
+      "kind": "skill",
+      "path": ".agents/skills/concise-output/SKILL.md",
+      "skill": "concise-output",
+      "targets": [
+        "codex"
+      ],
+      "hash": "9393b8594a3fc63a288fb6b4a82312c9cc57d539b7bf49cd709a913937e9e2af"
+    },
+    {
+      "kind": "skill",
+      "path": ".agents/skills/containerization/SKILL.md",
+      "skill": "containerization",
+      "targets": [
+        "codex"
+      ],
+      "hash": "6961c314ef6b5f4720c49e562cf2c38cc6aafd0d8391dd71b18ad307dbba226d"
+    },
+    {
+      "kind": "skill",
+      "path": ".agents/skills/context-efficient-development/SKILL.md",
+      "skill": "context-efficient-development",
+      "targets": [
+        "codex"
+      ],
+      "hash": "3b0279048858e62857f7bab721554690d6601f8dd1d7c208dec2d952ea01370f"
+    },
+    {
+      "kind": "skill",
+      "path": ".agents/skills/decision-records/SKILL.md",
+      "skill": "decision-records",
+      "targets": [
+        "codex"
+      ],
+      "hash": "07e385ae70f481ce4535994ee9f58552c163c9f0b1738765c9439ca1f1cee168"
+    },
+    {
+      "kind": "skill",
+      "path": ".agents/skills/dependency-security/SKILL.md",
+      "skill": "dependency-security",
+      "targets": [
+        "codex"
+      ],
+      "hash": "98e26387b89ab4777cc4e751f634dd6d03bf3fc7b147e306ece911e067dfdf92"
+    },
+    {
+      "kind": "skill",
+      "path": ".agents/skills/deployment-safety/SKILL.md",
+      "skill": "deployment-safety",
+      "targets": [
+        "codex"
+      ],
+      "hash": "6ca80c005327918caac27684f95702ffc2b8718d4513c48263c65caa7279d773"
+    },
+    {
+      "kind": "skill",
+      "path": ".agents/skills/e2e-testing/SKILL.md",
+      "skill": "e2e-testing",
+      "targets": [
+        "codex"
+      ],
+      "hash": "f07c9ae381e916d93c6ee67c32be8eac76482f19fcfbbe9ca6116af9c3036113"
+    },
+    {
+      "kind": "skill",
+      "path": ".agents/skills/engineering-principles/SKILL.md",
+      "skill": "engineering-principles",
+      "targets": [
+        "codex"
+      ],
+      "hash": "e7573e73b93fbbce857bbe2927904ebc7022e31b5607edc49586da75751835f2"
+    },
+    {
+      "kind": "skill",
+      "path": ".agents/skills/flaky-tests/SKILL.md",
+      "skill": "flaky-tests",
+      "targets": [
+        "codex"
+      ],
+      "hash": "d567f98325047a258658b44bf8993060256ae1ccf5e8570d183805e533e47481"
+    },
+    {
+      "kind": "skill",
+      "path": ".agents/skills/focused-verification/SKILL.md",
+      "skill": "focused-verification",
+      "targets": [
+        "codex"
+      ],
+      "hash": "af0d9709dc7ad838bf82507785473657fd1620466d4178da351022dee83d39f5"
+    },
+    {
+      "kind": "skill",
+      "path": ".agents/skills/infrastructure-as-code/SKILL.md",
+      "skill": "infrastructure-as-code",
+      "targets": [
+        "codex"
+      ],
+      "hash": "14ef02d1b397841fd245fafe01365f4c5a1cc7bbe43403a355306b288bb03374"
+    },
+    {
+      "kind": "skill",
+      "path": ".agents/skills/pull-requests/SKILL.md",
+      "skill": "pull-requests",
+      "targets": [
+        "codex"
+      ],
+      "hash": "23ec8995490bc82cfcff509986bfc968df9f46c6106c907fd8cd94616699e721"
+    },
+    {
+      "kind": "skill",
+      "path": ".agents/skills/rust-cli-filesystem-safety/SKILL.md",
+      "skill": "rust-cli-filesystem-safety",
+      "targets": [
+        "codex"
+      ],
+      "hash": "0204845351b8caadcd9cb6ccd348d119fdebc20df4a4cea477f519f96425aad5"
+    },
+    {
+      "kind": "skill",
+      "path": ".agents/skills/rust-idiomatic-development/SKILL.md",
+      "skill": "rust-idiomatic-development",
+      "targets": [
+        "codex"
+      ],
+      "hash": "8dc4ae7762ff1b9d5fdfd0863b8974c68153764cb1e3b2a0e72f296972af915a"
+    },
+    {
+      "kind": "skill",
+      "path": ".agents/skills/rust-testing-portability/SKILL.md",
+      "skill": "rust-testing-portability",
+      "targets": [
+        "codex"
+      ],
+      "hash": "11c0032f31e5649ec14a6854be8b92af601fbd70b27062d212af6ba1d828ac05"
+    },
+    {
+      "kind": "skill",
+      "path": ".agents/skills/secrets-handling/SKILL.md",
+      "skill": "secrets-handling",
+      "targets": [
+        "codex"
+      ],
+      "hash": "61292c74953be9d2a2ec5a29fe97a8ef6b29628d9b5ce52c1cae2289b1981824"
+    },
+    {
+      "kind": "skill",
+      "path": ".agents/skills/secure-coding/SKILL.md",
+      "skill": "secure-coding",
+      "targets": [
+        "codex"
+      ],
+      "hash": "9f5e5141fb0168bff1a009f167f2687e2edd94d70e670feb252edb27ec3aa789"
+    },
+    {
+      "kind": "skill",
+      "path": ".agents/skills/targeted-exploration/SKILL.md",
+      "skill": "targeted-exploration",
+      "targets": [
+        "codex"
+      ],
+      "hash": "f953693a6ac3b874ad0d036e38d1d8a1886d70785db40b8f1a77e24019786116"
+    },
+    {
+      "kind": "skill",
+      "path": ".agents/skills/technical-writing/SKILL.md",
+      "skill": "technical-writing",
+      "targets": [
+        "codex"
+      ],
+      "hash": "ca84bf3458cce4b591b4b3bb1bcdf6b7f573a17eb4f7c29325d74445e498e9e5"
+    },
+    {
+      "kind": "skill",
+      "path": ".agents/skills/test-doubles/SKILL.md",
+      "skill": "test-doubles",
+      "targets": [
+        "codex"
+      ],
+      "hash": "928a7ef4e9f8f76ccaaf0b7b577386c974077985fe7fa066dae4276bfc744037"
+    },
+    {
+      "kind": "skill",
+      "path": ".agents/skills/test-strategy/SKILL.md",
+      "skill": "test-strategy",
+      "targets": [
+        "codex"
+      ],
+      "hash": "e68899774dfa833b19e29d6224e8f375b5263b242bf5be1548c342ce2f4e93d3"
+    },
+    {
+      "kind": "hook",
+      "path": ".claude/settings.json",
+      "hooks": [
+        "session-doctor-bootstrap"
+      ],
+      "targets": [
+        "claude"
+      ],
+      "hash": "4c4801cfea820b62494a42e631de20553c324aa329b3dada0e807eb314343b7f",
+      "created": true
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/api-design/SKILL.md",
+      "skill": "api-design",
+      "targets": [
+        "claude"
+      ],
+      "hash": "01b1dc1bf367367097909f3ec6267fe67083053ce1c503d0c34caa42135e70d7"
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/api-documentation/SKILL.md",
+      "skill": "api-documentation",
+      "targets": [
+        "claude"
+      ],
+      "hash": "dff47f81855956f4c93b892f9671a88363df84e4cd40a11bde89ddaaac6e8e36"
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/auth-patterns/SKILL.md",
+      "skill": "auth-patterns",
+      "targets": [
+        "claude"
+      ],
+      "hash": "ee37df8a65d8d56b65c7645c954607b00da91b1d7dc5f1c2e7da0334583a1c64"
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/branching-strategy/SKILL.md",
+      "skill": "branching-strategy",
+      "targets": [
+        "claude"
+      ],
+      "hash": "138eda6f5f394a4f009bcaabaa6032d536374afb50797dab13efd7b72bc6740a"
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/cargo-workspace-verification/SKILL.md",
+      "skill": "cargo-workspace-verification",
+      "targets": [
+        "claude"
+      ],
+      "hash": "619016c6745be64279765d4e514b23af6f4769a4a0b3e08a1721b0db9c7b8e55"
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/ci-pipelines/SKILL.md",
+      "skill": "ci-pipelines",
+      "targets": [
+        "claude"
+      ],
+      "hash": "9474badebf768a298f0952dc96169c16e780f460907548b4ff1d2862d834a4cb"
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/code-quality/SKILL.md",
+      "skill": "code-quality",
+      "targets": [
+        "claude"
+      ],
+      "hash": "c7fef0865643838f0c375d2a7523bbc724d14e45b3329b8ae43215519ba5b12b"
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/code-review/SKILL.md",
+      "skill": "code-review",
+      "targets": [
+        "claude"
+      ],
+      "hash": "87e989466034507de357f2abe0c2b0930304baaa6006bbd6cf24d5723334ce8f"
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/commit-hygiene/SKILL.md",
+      "skill": "commit-hygiene",
+      "targets": [
+        "claude"
+      ],
+      "hash": "ca501d59eeee6e0bda83cc7baf17050ca3740568433490faabd40581346d71b7"
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/concise-output/SKILL.md",
+      "skill": "concise-output",
+      "targets": [
+        "claude"
+      ],
+      "hash": "9393b8594a3fc63a288fb6b4a82312c9cc57d539b7bf49cd709a913937e9e2af"
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/containerization/SKILL.md",
+      "skill": "containerization",
+      "targets": [
+        "claude"
+      ],
+      "hash": "6961c314ef6b5f4720c49e562cf2c38cc6aafd0d8391dd71b18ad307dbba226d"
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/context-efficient-development/SKILL.md",
+      "skill": "context-efficient-development",
+      "targets": [
+        "claude"
+      ],
+      "hash": "3b0279048858e62857f7bab721554690d6601f8dd1d7c208dec2d952ea01370f"
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/decision-records/SKILL.md",
+      "skill": "decision-records",
+      "targets": [
+        "claude"
+      ],
+      "hash": "07e385ae70f481ce4535994ee9f58552c163c9f0b1738765c9439ca1f1cee168"
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/dependency-security/SKILL.md",
+      "skill": "dependency-security",
+      "targets": [
+        "claude"
+      ],
+      "hash": "98e26387b89ab4777cc4e751f634dd6d03bf3fc7b147e306ece911e067dfdf92"
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/deployment-safety/SKILL.md",
+      "skill": "deployment-safety",
+      "targets": [
+        "claude"
+      ],
+      "hash": "6ca80c005327918caac27684f95702ffc2b8718d4513c48263c65caa7279d773"
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/e2e-testing/SKILL.md",
+      "skill": "e2e-testing",
+      "targets": [
+        "claude"
+      ],
+      "hash": "f07c9ae381e916d93c6ee67c32be8eac76482f19fcfbbe9ca6116af9c3036113"
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/engineering-principles/SKILL.md",
+      "skill": "engineering-principles",
+      "targets": [
+        "claude"
+      ],
+      "hash": "e7573e73b93fbbce857bbe2927904ebc7022e31b5607edc49586da75751835f2"
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/flaky-tests/SKILL.md",
+      "skill": "flaky-tests",
+      "targets": [
+        "claude"
+      ],
+      "hash": "d567f98325047a258658b44bf8993060256ae1ccf5e8570d183805e533e47481"
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/focused-verification/SKILL.md",
+      "skill": "focused-verification",
+      "targets": [
+        "claude"
+      ],
+      "hash": "af0d9709dc7ad838bf82507785473657fd1620466d4178da351022dee83d39f5"
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/infrastructure-as-code/SKILL.md",
+      "skill": "infrastructure-as-code",
+      "targets": [
+        "claude"
+      ],
+      "hash": "14ef02d1b397841fd245fafe01365f4c5a1cc7bbe43403a355306b288bb03374"
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/pull-requests/SKILL.md",
+      "skill": "pull-requests",
+      "targets": [
+        "claude"
+      ],
+      "hash": "23ec8995490bc82cfcff509986bfc968df9f46c6106c907fd8cd94616699e721"
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/rust-cli-filesystem-safety/SKILL.md",
+      "skill": "rust-cli-filesystem-safety",
+      "targets": [
+        "claude"
+      ],
+      "hash": "0204845351b8caadcd9cb6ccd348d119fdebc20df4a4cea477f519f96425aad5"
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/rust-idiomatic-development/SKILL.md",
+      "skill": "rust-idiomatic-development",
+      "targets": [
+        "claude"
+      ],
+      "hash": "8dc4ae7762ff1b9d5fdfd0863b8974c68153764cb1e3b2a0e72f296972af915a"
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/rust-testing-portability/SKILL.md",
+      "skill": "rust-testing-portability",
+      "targets": [
+        "claude"
+      ],
+      "hash": "11c0032f31e5649ec14a6854be8b92af601fbd70b27062d212af6ba1d828ac05"
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/secrets-handling/SKILL.md",
+      "skill": "secrets-handling",
+      "targets": [
+        "claude"
+      ],
+      "hash": "61292c74953be9d2a2ec5a29fe97a8ef6b29628d9b5ce52c1cae2289b1981824"
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/secure-coding/SKILL.md",
+      "skill": "secure-coding",
+      "targets": [
+        "claude"
+      ],
+      "hash": "9f5e5141fb0168bff1a009f167f2687e2edd94d70e670feb252edb27ec3aa789"
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/targeted-exploration/SKILL.md",
+      "skill": "targeted-exploration",
+      "targets": [
+        "claude"
+      ],
+      "hash": "f953693a6ac3b874ad0d036e38d1d8a1886d70785db40b8f1a77e24019786116"
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/technical-writing/SKILL.md",
+      "skill": "technical-writing",
+      "targets": [
+        "claude"
+      ],
+      "hash": "ca84bf3458cce4b591b4b3bb1bcdf6b7f573a17eb4f7c29325d74445e498e9e5"
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/test-doubles/SKILL.md",
+      "skill": "test-doubles",
+      "targets": [
+        "claude"
+      ],
+      "hash": "928a7ef4e9f8f76ccaaf0b7b577386c974077985fe7fa066dae4276bfc744037"
+    },
+    {
+      "kind": "skill",
+      "path": ".claude/skills/test-strategy/SKILL.md",
+      "skill": "test-strategy",
+      "targets": [
+        "claude"
+      ],
+      "hash": "e68899774dfa833b19e29d6224e8f375b5263b242bf5be1548c342ce2f4e93d3"
+    }
+  ]
+}

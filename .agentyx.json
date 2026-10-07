@@ -1,0 +1,29 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Andersseen/agentyx/main/packages/core/schema/agentyx.schema.json",
+  "packs": [
+    "technical",
+    "testing",
+    "security",
+    "documentation",
+    "git",
+    "devops",
+    "efficiency",
+    "rust-entwine"
+  ],
+  "enable": ["rtk"],
+  "targets": ["codex", "claude"],
+  "skillDirectories": [".agentyx/skills"],
+  "localPacks": [
+    {
+      "name": "rust-entwine",
+      "category": "language",
+      "description": "Rust guidance specific to developing Entwine; candidates for a future built-in Agentyx rust pack.",
+      "skills": [
+        "rust-idiomatic-development",
+        "rust-cli-filesystem-safety",
+        "rust-testing-portability",
+        "cargo-workspace-verification"
+      ]
+    }
+  ]
+}
