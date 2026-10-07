@@ -48,6 +48,18 @@ jobs:
       - run: pnpm smoke:setup
       # Stage, pack, install, and run the npm distribution for this platform.
       - run: pnpm smoke:npm
+      # Browser E2E against real generated output (Linux Chromium only).
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: e2e-traces
+          path: test-results
+          if-no-files-found: ignore
+          retention-days: 3
+      # Agentyx-managed agent tooling must match .agentyx.json (no drift, no hand edits).
+      - run: pnpm agents:doctor
       - uses: actions/upload-artifact@v7
         with:
           name: showcase

@@ -12,6 +12,9 @@
       "!**/Cargo.lock",
       "!**/pnpm-lock.yaml",
       "!**/.release-please-manifest.json",
+      "!.agents",
+      "!.claude",
+      "!.agentyx.lock.json",
       "!crates/entwine-engine/tests/golden"
     ]
   },

@@ -31,6 +31,21 @@ the diff.
 `pnpm build:showcase` builds the Astro site, Entwine's own docs, and the
 kitchen-sink, composes `deployment/`, and verifies subpath hosting.
 
+## Browser E2E and agent tooling
+
+`pnpm test:e2e` (after `cargo build -p entwine-cli` and `pnpm exec playwright install chromium`)
+builds the kitchen-sink with the real CLI into a temporary directory, serves it, and
+drives Chromium through docs navigation, the interactive graph, Agent Knowledge, the
+privacy boundary (`include_agent_knowledge = false`), no-JavaScript rendering and axe
+accessibility checks. Only Linux/macOS-style local runs and Linux CI execute it; native
+packaging is covered separately by the portability job.
+
+Codex and Claude guidance for this repository is installed by
+[Agentyx](https://github.com/Andersseen/agentyx) (development tooling only, pinned in
+`package.json`). Edit `.agentyx.json` or the project-owned skills in `.agentyx/skills/`,
+then run `pnpm exec agentyx install`; never edit `.agents/` or `.claude/` by hand.
+`pnpm agents:doctor` fails on drift.
+
 ## Releasing
 
 Releases are automated; nobody tags or edits versions by hand.

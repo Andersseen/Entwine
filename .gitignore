@@ -7,3 +7,5 @@ node_modules/
 .entwine-backup-*/
 .DS_Store
 deployment/
+test-results/
+playwright-report/

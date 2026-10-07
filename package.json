@@ -14,21 +14,26 @@
     "build:www": "turbo run build",
     "test": "cargo test --workspace",
     "lint": "biome check . && cargo clippy --workspace --all-targets --all-features -- -D warnings",
-    "typecheck": "turbo run typecheck && tsc -p tooling/tsconfig.json",
+    "typecheck": "turbo run typecheck && tsc -p tooling/tsconfig.json && tsc -p e2e/tsconfig.json",
     "format": "cargo fmt --all && biome format --write . && prettier --plugin=prettier-plugin-astro --write 'apps/**/*.astro'",
     "format:check": "cargo fmt --all --check && biome format . && prettier --plugin=prettier-plugin-astro --check 'apps/**/*.astro'",
+    "agents:doctor": "agentyx doctor && agentyx install --dry-run | grep -q \"0 to create, 0 to update, 0 to remove\"",
     "test:tooling": "node --test tooling/*.test.ts",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:tooling && pnpm build:showcase && pnpm smoke:setup && pnpm smoke:npm",
     "build:showcase": "node tooling/build-showcase.ts",
     "smoke:setup": "cargo build -q -p entwine-cli && node tooling/smoke-setup.ts --binary target/debug/entwine",
-    "smoke:npm": "pnpm --filter @entwine/cli build && cargo build -q -p entwine-cli && node tooling/smoke-npm.ts --binary target/debug/entwine"
+    "smoke:npm": "pnpm --filter @entwine/cli build && cargo build -q -p entwine-cli && node tooling/smoke-npm.ts --binary target/debug/entwine",
+    "test:e2e": "playwright test -c e2e/playwright.config.ts"
   },
   "devDependencies": {
+    "@agentyx/cli": "0.8.0",
+    "@axe-core/playwright": "^4.13.0",
     "@biomejs/biome": "^2.3.0",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^22.12.0",
     "prettier": "3.9.9",
     "prettier-plugin-astro": "1.1.0",
     "turbo": "^2.5.8",
-    "typescript": "^5.9.3",
-    "@types/node": "^22.12.0"
+    "typescript": "^5.9.3"
   }
 }
