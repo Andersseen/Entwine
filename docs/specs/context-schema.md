@@ -6,8 +6,17 @@ agent parser. See [architecture](../architecture.md#canonical-representation).
 
 ## Version
 
-`schema_version` is currently `"0.3"` and is versioned separately from the Entwine
-package. Version 0.3 adds `anchors` and `repository_references` to each document.
+`schema_version` is currently `"0.4"` and is versioned separately from the Entwine
+package. Version 0.4 adds `artifact` to every document (`documentation`,
+`agent_instructions`, or `skill`) and, for discovered agent-facing artifacts, an
+`agent` object (`convention`, `path`, `scope`, `name`, `description`,
+`skill_directory`, `resources`). Documents from `docs/` have `artifact:
+"documentation"` and no `agent`. Agent documents have ids prefixed `repo:`, role
+`other`, and appear only when discovery is enabled by `entwine.toml`; they are
+always in context regardless of site publication. Relationships may connect
+documentation and agent artifacts. Consumers must check `schema_version`;
+a 0.3 consumer that tolerates additional fields still reads documents correctly
+but should ignore `repo:` ids it does not understand. Version 0.3 added `anchors` and `repository_references` to each document.
 Repository references retain `path` (relative to the repository), `source`,
 `line`, and original `destination`. They never become knowledge relationships.
 A reference without provider metadata has an empty link `href`; renderers show
@@ -22,7 +31,7 @@ README fallback may change a document route to `/` and its role to `project`. Th
 
 ```json
 {
-  "schema_version": "0.3",
+  "schema_version": "0.4",
   "documents": [
     {
       "id": "architecture.md",
@@ -34,6 +43,7 @@ README fallback may change a document route to `/` and its role to `project`. Th
       "links": [],
       "anchors": [],
       "repository_references": [],
+      "artifact": "documentation",
       "backlinks": [],
       "content": "..."
     }
@@ -51,6 +61,30 @@ README fallback may change a document route to `/` and its role to `project`. Th
 and [the decision](../decisions/derived-roles.md)). `metadata.type` is always the
 author's original text. Consumers that need to know what is true now read
 `state`; intended direction is `roadmap`.
+
+An agent artifact differs only in these fields:
+
+```json
+{
+  "id": "repo:packages/web/AGENTS.md",
+  "title": "packages/web/AGENTS.md",
+  "role": "other",
+  "artifact": "agent_instructions",
+  "agent": {
+    "convention": "agents_md",
+    "path": "packages/web/AGENTS.md",
+    "scope": "packages/web",
+    "name": null,
+    "description": null,
+    "skill_directory": null,
+    "resources": []
+  }
+}
+```
+
+`path` and `skill_directory` are repository-relative; `scope` is relative to the
+project (`""` is the project root) and is `null` for skills. See
+[agent knowledge](agent-knowledge.md).
 
 ## Guarantees
 

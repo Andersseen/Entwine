@@ -1,5 +1,5 @@
 //! Knowledge-convention presentation: coverage for `check`.
-use entwine_core::{coverage, CoverageArea, KnowledgeRole};
+use entwine_core::{coverage, ArtifactKind, CoverageArea, KnowledgeRole};
 use entwine_engine::Compilation;
 
 fn heading(role: KnowledgeRole) -> &'static str {
@@ -30,7 +30,15 @@ fn missing_message(role: KnowledgeRole) -> &'static str {
 /// Print recommended-area presence and return the roles that are missing.
 /// This is presence only; it says nothing about documentation quality.
 pub(crate) fn report(compilation: &Compilation, strict: bool) -> Vec<KnowledgeRole> {
-    let areas = coverage(&compilation.knowledge.documents);
+    let areas = coverage(
+        &compilation
+            .knowledge
+            .documents
+            .iter()
+            .filter(|d| d.artifact == ArtifactKind::Documentation)
+            .cloned()
+            .collect::<Vec<_>>(),
+    );
     eprintln!("\nProject knowledge");
     for area in &areas {
         print_area(area, strict);
@@ -62,4 +70,53 @@ fn print_area(area: &CoverageArea, strict: bool) {
             eprintln!("  docs/{}", id.0);
         }
     }
+}
+
+/// With discovery enabled, report what agent-facing knowledge was found and whether the
+/// generated site publishes it. Silent when nothing is configured.
+pub(crate) fn agent_summary(compilation: &Compilation) {
+    let config = &compilation.config;
+    if !config.discovers_agent_knowledge() {
+        return;
+    }
+    let count = |kind: ArtifactKind| {
+        compilation
+            .knowledge
+            .documents
+            .iter()
+            .filter(|d| d.artifact == kind)
+            .count()
+    };
+    let scopes: std::collections::BTreeSet<_> = compilation
+        .knowledge
+        .documents
+        .iter()
+        .filter_map(|d| d.agent.as_ref().and_then(|a| a.scope.as_deref()))
+        .collect();
+    eprintln!(
+        "✓ {} agent instruction file{} in {} scope{}\n✓ {} skill{}",
+        count(ArtifactKind::AgentInstructions),
+        if count(ArtifactKind::AgentInstructions) == 1 {
+            ""
+        } else {
+            "s"
+        },
+        scopes.len(),
+        if scopes.len() == 1 { "" } else { "s" },
+        count(ArtifactKind::Skill),
+        if count(ArtifactKind::Skill) == 1 {
+            ""
+        } else {
+            "s"
+        },
+    );
+    eprintln!(
+        "  agent knowledge is {} in the generated site (site.include_agent_knowledge = {})",
+        if config.site.include_agent_knowledge {
+            "published"
+        } else {
+            "not published; context only"
+        },
+        config.site.include_agent_knowledge
+    );
 }

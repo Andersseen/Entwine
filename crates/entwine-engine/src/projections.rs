@@ -2,8 +2,9 @@ use crate::{render::escape, resolve::relative_url};
 use entwine_core::*;
 use std::collections::BTreeMap;
 
-/// Context schema `0.3` adds explicit anchors and repository references.
-pub const CONTEXT_SCHEMA_VERSION: &str = "0.3";
+/// Context schema `0.4` adds `artifact` (and, for agent-facing artifacts, `agent`) to every
+/// document. `0.3` added explicit anchors and repository references.
+pub const CONTEXT_SCHEMA_VERSION: &str = "0.4";
 
 fn knowledge_groups(knowledge: &KnowledgeBase) -> Vec<KnowledgeGroup> {
     let mut roles = RECOMMENDED_ROLES.to_vec();
@@ -57,7 +58,44 @@ fn navigation(tree: Tree, prefix: &str) -> Vec<Navigation> {
         .collect()
 }
 
-pub(crate) fn project(knowledge: &KnowledgeBase) -> (SiteModel, GraphModel, ContextModel) {
+fn reference(document: &Document) -> PageReference {
+    PageReference {
+        title: document.title.clone(),
+        route: document.route.clone(),
+    }
+}
+
+/// Project the canonical model. `full` holds every discovered artifact (context is always
+/// complete); the site, navigation, and graph see agent-facing artifacts only when
+/// `publish_agents` is set, so discovery never implies publication.
+pub(crate) fn project(
+    full: &KnowledgeBase,
+    publish_agents: bool,
+    docs_prefix: &str,
+) -> (SiteModel, GraphModel, ContextModel) {
+    let is_doc = |d: &Document| d.artifact == ArtifactKind::Documentation;
+    let documentation = KnowledgeBase {
+        documents: full
+            .documents
+            .iter()
+            .filter(|d| is_doc(d))
+            .cloned()
+            .collect(),
+        relations: full
+            .relations
+            .iter()
+            .filter(|r| {
+                [&r.source, &r.target].iter().all(|id| {
+                    full.documents
+                        .iter()
+                        .any(|d| &d.id == *id && d.artifact == ArtifactKind::Documentation)
+                })
+            })
+            .cloned()
+            .collect(),
+    };
+    let public = if publish_agents { full } else { &documentation };
+    let knowledge = &documentation;
     let mut tree = Tree::default();
     let mut home = None;
     for document in &knowledge.documents {
@@ -100,26 +138,22 @@ pub(crate) fn project(knowledge: &KnowledgeBase) -> (SiteModel, GraphModel, Cont
             headings: d.headings.clone(),
             metadata: d.metadata.clone(),
             role: d.role,
-            references: knowledge
+            artifact: ArtifactKind::Documentation,
+            graph_id: Some(d.id.clone()),
+            references: public
                 .relations
                 .iter()
                 .filter(|r| r.source == d.id)
-                .filter_map(|r| knowledge.documents.iter().find(|d| d.id == r.target))
-                .map(|d| PageReference {
-                    title: d.title.clone(),
-                    route: d.route.clone(),
-                })
+                .filter_map(|r| public.documents.iter().find(|d| d.id == r.target))
+                .map(reference)
                 .collect(),
-            source_path: Some(format!("docs/{}", d.id.0)),
+            source_path: Some(format!("{docs_prefix}/{}", d.id.0)),
             source_url: None,
-            backlinks: knowledge
+            backlinks: public
                 .backlinks(&d.id)
                 .iter()
-                .filter_map(|id| knowledge.documents.iter().find(|d| &d.id == id))
-                .map(|d| PageReference {
-                    title: d.title.clone(),
-                    route: d.route.clone(),
-                })
+                .filter_map(|id| public.documents.iter().find(|d| &d.id == id))
+                .map(reference)
                 .collect(),
         })
         .collect();
@@ -158,6 +192,8 @@ pub(crate) fn project(knowledge: &KnowledgeBase) -> (SiteModel, GraphModel, Cont
             headings: Vec::new(),
             metadata: DocumentMetadata::default(),
             role: KnowledgeRole::Other,
+            artifact: ArtifactKind::Documentation,
+            graph_id: None,
             backlinks: Vec::new(),
             references: Vec::new(),
             source_path: None,
@@ -186,6 +222,8 @@ pub(crate) fn project(knowledge: &KnowledgeBase) -> (SiteModel, GraphModel, Cont
                 headings: Vec::new(),
                 metadata: DocumentMetadata::default(),
                 role: KnowledgeRole::Project,
+                artifact: ArtifactKind::Documentation,
+                graph_id: None,
                 backlinks: Vec::new(),
                 references: Vec::new(),
                 source_path: None,
@@ -194,7 +232,7 @@ pub(crate) fn project(knowledge: &KnowledgeBase) -> (SiteModel, GraphModel, Cont
         );
     }
     let graph = GraphModel {
-        nodes: knowledge
+        nodes: public
             .documents
             .iter()
             .map(|d| GraphNode {
@@ -203,13 +241,35 @@ pub(crate) fn project(knowledge: &KnowledgeBase) -> (SiteModel, GraphModel, Cont
                 route: d.route.clone(),
                 metadata: d.metadata.clone(),
                 role: d.role,
+                artifact: d.artifact,
+                path: d.source_path(docs_prefix),
+                scope: d.agent.as_ref().and_then(|a| a.scope.clone()),
             })
             .collect(),
-        edges: knowledge.relations.clone(),
+        edges: public.relations.clone(),
+        files: {
+            let mut files: BTreeMap<String, Vec<DocumentId>> = BTreeMap::new();
+            for d in &public.documents {
+                for r in &d.repository_references {
+                    files.entry(r.path.clone()).or_default().push(d.id.clone());
+                }
+            }
+            files
+                .into_iter()
+                .map(|(path, mut referenced_by)| {
+                    referenced_by.sort();
+                    referenced_by.dedup();
+                    GraphFile {
+                        path,
+                        referenced_by,
+                    }
+                })
+                .collect()
+        },
     };
     let context = ContextModel {
         schema_version: CONTEXT_SCHEMA_VERSION.into(),
-        documents: knowledge
+        documents: full
             .documents
             .iter()
             .map(|d| ContextDocument {
@@ -220,14 +280,49 @@ pub(crate) fn project(knowledge: &KnowledgeBase) -> (SiteModel, GraphModel, Cont
                 role: d.role,
                 headings: d.headings.clone(),
                 links: d.links.clone(),
-                backlinks: knowledge.backlinks(&d.id),
+                backlinks: full.backlinks(&d.id),
                 anchors: d.anchors.clone(),
                 repository_references: d.repository_references.clone(),
+                artifact: d.artifact,
+                agent: d.agent.clone(),
                 content: d.content.clone(),
             })
             .collect(),
-        relationships: knowledge.relations.clone(),
+        relationships: full.relations.clone(),
     };
+    let agents =
+        (publish_agents && full.documents.iter().any(|d| !is_doc(d))).then(|| AgentsModel {
+            entries: full
+                .documents
+                .iter()
+                .filter(|d| !is_doc(d))
+                .filter_map(|d| {
+                    Some(AgentEntry {
+                        id: d.id.clone(),
+                        title: d.title.clone(),
+                        route: d.route.clone(),
+                        kind: d.artifact,
+                        details: d.agent.clone()?,
+                        references: full
+                            .relations
+                            .iter()
+                            .filter(|r| r.source == d.id)
+                            .filter_map(|r| full.documents.iter().find(|x| x.id == r.target))
+                            .map(reference)
+                            .collect(),
+                        backlinks: full
+                            .backlinks(&d.id)
+                            .iter()
+                            .filter_map(|id| full.documents.iter().find(|x| &x.id == id))
+                            .map(reference)
+                            .collect(),
+                        html: d.html.clone(),
+                        source_url: None,
+                        resource_links: Vec::new(),
+                    })
+                })
+                .collect(),
+        });
     (
         SiteModel {
             pages,
@@ -240,6 +335,7 @@ pub(crate) fn project(knowledge: &KnowledgeBase) -> (SiteModel, GraphModel, Cont
                 .iter()
                 .map(|d| d.repository_references.len())
                 .sum(),
+            agents,
         },
         graph,
         context,
@@ -268,7 +364,11 @@ pub fn context_markdown(context: &ContextModel) -> String {
             document.title,
             document.route.as_str(),
             document.id.0,
-            document.role.as_str()
+            if document.artifact.is_agent_facing() {
+                document.artifact.as_str()
+            } else {
+                document.role.as_str()
+            }
         ));
     }
     output.push_str("\n## Relationships\n\n");
@@ -304,6 +404,25 @@ pub fn context_markdown(context: &ContextModel) -> String {
                 .collect::<Vec<_>>()
                 .join(", ")
         ));
+        if let Some(agent) = &document.agent {
+            output.push_str(&format!(
+                "Artifact: {}\nPath: {}\nScope: {}\n",
+                document.artifact.as_str(),
+                agent.path,
+                agent.scope.as_deref().map_or("n/a", |s| if s.is_empty() {
+                    "(project root)"
+                } else {
+                    s
+                })
+            ));
+            if let Some(directory) = &agent.skill_directory {
+                output.push_str(&format!(
+                    "Skill directory: {directory}\nResources: {}\n",
+                    agent.resources.join(", ")
+                ));
+            }
+            output.push('\n');
+        }
         output.push_str(&document.content);
         output.push('\n');
     }
@@ -335,12 +454,41 @@ pub(crate) fn source_links(
         .to_string_lossy()
         .replace('\\', "/");
     for page in &mut site.pages {
-        if let Some(document) = knowledge.documents.iter().find(|d| d.route == page.route) {
+        if let Some(document) = knowledge
+            .documents
+            .iter()
+            .find(|d| d.route == page.route && d.artifact == ArtifactKind::Documentation)
+        {
             let path = format!("{prefix}/{}", document.id.0);
             page.source_path = Some(path.clone());
             page.source_url = source
                 .filter(|s| s.files.as_ref().is_none_or(|files| files.contains(&path)))
                 .map(|s| crate::resolve::source_url(s, &path, ""));
+        }
+    }
+    let link = |path: &str| {
+        source
+            .filter(|s| s.files.as_ref().is_none_or(|files| files.contains(path)))
+            .map(|s| crate::resolve::source_url(s, path, ""))
+    };
+    if let Some(agents) = &mut site.agents {
+        for entry in &mut agents.entries {
+            entry.source_url = link(&entry.details.path);
+            if let Some(directory) = &entry.details.skill_directory {
+                entry.resource_links = entry
+                    .details
+                    .resources
+                    .iter()
+                    .map(|r| {
+                        let path = if directory.is_empty() {
+                            r.clone()
+                        } else {
+                            format!("{directory}/{r}")
+                        };
+                        (r.clone(), link(&path))
+                    })
+                    .collect();
+            }
         }
     }
 }
@@ -399,7 +547,7 @@ mod portable_directories {
             documents,
             relations: Vec::new(),
         };
-        let site = project(&knowledge).0;
+        let site = project(&knowledge, false, "docs").0;
         assert!(site.pages.iter().any(|p| p.route.as_str() == "/A/"));
         assert!(site.pages.iter().any(|p| p.route.as_str() == "/a/"));
     }

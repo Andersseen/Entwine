@@ -93,6 +93,16 @@ pub(crate) fn dev(project: &Path, port: u16) -> Result<(), Box<dyn std::error::E
     })?;
     watcher.watch(&project.join("docs"), RecursiveMode::Recursive)?;
     let initial = checked(project)?;
+    // Agent knowledge can live anywhere below the project; entwine.toml sits at its root.
+    let mut watching_project = initial.config.discovers_agent_knowledge();
+    watcher.watch(
+        project,
+        if watching_project {
+            RecursiveMode::Recursive
+        } else {
+            RecursiveMode::NonRecursive
+        },
+    )?;
     output::publish(project, &initial)?;
     let repository = provider::inspect(project);
     let repository_root = repository.root.as_deref().unwrap_or(project);
@@ -118,7 +128,11 @@ pub(crate) fn dev(project: &Path, port: u16) -> Result<(), Box<dyn std::error::E
                         let relative = visible.strip_prefix(&visible_project).unwrap_or(&visible);
                         if relative.components().next().is_some_and(|c| {
                             let name = c.as_os_str().to_string_lossy();
-                            name == "dist" || name == ".git" || name.starts_with(".entwine-")
+                            name == "dist"
+                                || name == ".git"
+                                || name == "node_modules"
+                                || name == "target"
+                                || name.starts_with(".entwine-")
                         }) {
                             continue;
                         }
@@ -146,6 +160,10 @@ pub(crate) fn dev(project: &Path, port: u16) -> Result<(), Box<dyn std::error::E
                 .map_err(|e| -> Box<dyn std::error::Error> { e.into() })
                 .and_then(|compilation| {
                     diagnostics(&compilation);
+                    if compilation.config.discovers_agent_knowledge() && !watching_project {
+                        watcher.watch(project, RecursiveMode::Recursive)?;
+                        watching_project = true;
+                    }
                     watch_references(
                         &mut watcher,
                         &compilation,

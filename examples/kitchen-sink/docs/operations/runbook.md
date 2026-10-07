@@ -11,3 +11,5 @@ the text and files it under other knowledge.
 
 Run `entwine build` and publish `dist/`. Where Harbor stands today is in the
 [current state](../state.md).
+
+Incoming dataset problems follow the [triage skill](../../.claude/skills/triage-dataset-report/SKILL.md).

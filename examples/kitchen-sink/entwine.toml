@@ -1,0 +1,9 @@
+# Optional. Without this file Entwine compiles docs/ and discovers nothing else.
+[discovery]
+agent_instructions = true # AGENTS.md, CLAUDE.md, GEMINI.md
+skills = true             # SKILL.md
+
+[site]
+# Harbor is a public demo, so its agent knowledge is published on purpose.
+# The default is false: discovered files then appear in `entwine context` only.
+include_agent_knowledge = true

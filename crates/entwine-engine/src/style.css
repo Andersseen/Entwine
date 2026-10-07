@@ -9,6 +9,15 @@
   --code: #e5e5e5;
   --active: #e5e5e5;
   --edge: #a3a3a3;
+  --role-project: #c7d2fe;
+  --role-architecture: #a7f3d0;
+  --role-state: #fde68a;
+  --role-roadmap: #fbcfe8;
+  --role-decision: #fdba74;
+  --role-spec: #a5f3fc;
+  --role-other: #e5e5e5;
+  --role-agent: #ddd6fe;
+  --role-skill: #d9f99d;
   font:
     16px / 1.7 system-ui,
     sans-serif;
@@ -33,7 +42,8 @@ summary:focus-visible,
 input:focus-visible,
 pre:focus-visible,
 table:focus-visible,
-.graph-scroll:focus-visible {
+.graph-scroll:focus-visible,
+.graph-controls input:focus-visible {
   outline: 2px solid var(--text);
   outline-offset: 4px;
 }
@@ -351,7 +361,10 @@ summary {
   color: var(--muted);
   margin: 0 0 1.5rem;
 }
-.graph-view {
+.graph-details > summary {
+  font-weight: 600;
+}
+.graph-app {
   padding: 1rem;
   border: 1px solid var(--line);
   background: var(--panel);
@@ -362,64 +375,254 @@ summary {
   color: var(--muted);
   font-size: 0.8rem;
 }
-.graph-toggle {
-  accent-color: var(--text);
-  vertical-align: middle;
-  margin: 0 0.4rem 0 0;
-  width: 1rem;
-  height: 1rem;
+.graph-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  font-size: 0.78rem;
 }
-.graph-control {
+.graph-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.graph-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1.25rem;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
   font-size: 0.8rem;
+}
+.graph-controls[hidden],
+.graph-inspector[hidden] {
+  display: none;
+}
+.graph-controls fieldset {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.3rem 0.7rem 0.5rem;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.9rem;
+  min-width: 0;
+}
+.graph-controls legend {
+  padding: 0 0.3rem;
+  color: var(--muted);
+}
+.graph-controls label {
+  white-space: nowrap;
+}
+.graph-controls input {
+  accent-color: var(--text);
+}
+.graph-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.graph-actions button,
+.graph-neighbors button {
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.25rem 0.7rem;
   cursor: pointer;
+}
+.graph-actions button:hover:not(:disabled),
+.graph-neighbors button:hover {
+  background: var(--active);
+}
+.graph-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.graph-actions button[aria-pressed="true"] {
+  background: var(--text);
+  color: var(--bg);
+}
+.graph-actions button:focus-visible,
+.graph-neighbors button:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+.graph-workspace {
+  display: block;
 }
 .graph-scroll {
   overflow: auto;
-  margin-top: 0.75rem;
+  max-height: 80dvh;
   border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+}
+.graph-app.is-live .graph-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 17rem;
+  gap: 0.75rem;
+}
+.graph-app.is-live .graph-scroll {
+  height: min(74dvh, 780px);
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.graph-app.is-live .graph-scroll:active {
+  cursor: grabbing;
 }
 .graph {
   display: block;
-  width: min(100%, 75dvh);
-  max-width: var(--graph-size);
-  height: auto;
-  margin: auto;
 }
-.graph-toggle:checked ~ .graph-scroll {
-  max-height: 75dvh;
+.graph-app.is-live .graph {
+  width: 100%;
+  height: 100%;
 }
-.graph-toggle:checked ~ .graph-scroll .graph {
-  width: var(--graph-size);
-  max-width: none;
+.is-off {
+  display: none;
+}
+.graph-inspector {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  padding: 0.75rem 0.9rem;
+  font-size: 0.82rem;
+  max-height: min(74dvh, 780px);
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+.graph-inspector h2 {
+  font-size: 1rem;
+  margin: 0 0 0.4rem;
+}
+.graph-inspector h3 {
+  font-size: 0.78rem;
+  margin: 0.9rem 0 0.3rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.graph-inspector dl {
+  margin: 0.5rem 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.6rem;
+}
+.graph-inspector dt {
+  color: var(--muted);
+}
+.graph-inspector dd {
   margin: 0;
 }
-.node {
-  fill: var(--bg);
+.graph-inspector ul {
+  margin: 0;
+  padding-left: 1rem;
+}
+.graph-empty,
+.graph-kind {
+  color: var(--muted);
+  margin: 0;
+}
+.graph-kind {
+  font-size: 0.72rem;
+}
+.graph-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0 0 0.4rem;
+}
+.graph-badges span {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0 0.4rem;
+  font-size: 0.72rem;
+}
+.graph-open {
+  display: inline-block;
+  margin-top: 0.3rem;
+  font-weight: 600;
+}
+.graph-node .shape {
+  fill: var(--role-other);
   stroke: var(--text);
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
 }
-.node-dot {
-  fill: var(--muted);
+.graph-node .shape > * {
+  vector-effect: non-scaling-stroke;
+}
+.role-project .shape {
+  fill: var(--role-project);
+}
+.role-architecture .shape {
+  fill: var(--role-architecture);
+}
+.role-state .shape {
+  fill: var(--role-state);
+}
+.role-roadmap .shape {
+  fill: var(--role-roadmap);
+}
+.role-decision .shape {
+  fill: var(--role-decision);
+}
+.role-spec .shape {
+  fill: var(--role-spec);
+}
+.kind-agent_instructions .shape {
+  fill: var(--role-agent);
+}
+.kind-skill .shape {
+  fill: var(--role-skill);
+}
+.kind-repository_file .shape {
+  fill: var(--bg);
+  stroke-dasharray: 3 2;
+}
+.glyph {
+  fill: #171717;
+  font:
+    700 11px system-ui,
+    sans-serif;
+  pointer-events: none;
+  stroke: none;
 }
 .node-label {
   fill: var(--text);
   font:
-    var(--label-size, 22px) system-ui,
+    550 12px system-ui,
     sans-serif;
-  font-weight: 550;
-  stroke: var(--panel);
-  stroke-width: 5px;
+  stroke: var(--bg);
+  stroke-width: 4px;
   stroke-linejoin: round;
   paint-order: stroke;
+  pointer-events: none;
 }
-.graph-node:hover .node,
-.graph-node:focus-visible .node {
-  fill: var(--active);
+.graph-node {
+  cursor: pointer;
+}
+.graph-node:hover .shape,
+.graph-node:focus-visible .shape {
   stroke-width: 3;
 }
 .graph-node:focus-visible {
   outline: none;
+}
+.graph-node:focus-visible .shape {
+  stroke-width: 4;
+  filter: drop-shadow(0 0 3px var(--text));
+}
+.graph-node.is-pinned .shape {
+  stroke-dasharray: 4 2;
 }
 .edge {
   fill: none;
@@ -427,8 +630,87 @@ summary {
   stroke-width: 1.25;
   vector-effect: non-scaling-stroke;
 }
+.edge-file {
+  stroke-dasharray: 3 3;
+}
 marker path {
   fill: var(--edge);
+}
+.graph.has-selection .graph-node,
+.graph.has-selection .edge {
+  opacity: 0.18;
+}
+.graph.has-selection .graph-node.is-selected,
+.graph.has-selection .graph-node.is-neighbor,
+.graph.has-selection .edge.is-active {
+  opacity: 1;
+}
+.graph .edge.is-active {
+  stroke: var(--text);
+  stroke-width: 2;
+}
+.graph.labels-off .node-label {
+  display: none;
+}
+.graph.labels-off .is-selected .node-label,
+.graph.labels-off .is-neighbor .node-label {
+  display: inline;
+}
+.graph .is-selected .shape {
+  stroke-width: 4;
+}
+.legend-icon .shape {
+  stroke-width: 1.5;
+}
+.agent-meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.2rem 1rem;
+  font-size: 0.85rem;
+  margin: 1rem 0 1.5rem;
+}
+.agent-meta dt {
+  color: var(--muted);
+}
+.agent-meta dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.agent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: 1rem;
+  padding: 0;
+  list-style: none;
+}
+.agent-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.8rem 1rem;
+  background: var(--panel);
+  font-size: 0.85rem;
+}
+.agent-card h3 {
+  margin: 0 0 0.3rem;
+  font-size: 1rem;
+}
+.agent-card p {
+  margin: 0.3rem 0;
+  color: var(--muted);
+}
+.scope-tree ul {
+  list-style: none;
+  padding-left: 1.25rem;
+  border-left: 1px solid var(--line);
+}
+.scope-tree > ul {
+  padding-left: 0;
+  border-left: 0;
+}
+.agent-body {
+  border-top: 1px solid var(--line);
+  margin-top: 1.5rem;
+  padding-top: 1rem;
 }
 .graph-index {
   display: grid;
@@ -462,6 +744,15 @@ marker path {
     --code: #262626;
     --active: #303030;
     --edge: #737373;
+    --role-project: #a5b4fc;
+    --role-architecture: #6ee7b7;
+    --role-state: #fcd34d;
+    --role-roadmap: #f9a8d4;
+    --role-decision: #fb923c;
+    --role-spec: #67e8f9;
+    --role-other: #d4d4d4;
+    --role-agent: #c4b5fd;
+    --role-skill: #bef264;
   }
 }
 @media (max-width: 1100px) {
@@ -544,8 +835,14 @@ marker path {
   .graph-page {
     padding: 1.25rem;
   }
-  .graph-view {
+  .graph-app {
     padding: 0.75rem;
+  }
+  .graph-app.is-live .graph-workspace {
+    grid-template-columns: 1fr;
+  }
+  .graph-app.is-live .graph-scroll {
+    height: 60dvh;
   }
   .graph-index {
     grid-template-columns: 1fr;
@@ -572,4 +869,10 @@ marker path {
 .graph-page > details > summary {
   font-weight: 600;
   padding: 0.75rem 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .graph.has-selection .graph-node,
+  .graph.has-selection .edge {
+    transition: opacity 0.15s;
+  }
 }

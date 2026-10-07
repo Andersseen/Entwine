@@ -9,8 +9,10 @@ mod server;
 mod setup;
 mod templates;
 use clap::{Parser, Subcommand};
-use entwine_core::DiagnosticSeverity;
-use entwine_engine::{compile_with_source, context_json, context_markdown, Compilation};
+use entwine_core::{ArtifactKind, DiagnosticSeverity};
+use entwine_engine::{
+    compile_with_config, context_json, context_markdown, load_config, Compilation,
+};
 use std::{
     io::{self, Write},
     path::{Path, PathBuf},
@@ -88,20 +90,25 @@ fn diagnostics(compilation: &Compilation) {
             DiagnosticSeverity::Warning => "warning",
         };
         let line = diagnostic.line.map_or(String::new(), |l| format!(":{l}"));
-        eprintln!(
-            "{severity}: docs/{}{line}: {}",
-            diagnostic.source.trim_start_matches("docs/"),
-            diagnostic.message
-        );
+        let source = if let Some(path) = diagnostic.source.strip_prefix("repo:") {
+            path.to_string()
+        } else if diagnostic.source == "entwine.toml" {
+            diagnostic.source.clone()
+        } else {
+            format!("docs/{}", diagnostic.source.trim_start_matches("docs/"))
+        };
+        eprintln!("{severity}: {source}{line}: {}", diagnostic.message);
     }
 }
 fn compile_project(project: &Path) -> io::Result<Compilation> {
     let repository = provider::inspect(project);
     let source = provider::source(&repository);
-    compile_with_source(
+    let config = load_config(project)?;
+    compile_with_config(
         project,
         repository.root.as_deref().unwrap_or(project),
         source.as_ref(),
+        &config,
     )
 }
 fn checked(project: &Path) -> Result<Compilation, Box<dyn std::error::Error>> {
@@ -113,19 +120,29 @@ fn checked(project: &Path) -> Result<Compilation, Box<dyn std::error::Error>> {
     Ok(compilation)
 }
 fn summary(compilation: &Compilation) {
-    eprintln!(
-        "Entwine\n\n✓ {} documents\n✓ {} internal links\n✓ {} relationships\n✓ {} repository references",
-        compilation.knowledge.documents.len(),
+    let documents = || {
         compilation
             .knowledge
             .documents
             .iter()
+            .filter(|d| d.artifact == ArtifactKind::Documentation)
+    };
+    eprintln!(
+        "Entwine\n\n✓ {} documents\n✓ {} internal links\n✓ {} relationships\n✓ {} repository references",
+        documents().count(),
+        documents()
             .flat_map(|d| &d.links)
             .filter(|l| l.target.is_some())
             .count(),
         compilation.knowledge.relations.len(),
-        compilation.knowledge.documents.iter().map(|d| d.repository_references.len()).sum::<usize>()
+        compilation
+            .knowledge
+            .documents
+            .iter()
+            .map(|d| d.repository_references.len())
+            .sum::<usize>()
     );
+    knowledge::agent_summary(compilation);
 }
 fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     match cli.command {

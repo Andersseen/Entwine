@@ -388,7 +388,7 @@ fn graph_renders_validly_and_deterministically_from_1_to_100_nodes() {
             let html = String::from_utf8(graph.contents).unwrap();
             assert_eq!(html.matches("data-node=").count(), count);
             assert_eq!(
-                html.matches("data-source=").count(),
+                html.matches("<path class=\"edge\" ").count(),
                 compilation.graph.edges.len()
             );
             // Balanced structure and no NaN/inf coordinates.
@@ -406,36 +406,32 @@ fn graph_renders_validly_and_deterministically_from_1_to_100_nodes() {
                 compilation.graph.edges.len()
             );
             // Sensible dimensions: grows with node count but stays bounded.
-            let size: f64 = html
+            let mut dimensions = html
                 .split("viewBox=\"0 0 ")
                 .nth(1)
                 .unwrap()
-                .split(' ')
+                .split('"')
                 .next()
                 .unwrap()
-                .parse()
-                .unwrap();
+                .split(' ')
+                .map(|v| v.parse::<f64>().unwrap());
+            let (width, height) = (dimensions.next().unwrap(), dimensions.next().unwrap());
             assert!(
-                (200.0..=4_000.0).contains(&size),
-                "{shape} {count}: size {size}"
+                (200.0..=8_000.0).contains(&width) && (200.0..=8_000.0).contains(&height),
+                "{shape} {count}: {width}x{height}"
             );
             // Every node position lies inside the viewBox.
-            let nodes: BTreeSet<_> = html.match_indices("<circle class=\"node\" cx=\"").collect();
+            let marker = "<a class=\"graph-node";
+            let nodes: BTreeSet<_> = html.match_indices(marker).map(|(i, _)| i).collect();
             assert_eq!(nodes.len(), count);
-            for (index, _) in nodes {
-                let rest = &html[index + "<circle class=\"node\" cx=\"".len()..];
-                let x: f64 = rest.split('"').next().unwrap().parse().unwrap();
-                let y: f64 = rest
-                    .split("cy=\"")
-                    .nth(1)
-                    .unwrap()
-                    .split('"')
-                    .next()
-                    .unwrap()
-                    .parse()
-                    .unwrap();
+            for index in nodes {
+                let rest = &html[index..];
+                let transform = rest.split("transform=\"translate(").nth(1).unwrap();
+                let mut point = transform.split(')').next().unwrap().split(' ');
+                let x: f64 = point.next().unwrap().parse().unwrap();
+                let y: f64 = point.next().unwrap().parse().unwrap();
                 assert!(
-                    (0.0..=size).contains(&x) && (0.0..=size).contains(&y),
+                    (0.0..=width).contains(&x) && (0.0..=height).contains(&y),
                     "{shape} {count}"
                 );
             }

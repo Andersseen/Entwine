@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.3",
+  "schema_version": "0.4",
   "documents": [
     {
       "id": "architecture.md",
@@ -38,6 +38,7 @@
       ],
       "anchors": [],
       "repository_references": [],
+      "artifact": "documentation",
       "content": "# Architecture\n\n[Home](index.md) [Spec](specs/auth.md#boundary)\n"
     },
     {
@@ -89,6 +90,7 @@
           "destination": "../README.md"
         }
       ],
+      "artifact": "documentation",
       "content": "# Project\n\n[Architecture](architecture.md) [Specs](specs/) [Repository](../README.md)\n"
     },
     {
@@ -123,6 +125,7 @@
         "boundary"
       ],
       "repository_references": [],
+      "artifact": "documentation",
       "content": "# Authentication\n\n<a id=\"boundary\"></a>\n\n[Architecture](../architecture.md)\n"
     }
   ],

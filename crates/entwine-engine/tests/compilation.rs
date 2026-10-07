@@ -60,7 +60,11 @@ fn kitchen_sink_compiles_real_documents_and_all_projections() {
     ] {
         assert!(auth_html.contains(fragment), "missing {fragment}");
     }
-    assert!(!auth_html.contains(".md\""));
+    // Only the graph deep link (?focus=<document id>) may mention a source file name.
+    assert!(!auth_html
+        .replace("?focus=specs%2Fauthentication.md", "")
+        .contains(".md\""));
+    assert!(auth_html.contains("?focus=specs%2Fauthentication.md"));
     let architecture = compilation
         .knowledge
         .documents
@@ -70,15 +74,21 @@ fn kitchen_sink_compiles_real_documents_and_all_projections() {
     assert!(architecture.html.contains("<table tabindex=\"0\">"));
     assert!(compilation.knowledge.documents[0].id.0 < compilation.knowledge.documents[1].id.0);
     let graph = String::from_utf8(render_graph(&compilation.graph).contents).unwrap();
-    assert_eq!(graph.matches("data-node=").count(), 12);
+    assert_eq!(graph.matches("<a class=\"graph-node").count(), 12);
+    // Repository files are optional secondary nodes, hidden until enabled.
+    assert!(
+        graph.matches("graph-file is-off").count()
+            + graph.matches("kind-repository_file is-off").count()
+            >= 1
+    );
     assert_eq!(
-        graph.matches("data-source=").count(),
+        graph.matches("<path class=\"edge\" ").count(),
         compilation.graph.edges.len()
     );
     assert!(graph.contains("../../specs/authentication/"));
     let context: serde_json::Value =
         serde_json::from_str(&context_json(&compilation.context).unwrap()).unwrap();
-    assert_eq!(context["schema_version"], "0.3");
+    assert_eq!(context["schema_version"], "0.4");
     assert_eq!(context["documents"].as_array().unwrap().len(), 12);
     let markdown = context_markdown(&compilation.context);
     for part in [

@@ -6,11 +6,14 @@ use std::{
 
 fn fixture() -> tempfile::TempDir {
     let temp = tempfile::tempdir().unwrap();
-    let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/kitchen-sink/docs");
+    let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/kitchen-sink");
     fn copy(source: &Path, destination: &Path) {
         fs::create_dir_all(destination).unwrap();
         for entry in fs::read_dir(source).unwrap() {
             let entry = entry.unwrap();
+            if entry.file_name() == "dist" {
+                continue;
+            }
             let target = destination.join(entry.file_name());
             if entry.file_type().unwrap().is_dir() {
                 copy(&entry.path(), &target);
@@ -19,12 +22,7 @@ fn fixture() -> tempfile::TempDir {
             }
         }
     }
-    copy(&source, &temp.path().join("docs"));
-    fs::copy(
-        source.parent().unwrap().join("README.md"),
-        temp.path().join("README.md"),
-    )
-    .unwrap();
+    copy(&source, temp.path());
     temp
 }
 fn cli(command: &str, project: &Path, flags: &[&str]) -> Output {
@@ -58,7 +56,9 @@ fn real_cli_build_check_graph_and_context_work() {
     let context = cli("context", temp.path(), &["--json"]);
     assert!(context.status.success());
     let parsed: serde_json::Value = serde_json::from_slice(&context.stdout).unwrap();
-    assert_eq!(parsed["documents"].as_array().unwrap().len(), 12);
+    // 12 documents plus 4 instruction files and 2 skills discovered through entwine.toml.
+    assert_eq!(parsed["documents"].as_array().unwrap().len(), 18);
+    assert_eq!(parsed["schema_version"], "0.4");
     assert_eq!(
         context.stdout,
         cli("context", temp.path(), &["--json"]).stdout
@@ -319,4 +319,50 @@ fn dev_serves_rebuilds_preserves_last_good_output_and_rejects_traversal() {
     assert!(get(port, "/new/image.svg")
         .unwrap()
         .starts_with("HTTP/1.1 404"));
+}
+
+#[test]
+fn check_reports_agent_knowledge_only_when_configured_and_rejects_bad_config() {
+    let temp = fixture();
+    let configured = cli("check", temp.path(), &[]);
+    let report = String::from_utf8_lossy(&configured.stderr).into_owned();
+    assert!(configured.status.success(), "{report}");
+    assert!(
+        report.contains("4 agent instruction files in 3 scopes"),
+        "{report}"
+    );
+    assert!(report.contains("2 skills"), "{report}");
+    assert!(
+        report.contains("published in the generated site"),
+        "{report}"
+    );
+    // Publication is its own switch: discovery stays, the public site loses the files.
+    fs::write(
+        temp.path().join("entwine.toml"),
+        "[discovery]\nagent_instructions = true\nskills = true\n",
+    )
+    .unwrap();
+    assert!(cli("build", temp.path(), &[]).status.success());
+    assert!(!temp.path().join("dist/__entwine/agents").exists());
+    let context = cli("context", temp.path(), &["--json"]);
+    let parsed: serde_json::Value = serde_json::from_slice(&context.stdout).unwrap();
+    assert_eq!(parsed["documents"].as_array().unwrap().len(), 18);
+    let report = String::from_utf8_lossy(&cli("check", temp.path(), &[]).stderr).into_owned();
+    assert!(report.contains("not published; context only"), "{report}");
+    // An empty config equals no config: zero-config behavior, agent files ignored, nothing reported.
+    fs::write(temp.path().join("entwine.toml"), "").unwrap();
+    let report = String::from_utf8_lossy(&cli("check", temp.path(), &[]).stderr).into_owned();
+    assert!(!report.contains("agent instruction"), "{report}");
+    let context = cli("context", temp.path(), &["--json"]);
+    let parsed: serde_json::Value = serde_json::from_slice(&context.stdout).unwrap();
+    assert_eq!(parsed["documents"].as_array().unwrap().len(), 12);
+    // A typo is an error, never a silent default.
+    fs::write(
+        temp.path().join("entwine.toml"),
+        "[site]\ninclude_agent_knowlege = true\n",
+    )
+    .unwrap();
+    let broken = cli("check", temp.path(), &[]);
+    assert!(!broken.status.success());
+    assert!(String::from_utf8_lossy(&broken.stderr).contains("Invalid entwine.toml"));
 }
