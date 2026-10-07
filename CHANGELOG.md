@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/Andersseen/Entwine/compare/v0.2.0...v0.2.1) (2026-10-07)
+
+
+### Documentation
+
+* improve README with clearer npm links, installation options, and better formatting ([#22](https://github.com/Andersseen/Entwine/issues/22)) ([174930c](https://github.com/Andersseen/Entwine/commit/174930c4b2938477119432154e48459892525411))
+
 ## [0.2.0](https://github.com/Andersseen/Entwine/compare/v0.1.0...v0.2.0) (2026-10-06)
 
 
