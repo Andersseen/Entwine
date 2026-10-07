@@ -79,43 +79,48 @@ pub(crate) fn agent_summary(compilation: &Compilation) {
     if !config.discovers_agent_knowledge() {
         return;
     }
-    let count = |kind: ArtifactKind| {
-        compilation
-            .knowledge
-            .documents
-            .iter()
-            .filter(|d| d.artifact == kind)
-            .count()
-    };
-    let scopes: std::collections::BTreeSet<_> = compilation
-        .knowledge
-        .documents
+    let documents = &compilation.knowledge.documents;
+    let count = |kind: ArtifactKind| documents.iter().filter(|d| d.artifact == kind).count();
+    let exposures = documents
+        .iter()
+        .filter(|d| d.agent.as_ref().is_some_and(|a| a.exposure_of.is_some()))
+        .count();
+    let instructions = count(ArtifactKind::AgentInstructions);
+    let skills = count(ArtifactKind::Skill) - exposures;
+    let scopes: std::collections::BTreeSet<_> = documents
         .iter()
         .filter_map(|d| d.agent.as_ref().and_then(|a| a.scope.as_deref()))
         .collect();
+    let plural =
+        |n: usize, one: &str, many: &str| format!("{n} {}", if n == 1 { one } else { many });
     eprintln!(
-        "✓ {} agent instruction file{} in {} scope{}\n✓ {} skill{}",
-        count(ArtifactKind::AgentInstructions),
-        if count(ArtifactKind::AgentInstructions) == 1 {
-            ""
-        } else {
-            "s"
-        },
-        scopes.len(),
-        if scopes.len() == 1 { "" } else { "s" },
-        count(ArtifactKind::Skill),
-        if count(ArtifactKind::Skill) == 1 {
-            ""
-        } else {
-            "s"
-        },
+        "\nAgent knowledge\n✓ {} in {}\n✓ {}",
+        plural(instructions, "instruction file", "instruction files"),
+        plural(scopes.len(), "scope", "scopes"),
+        plural(skills, "skill", "skills"),
     );
+    if exposures > 0 {
+        eprintln!(
+            "○ {} (expose a canonical skill; not counted above)",
+            plural(exposures, "skill exposure", "skill exposures")
+        );
+    }
+    if compilation.ignored_agent_files > 0 {
+        eprintln!(
+            "○ {} (matched by .gitignore)",
+            plural(
+                compilation.ignored_agent_files,
+                "file ignored",
+                "files ignored"
+            )
+        );
+    }
     eprintln!(
-        "  agent knowledge is {} in the generated site (site.include_agent_knowledge = {})",
+        "  published in the generated site: {} (site.include_agent_knowledge = {})",
         if config.site.include_agent_knowledge {
-            "published"
+            "yes"
         } else {
-            "not published; context only"
+            "no, context only"
         },
         config.site.include_agent_knowledge
     );

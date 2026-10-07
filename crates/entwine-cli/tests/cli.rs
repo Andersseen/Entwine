@@ -58,7 +58,7 @@ fn real_cli_build_check_graph_and_context_work() {
     let parsed: serde_json::Value = serde_json::from_slice(&context.stdout).unwrap();
     // 12 documents plus 4 instruction files and 2 skills discovered through entwine.toml.
     assert_eq!(parsed["documents"].as_array().unwrap().len(), 18);
-    assert_eq!(parsed["schema_version"], "0.4");
+    assert_eq!(parsed["schema_version"], "0.5");
     assert_eq!(
         context.stdout,
         cli("context", temp.path(), &["--json"]).stdout
@@ -328,12 +328,12 @@ fn check_reports_agent_knowledge_only_when_configured_and_rejects_bad_config() {
     let report = String::from_utf8_lossy(&configured.stderr).into_owned();
     assert!(configured.status.success(), "{report}");
     assert!(
-        report.contains("4 agent instruction files in 3 scopes"),
+        report.contains("4 instruction files in 3 scopes"),
         "{report}"
     );
     assert!(report.contains("2 skills"), "{report}");
     assert!(
-        report.contains("published in the generated site"),
+        report.contains("published in the generated site: yes"),
         "{report}"
     );
     // Publication is its own switch: discovery stays, the public site loses the files.
@@ -348,11 +348,14 @@ fn check_reports_agent_knowledge_only_when_configured_and_rejects_bad_config() {
     let parsed: serde_json::Value = serde_json::from_slice(&context.stdout).unwrap();
     assert_eq!(parsed["documents"].as_array().unwrap().len(), 18);
     let report = String::from_utf8_lossy(&cli("check", temp.path(), &[]).stderr).into_owned();
-    assert!(report.contains("not published; context only"), "{report}");
+    assert!(
+        report.contains("published in the generated site: no, context only"),
+        "{report}"
+    );
     // An empty config equals no config: zero-config behavior, agent files ignored, nothing reported.
     fs::write(temp.path().join("entwine.toml"), "").unwrap();
     let report = String::from_utf8_lossy(&cli("check", temp.path(), &[]).stderr).into_owned();
-    assert!(!report.contains("agent instruction"), "{report}");
+    assert!(!report.contains("Agent knowledge"), "{report}");
     let context = cli("context", temp.path(), &["--json"]);
     let parsed: serde_json::Value = serde_json::from_slice(&context.stdout).unwrap();
     assert_eq!(parsed["documents"].as_array().unwrap().len(), 12);

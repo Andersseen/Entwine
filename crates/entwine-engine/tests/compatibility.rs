@@ -119,7 +119,7 @@ fn repository_references_retain_source_and_never_become_document_relations() {
         .html
         .contains("href=\"../../packages"));
     let json = context_json(&c.context).unwrap();
-    assert!(json.contains("repository_references") && json.contains("0.4"));
+    assert!(json.contains("repository_references") && json.contains("0.5"));
     let source = RepositorySource {
         files: None,
         file_base_url: "https://github.com/org/repo/blob/abc/".into(),

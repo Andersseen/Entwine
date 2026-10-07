@@ -2,9 +2,10 @@ use crate::{render::escape, resolve::relative_url};
 use entwine_core::*;
 use std::collections::BTreeMap;
 
-/// Context schema `0.4` adds `artifact` (and, for agent-facing artifacts, `agent`) to every
-/// document. `0.3` added explicit anchors and repository references.
-pub const CONTEXT_SCHEMA_VERSION: &str = "0.4";
+/// Context schema `0.5` adds `exposure_of`, `exposure_basis`, and `exposures` to `agent`.
+/// `0.4` added `artifact` (and, for agent-facing artifacts, `agent`) to every document. `0.3`
+/// added explicit anchors and repository references.
+pub const CONTEXT_SCHEMA_VERSION: &str = "0.5";
 
 fn knowledge_groups(knowledge: &KnowledgeBase) -> Vec<KnowledgeGroup> {
     let mut roles = RECOMMENDED_ROLES.to_vec();
@@ -56,6 +57,10 @@ fn navigation(tree: Tree, prefix: &str) -> Vec<Navigation> {
             }
         })
         .collect()
+}
+
+fn parent_of(path: &str) -> &str {
+    path.rsplit_once('/').map_or("", |(parent, _)| parent)
 }
 
 fn reference(document: &Document) -> PageReference {
@@ -244,6 +249,13 @@ pub(crate) fn project(
                 artifact: d.artifact,
                 path: d.source_path(docs_prefix),
                 scope: d.agent.as_ref().and_then(|a| a.scope.clone()),
+                location: d
+                    .agent
+                    .as_ref()
+                    .and_then(|a| a.skill_directory.as_deref())
+                    .map(|directory| parent_of(directory).to_string()),
+                exposure_of: d.agent.as_ref().and_then(|a| a.exposure_of.clone()),
+                exposures: d.agent.as_ref().map_or(0, |a| a.exposures.len()),
             })
             .collect(),
         edges: public.relations.clone(),
@@ -290,6 +302,13 @@ pub(crate) fn project(
             .collect(),
         relationships: full.relations.clone(),
     };
+    let link = |d: &Document| AgentLink {
+        title: d.title.clone(),
+        route: d.route.clone(),
+        kind: d.artifact,
+        path: d.source_path(docs_prefix),
+    };
+    let find = |id: &DocumentId| full.documents.iter().find(|x| &x.id == id);
     let agents =
         (publish_agents && full.documents.iter().any(|d| !is_doc(d))).then(|| AgentsModel {
             entries: full
@@ -297,24 +316,32 @@ pub(crate) fn project(
                 .iter()
                 .filter(|d| !is_doc(d))
                 .filter_map(|d| {
+                    let details = d.agent.clone()?;
                     Some(AgentEntry {
                         id: d.id.clone(),
                         title: d.title.clone(),
                         route: d.route.clone(),
                         kind: d.artifact,
-                        details: d.agent.clone()?,
+                        canonical: details.exposure_of.as_ref().and_then(&find).map(&link),
+                        exposures: details
+                            .exposures
+                            .iter()
+                            .filter_map(&find)
+                            .map(&link)
+                            .collect(),
+                        details,
                         references: full
                             .relations
                             .iter()
                             .filter(|r| r.source == d.id)
-                            .filter_map(|r| full.documents.iter().find(|x| x.id == r.target))
-                            .map(reference)
+                            .filter_map(|r| find(&r.target))
+                            .map(&link)
                             .collect(),
                         backlinks: full
                             .backlinks(&d.id)
                             .iter()
-                            .filter_map(|id| full.documents.iter().find(|x| &x.id == id))
-                            .map(reference)
+                            .filter_map(&find)
+                            .map(&link)
                             .collect(),
                         html: d.html.clone(),
                         source_url: None,

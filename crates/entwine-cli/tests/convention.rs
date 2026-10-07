@@ -169,7 +169,7 @@ fn context_json_exposes_roles_under_an_explicit_schema_version() {
     let out = entwine(temp.path(), &["context", "--json"]);
     assert!(out.status.success());
     let json: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
-    assert_eq!(json["schema_version"], "0.4");
+    assert_eq!(json["schema_version"], "0.5");
     let role = |id: &str| {
         json["documents"]
             .as_array()

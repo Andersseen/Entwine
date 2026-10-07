@@ -607,6 +607,20 @@ summary {
   paint-order: stroke;
   pointer-events: none;
 }
+.node-qualifier {
+  fill: var(--muted);
+  font:
+    500 10px system-ui,
+    sans-serif;
+  stroke: var(--bg);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  paint-order: stroke;
+  pointer-events: none;
+}
+.is-exposure .shape {
+  stroke-dasharray: 3 2;
+}
 .graph-node {
   cursor: pointer;
 }
@@ -649,11 +663,14 @@ marker path {
   stroke: var(--text);
   stroke-width: 2;
 }
-.graph.labels-off .node-label {
+.graph.labels-off .node-label,
+.graph.labels-off .node-qualifier {
   display: none;
 }
 .graph.labels-off .is-selected .node-label,
-.graph.labels-off .is-neighbor .node-label {
+.graph.labels-off .is-neighbor .node-label,
+.graph.labels-off .is-selected .node-qualifier,
+.graph.labels-off .is-neighbor .node-qualifier {
   display: inline;
 }
 .graph .is-selected .shape {
@@ -696,6 +713,108 @@ marker path {
 }
 .agent-card p {
   margin: 0.3rem 0;
+  color: var(--muted);
+}
+.agent-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1.25rem 0;
+}
+.agent-stats > div {
+  min-width: 7.5rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+  background: var(--panel);
+}
+.agent-stats dt {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.agent-stats dd {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 650;
+  line-height: 1.3;
+}
+.skill-group {
+  margin: 1.25rem 0;
+}
+.skill-group h3 {
+  font-size: 0.95rem;
+  margin: 0 0 0.5rem;
+}
+.skill-group .count {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+.skill-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+.skill-row {
+  padding: 0.55rem 0.9rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.85rem;
+}
+.skill-row:first-child {
+  border-top: 0;
+}
+.skill-head code {
+  color: var(--muted);
+  font-size: 0.75rem;
+  margin-left: 0.4rem;
+}
+.skill-desc {
+  margin: 0.15rem 0;
+  color: var(--muted);
+}
+.skill-meta {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.callout {
+  border-left: 3px solid var(--text);
+  background: var(--panel);
+  padding: 0.6rem 0.9rem;
+  margin: 1rem 0;
+  font-size: 0.88rem;
+}
+.plain {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.scope-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 0.6rem;
+  padding: 0.25rem 0;
+}
+.scope-name {
+  font-family: ui-monospace, monospace;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.scope-file {
+  font-size: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0 0.4rem;
+  background: var(--panel);
+  text-decoration: none;
+}
+.exposure-list {
+  list-style: none;
+  margin: 0.15rem 0 0.3rem;
+  padding-left: 1rem;
   color: var(--muted);
 }
 .scope-tree ul {

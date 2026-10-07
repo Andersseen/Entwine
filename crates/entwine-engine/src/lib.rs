@@ -1,6 +1,7 @@
 //! Scan and parse each document once, resolve a canonical model, then project it.
 mod agents_page;
 mod discovery;
+mod exposure;
 mod graph_layout;
 mod graph_page;
 mod markdown;
@@ -34,6 +35,8 @@ pub struct Compilation {
     pub repository_dependencies: Vec<String>,
     /// The configuration this compilation used (defaults when no `entwine.toml` exists).
     pub config: Config,
+    /// Agent convention files that `.gitignore` rules kept out of discovery.
+    pub ignored_agent_files: usize,
 }
 impl Compilation {
     /// Fatal diagnostics prevent output publication.
@@ -362,7 +365,15 @@ pub fn compile_with_config(
     let publish_agents = config.site.include_agent_knowledge;
     let mut agent_parsed = Vec::new();
     let mut artifact_paths: resolve::Artifacts = BTreeMap::new();
-    for found in discovery::discover(&project, &project_prefix, config, &mut diagnostics) {
+    let discovered = discovery::discover(
+        &project,
+        &repository,
+        &project_prefix,
+        config,
+        &mut diagnostics,
+    );
+    let ignored_agent_files = discovered.ignored;
+    for found in discovered.found {
         let id = format!("{REPOSITORY_ID_PREFIX}{}", found.path);
         let route = match discovery::route_for(found.convention, &found.path) {
             Ok(route) => route,
@@ -441,6 +452,9 @@ pub fn compile_with_config(
             skill_directory: (found.convention == AgentConvention::SkillMd)
                 .then(|| discovery::parent(&found.path).to_string()),
             resources: found.resources.clone(),
+            exposure_of: None,
+            exposure_basis: None,
+            exposures: Vec::new(),
         });
         artifact_paths.insert(found.path.clone(), (doc.id.clone(), route));
         agent_parsed.push(document);
@@ -475,20 +489,31 @@ pub fn compile_with_config(
             .as_ref()
             .map(|a| a.path.clone())
             .unwrap_or_default();
+        let context = resolve::ArtifactContext {
+            documents: &doc_paths,
+            artifacts: &artifact_paths,
+            repository: &repository,
+        };
         resolve::artifact_links(
             document,
             &path,
-            &resolve::ArtifactContext {
-                documents: &doc_paths,
-                artifacts: &artifact_paths,
-                repository: &repository,
-            },
+            &context,
             &mut repository_dependencies,
             &mut diagnostics,
         );
+        if document.document.artifact == ArtifactKind::AgentInstructions {
+            resolve::instruction_imports(
+                document,
+                &path,
+                &context,
+                publish_agents,
+                &mut repository_dependencies,
+            );
+        }
     }
     let mut documents: Vec<_> = parsed.into_iter().map(markdown::finish).collect();
     documents.extend(agent_parsed.into_iter().map(markdown::finish));
+    exposure::detect(&mut documents);
     let relations = documents
         .iter()
         .flat_map(|d| {
@@ -627,6 +652,7 @@ pub fn compile_with_config(
         assets,
         repository_dependencies,
         config: config.clone(),
+        ignored_agent_files,
     })
 }
 

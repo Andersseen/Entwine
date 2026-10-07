@@ -499,13 +499,15 @@ pub(crate) fn artifact_links(
                                     line: link.line,
                                     destination: destination.clone(),
                                 });
-                        } else {
+                        } else if !file_path.is_dir() {
                             diagnostics.push(crate::warning(
                                 &parsed.document.id.0,
                                 Some(link.line),
-                                format!("Link target does not exist or is not a file: {target}"),
+                                format!("Link target does not exist: {target}"),
                             ));
                         }
+                        // A directory is a normal thing for an agent file to point at. Entwine
+                        // models files, so it stays plain text without a diagnostic.
                         href = "#".into();
                     }
                 }
@@ -535,4 +537,141 @@ pub(crate) fn artifact_links(
 /// Percent-encode one URL query or path component.
 pub(crate) fn encode_component(value: &str) -> String {
     utf8_percent_encode(value, URL_SEGMENT).to_string()
+}
+
+/// `@path` imports in agent instruction files.
+///
+/// Several tools let an instruction file pull in another with `@relative/path` (for example
+/// `CLAUDE.md` containing `@AGENTS.md`). That is an explicit reference, so Entwine records it as
+/// one. Only tokens that resolve to a file that exists in the repository count; everything else
+/// (`@scope/package`, `@mention`) is ordinary prose and is ignored without a diagnostic. Code
+/// blocks and code spans are skipped. Entwine records the reference; it does not claim any tool
+/// will load it.
+pub(crate) fn instruction_imports(
+    parsed: &mut Parsed,
+    path: &str,
+    context: &ArtifactContext,
+    published: bool,
+    dependencies: &mut Vec<String>,
+) {
+    let from = parsed.document.route.clone();
+    let directory = path.rsplit_once('/').map_or("", |(d, _)| d).to_string();
+    let content = parsed.document.content.clone();
+    let mut fenced = false;
+    for (index, line) in content.lines().enumerate() {
+        if line.trim_start().starts_with("```") || line.trim_start().starts_with("~~~") {
+            fenced = !fenced;
+            continue;
+        }
+        if fenced || line.starts_with("    ") {
+            continue;
+        }
+        for token in imports_in(line) {
+            let Some(target) = resolve_import(&directory, token) else {
+                continue;
+            };
+            let destination = format!("@{token}");
+            if parsed
+                .document
+                .links
+                .iter()
+                .any(|l| l.destination == destination)
+            {
+                continue;
+            }
+            let known = context
+                .documents
+                .get(&target)
+                .or_else(|| context.artifacts.get(&target));
+            if let Some((id, route)) = known {
+                if *id == parsed.document.id {
+                    continue;
+                }
+                parsed.document.links.push(Link {
+                    destination,
+                    line: index + 1,
+                    target: Some(id.clone()),
+                    href: if published {
+                        relative_url(from.as_str(), route.as_str())
+                    } else {
+                        String::new()
+                    },
+                });
+                continue;
+            }
+            let mut file_path = context.repository.to_path_buf();
+            let mut crosses_symlink = false;
+            for part in target.split('/') {
+                file_path.push(part);
+                crosses_symlink |=
+                    std::fs::symlink_metadata(&file_path).is_ok_and(|m| m.file_type().is_symlink());
+            }
+            if crosses_symlink || !file_path.is_file() {
+                continue;
+            }
+            dependencies.push(target.clone());
+            parsed
+                .document
+                .repository_references
+                .push(RepositoryReference {
+                    path: target,
+                    source: parsed.document.id.clone(),
+                    line: index + 1,
+                    destination: destination.clone(),
+                });
+            parsed.document.links.push(Link {
+                destination,
+                line: index + 1,
+                target: None,
+                href: String::new(),
+            });
+        }
+    }
+}
+
+/// Candidate `@path` tokens on one line, outside inline code, trailing punctuation removed.
+fn imports_in(line: &str) -> Vec<&str> {
+    let mut found = Vec::new();
+    let mut in_code = false;
+    let mut offset = 0;
+    for part in line.split('`') {
+        if !in_code {
+            for (at, _) in part.match_indices('@') {
+                let before = part[..at].chars().next_back();
+                if before.is_some_and(|c| !c.is_whitespace() && !"(\"'".contains(c)) {
+                    continue; // e-mail addresses and glued text
+                }
+                let rest = &part[at + 1..];
+                let end = rest
+                    .find(|c: char| c.is_whitespace() || ")>]\"'`".contains(c))
+                    .unwrap_or(rest.len());
+                let token = rest[..end].trim_end_matches(['.', ',', ';', ':', '!', '?']);
+                if !token.is_empty() {
+                    found.push(token);
+                }
+            }
+        }
+        in_code = !in_code;
+        offset += part.len() + 1;
+    }
+    let _ = offset;
+    found
+}
+
+/// Normalize an import path relative to the importing file's directory.
+fn resolve_import(directory: &str, token: &str) -> Option<String> {
+    if token.starts_with('~') || token.starts_with('/') || token.contains(['\\', ':', '?', '#']) {
+        return None;
+    }
+    let mut parts: Vec<&str> = directory.split('/').filter(|p| !p.is_empty()).collect();
+    for part in token.split('/') {
+        match part {
+            "" | "." => {}
+            ".." => {
+                parts.pop()?;
+            }
+            value => parts.push(value),
+        }
+    }
+    (!parts.is_empty()).then(|| parts.join("/"))
 }

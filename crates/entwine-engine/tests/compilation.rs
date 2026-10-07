@@ -88,7 +88,7 @@ fn kitchen_sink_compiles_real_documents_and_all_projections() {
     assert!(graph.contains("../../specs/authentication/"));
     let context: serde_json::Value =
         serde_json::from_str(&context_json(&compilation.context).unwrap()).unwrap();
-    assert_eq!(context["schema_version"], "0.4");
+    assert_eq!(context["schema_version"], "0.5");
     assert_eq!(context["documents"].as_array().unwrap().len(), 12);
     let markdown = context_markdown(&compilation.context);
     for part in [

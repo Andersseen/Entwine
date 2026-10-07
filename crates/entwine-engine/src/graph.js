@@ -36,7 +36,20 @@
       oy: d.y,
       pinned: false,
       shown: true,
+      // Unlinked nodes keep their tidy block; exposures follow their canonical node.
+      still: d.linked === false || !!d.exposure_of,
+      anchor: null,
+      dx: 0,
+      dy: 0,
     });
+  });
+  nodes.forEach((n) => {
+    const canonical = n.d.exposure_of && nodes.get(n.d.exposure_of);
+    if (canonical) {
+      n.anchor = canonical;
+      n.dx = n.x - canonical.x;
+      n.dy = n.y - canonical.y;
+    }
   });
   const edges = [];
   const links = new Map(); // id -> {out:Set, in:Set}
@@ -71,6 +84,8 @@
   const state = {
     kinds: { repository_file: false },
     roles: {},
+    exposures: false,
+    unlinked: true,
     selected: null,
     focus: false,
     view: { x: 0, y: 0, k: 1 },
@@ -82,6 +97,8 @@
   app.querySelectorAll("[data-filter-role]").forEach((box) => {
     state.roles[box.getAttribute("data-filter-role")] = box.checked;
   });
+  const unlinkedBox = app.querySelector("[data-filter-unlinked]");
+  if (unlinkedBox) state.unlinked = unlinkedBox.checked;
 
   // ---- geometry --------------------------------------------------------
   const f = (v) => (Math.round(v * 10) / 10).toString();
@@ -107,12 +124,16 @@
   };
 
   // ---- visibility ------------------------------------------------------
+  // Exposures are collapsed into their canonical skill unless the viewer asks to see them.
+  const counts = (id) => state.exposures || !nodes.get(id)?.d.exposure_of;
   const neighbors = (id) => {
     const l = links.get(id);
-    return l ? new Set([...l.out, ...l.in]) : new Set();
+    return l ? new Set([...l.out, ...l.in].filter(counts)) : new Set();
   };
   const isVisible = (n) => {
     if (!state.kinds[n.d.kind]) return false;
+    if (n.d.exposure_of && !state.exposures) return false;
+    if (n.d.linked === false && !state.unlinked) return false;
     if (n.d.kind === "documentation" && state.roles[n.d.role] === false)
       return false;
     if (state.focus && state.selected) {
@@ -145,6 +166,10 @@
     requestAnimationFrame(() => {
       queued = false;
       nodes.forEach((n) => {
+        if (n.anchor) {
+          n.x = n.anchor.x + n.dx;
+          n.y = n.anchor.y + n.dy;
+        }
         if (n.shown)
           n.el.setAttribute("transform", `translate(${f(n.x)} ${f(n.y)})`);
       });
@@ -231,7 +256,7 @@
     }
   };
   const step = () => {
-    const live = [...nodes.values()].filter((n) => n.shown);
+    const live = [...nodes.values()].filter((n) => n.shown && !n.still);
     const force = new Map(live.map((n) => [n.d.id, { x: 0, y: 0 }]));
     for (let i = 0; i < live.length; i++) {
       for (let j = i + 1; j < live.length; j++) {
@@ -260,6 +285,7 @@
       if (!e.on) return;
       const a = nodes.get(e.s);
       const b = nodes.get(e.t);
+      if (a.still || b.still) return;
       const dx = a.x - b.x;
       const dy = a.y - b.y;
       const d = Math.max(Math.hypot(dx, dy), 0.01);
@@ -349,6 +375,9 @@
     fact("Source", d.path);
     if (d.scope !== null && d.scope !== undefined)
       fact("Scope", d.scope === "" ? "Project root" : d.scope);
+    if (d.location) fact("Location", d.location);
+    const canonical = d.exposure_of && nodes.get(d.exposure_of);
+    if (canonical) fact("Exposure of", canonical.d.path);
     if (d.kind === "repository_file")
       fact("Referenced by", String(d.referenced_by.length));
     else
@@ -364,16 +393,48 @@
       inspector.appendChild(open);
     }
     const l = links.get(d.id) || { out: new Set(), in: new Set() };
+    const visible = (id) => counts(id) || id === d.id;
+    if (d.exposed_through && d.exposed_through.length) {
+      const wrap = el("div", undefined, "graph-neighbors");
+      wrap.appendChild(
+        el("h3", `Exposed through (${d.exposed_through.length})`),
+      );
+      const list = el("ul");
+      for (const id of d.exposed_through) {
+        const x = nodes.get(id);
+        if (!x) continue;
+        const item = el("li");
+        const link = el("a", x.d.path);
+        link.href = x.d.href;
+        item.appendChild(link);
+        list.appendChild(item);
+      }
+      wrap.appendChild(list);
+      inspector.appendChild(wrap);
+    }
+    if (canonical) {
+      const wrap = el("div", undefined, "graph-neighbors");
+      wrap.appendChild(el("h3", "Canonical skill"));
+      const button = el("button", canonical.d.label);
+      button.type = "button";
+      button.addEventListener("click", () => select(canonical.d.id, true));
+      wrap.appendChild(button);
+      inspector.appendChild(wrap);
+    }
     if (d.kind === "repository_file") {
       inspector.appendChild(neighborList("Referenced by", d.referenced_by));
     } else {
       inspector.appendChild(
         neighborList(
           "References",
-          [...l.out].filter((id) => nodes.get(id).d.kind !== "repository_file"),
+          [...l.out].filter(
+            (id) => nodes.get(id).d.kind !== "repository_file" && visible(id),
+          ),
         ),
       );
-      inspector.appendChild(neighborList("Referenced by", [...l.in]));
+      inspector.appendChild(
+        neighborList("Referenced by", [...l.in].filter(visible)),
+      );
       const files = [...l.out].filter(
         (id) => nodes.get(id).d.kind === "repository_file",
       );
@@ -568,6 +629,20 @@
       fit();
     });
   }
+  const exposuresBox = controls.querySelector("[data-filter-exposures]");
+  if (exposuresBox)
+    exposuresBox.addEventListener("change", () => {
+      state.exposures = exposuresBox.checked;
+      refreshVisibility();
+      if (state.selected) select(state.selected);
+      fit();
+    });
+  if (unlinkedBox)
+    unlinkedBox.addEventListener("change", () => {
+      state.unlinked = unlinkedBox.checked;
+      refreshVisibility();
+      fit();
+    });
   controls.addEventListener("click", (e) => {
     const button = e.target.closest?.("[data-action]");
     if (!button) return;
@@ -624,6 +699,14 @@
     let found = nodes.get(wanted);
     if (!found) found = [...nodes.values()].find((n) => n.d.path === wanted);
     if (found) {
+      if (found.d.exposure_of && exposuresBox) {
+        state.exposures = true;
+        exposuresBox.checked = true;
+      }
+      if (found.d.linked === false && unlinkedBox) {
+        state.unlinked = true;
+        unlinkedBox.checked = true;
+      }
       if (!state.kinds[found.d.kind]) {
         state.kinds[found.d.kind] = true;
         const box = controls.querySelector(
