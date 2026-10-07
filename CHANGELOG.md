@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.1](https://github.com/Andersseen/Entwine/compare/v0.5.0...v0.5.1) (2026-10-07)
+
+
+### Bug fixes
+
+* graph double-click, page landmarks and heading order; add browser E2E and Agentyx tooling ([#32](https://github.com/Andersseen/Entwine/issues/32)) ([209b39a](https://github.com/Andersseen/Entwine/commit/209b39a40505dcdaf3bc8d0562c5546c01481d81))
+* stop unresolved draft releases from spawning release PRs ([#31](https://github.com/Andersseen/Entwine/issues/31)) ([b56cc0c](https://github.com/Andersseen/Entwine/commit/b56cc0c4db558899115b6bad0a4657daf711cf07))
+
 ## [0.5.0](https://github.com/Andersseen/Entwine/compare/v0.4.0...v0.5.0) (2026-10-07)
 
 
