@@ -181,6 +181,8 @@ fn resolve(
     Ok((href, id))
 }
 
+pub(crate) type Artifacts = BTreeMap<String, (DocumentId, Route)>;
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn links(
     parsed: &mut Parsed,
@@ -189,6 +191,8 @@ pub(crate) fn links(
     docs: &Path,
     repository: &Path,
     source: Option<&RepositorySource>,
+    artifacts: &Artifacts,
+    publish_artifacts: bool,
     dependencies: &mut Vec<String>,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
@@ -215,20 +219,40 @@ pub(crate) fn links(
             Err(message) => {
                 match reference {
                     Ok(Some(path)) => {
+                        // A discovered agent artifact is knowledge, not a plain repository file.
+                        if let Some((id, route)) = artifacts.get(&path) {
+                            link.target = Some(id.clone());
+                            if publish_artifacts {
+                                link.href =
+                                    relative_url(parsed.document.route.as_str(), route.as_str());
+                                if let Some((_, fragment)) = link.destination.split_once('#') {
+                                    link.href.push('#');
+                                    link.href.push_str(fragment);
+                                }
+                                if let Some(Event::Start(Tag::Link { dest_url, .. })) =
+                                    parsed.events.get_mut(*index)
+                                {
+                                    *dest_url = CowStr::from(link.href.clone());
+                                }
+                                continue;
+                            }
+                        }
                         let source = source
                             .filter(|s| s.files.as_ref().is_none_or(|files| files.contains(&path)));
                         link.href = source
                             .map(|s| source_url(s, &path, &link.destination))
                             .unwrap_or_default();
-                        parsed
-                            .document
-                            .repository_references
-                            .push(RepositoryReference {
-                                path: path.clone(),
-                                source: parsed.document.id.clone(),
-                                line: link.line,
-                                destination: link.destination.clone(),
-                            });
+                        if link.target.is_none() {
+                            parsed
+                                .document
+                                .repository_references
+                                .push(RepositoryReference {
+                                    path: path.clone(),
+                                    source: parsed.document.id.clone(),
+                                    line: link.line,
+                                    destination: link.destination.clone(),
+                                });
+                        }
                         if source.is_none() {
                             parsed.events[*index] = Event::Html(CowStr::from(format!("<span class=\"repository-reference\" title=\"Repository file: {}\">", crate::render::escape(&path))));
                             if let Some(end) =
@@ -369,4 +393,146 @@ pub(crate) fn source_url(source: &RepositorySource, path: &str, destination: &st
         );
     }
     url
+}
+
+/// Everything an agent artifact's links can resolve to, keyed by repository path.
+pub(crate) struct ArtifactContext<'a> {
+    pub documents: &'a BTreeMap<String, (DocumentId, Route)>,
+    pub artifacts: &'a Artifacts,
+    pub repository: &'a Path,
+}
+
+/// Resolve links inside an agent artifact. Unlike documentation, a broken link here is a
+/// warning: these files are written for tools and often reference paths that come and go.
+pub(crate) fn artifact_links(
+    parsed: &mut Parsed,
+    path: &str,
+    context: &ArtifactContext,
+    dependencies: &mut Vec<String>,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let from = parsed.document.route.clone();
+    let directory = path.rsplit_once('/').map_or("", |(d, _)| d).to_string();
+    for (link, index) in parsed.document.links.iter_mut().zip(&parsed.link_events) {
+        let destination = link.destination.clone();
+        let mut href = destination.clone();
+        let lowered = destination.to_ascii_lowercase();
+        let external = destination.starts_with("//")
+            || ["http:", "https:", "mailto:", "tel:"]
+                .iter()
+                .any(|scheme| lowered.starts_with(scheme));
+        if external || destination.starts_with('#') || destination.is_empty() {
+            // Left as written.
+        } else if destination.contains(':') {
+            diagnostics.push(crate::warning(
+                &parsed.document.id.0,
+                Some(link.line),
+                format!("Unsupported link scheme in {destination:?}"),
+            ));
+            href = "#".into();
+        } else {
+            let (without_anchor, anchor) = destination
+                .split_once('#')
+                .map_or((destination.as_str(), None), |(p, a)| (p, Some(a)));
+            let file = without_anchor.split('?').next().unwrap_or("");
+            let resolved = percent_decode_str(file)
+                .decode_utf8()
+                .map_err(|_| "Link path is not valid UTF-8".to_string())
+                .and_then(|decoded| {
+                    let mut parts: Vec<&str> = if decoded.starts_with('/') {
+                        Vec::new()
+                    } else {
+                        directory.split('/').filter(|p| !p.is_empty()).collect()
+                    };
+                    let decoded = decoded.into_owned();
+                    for part in decoded.split('/') {
+                        match part {
+                            "" | "." => {}
+                            ".." => {
+                                if parts.pop().is_none() {
+                                    return Err("Link traverses outside the repository".into());
+                                }
+                            }
+                            value => parts.push(value),
+                        }
+                    }
+                    Ok(parts.join("/"))
+                });
+            match resolved {
+                Ok(target) if target.is_empty() => {}
+                Ok(target) => {
+                    let known = context
+                        .documents
+                        .get(&target)
+                        .or_else(|| context.documents.get(&format!("{target}.md")))
+                        .or_else(|| context.documents.get(&format!("{target}/index.md")))
+                        .or_else(|| context.artifacts.get(&target));
+                    if let Some((id, route)) = known {
+                        link.target = Some(id.clone());
+                        href = relative_url(from.as_str(), route.as_str());
+                        if let Some(anchor) = anchor {
+                            href.push('#');
+                            href.push_str(anchor);
+                        }
+                    } else {
+                        let mut file_path = context.repository.to_path_buf();
+                        let mut crosses_symlink = false;
+                        for part in target.split('/') {
+                            file_path.push(part);
+                            crosses_symlink |= std::fs::symlink_metadata(&file_path)
+                                .is_ok_and(|m| m.file_type().is_symlink());
+                        }
+                        dependencies.push(target.clone());
+                        if crosses_symlink {
+                            diagnostics.push(crate::warning(
+                                &parsed.document.id.0,
+                                Some(link.line),
+                                format!("Link crosses a symbolic link: {target}"),
+                            ));
+                        } else if file_path.is_file() {
+                            parsed
+                                .document
+                                .repository_references
+                                .push(RepositoryReference {
+                                    path: target,
+                                    source: parsed.document.id.clone(),
+                                    line: link.line,
+                                    destination: destination.clone(),
+                                });
+                        } else {
+                            diagnostics.push(crate::warning(
+                                &parsed.document.id.0,
+                                Some(link.line),
+                                format!("Link target does not exist or is not a file: {target}"),
+                            ));
+                        }
+                        href = "#".into();
+                    }
+                }
+                Err(message) => {
+                    diagnostics.push(crate::warning(
+                        &parsed.document.id.0,
+                        Some(link.line),
+                        message,
+                    ));
+                    href = "#".into();
+                }
+            }
+        }
+        link.href = href;
+        if let Some(Event::Start(Tag::Link { dest_url, .. })) = parsed.events.get_mut(*index) {
+            *dest_url = CowStr::from(link.href.clone());
+        }
+    }
+    // Images in agent files are not published or resolved; show their alt text only.
+    for (index, _) in &parsed.image_events {
+        if let Some(Event::Start(Tag::Image { dest_url, .. })) = parsed.events.get_mut(*index) {
+            *dest_url = CowStr::from("#");
+        }
+    }
+}
+
+/// Percent-encode one URL query or path component.
+pub(crate) fn encode_component(value: &str) -> String {
+    utf8_percent_encode(value, URL_SEGMENT).to_string()
 }

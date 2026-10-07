@@ -1,7 +1,10 @@
-//! A fixed radial layout: the most connected document anchors concentric rings.
-//! No randomness, animation, physics, or browser layout is involved.
-use entwine_core::{DocumentId, GraphModel};
-use std::{collections::BTreeMap, f64::consts::TAU};
+//! Deterministic force-directed layout with kind/role clusters.
+//!
+//! Only IEEE arithmetic and `sqrt` are used (no trigonometry), so the same input yields the
+//! same coordinates on every platform. The browser may later refine positions, but this is
+//! the stable initial layout and the complete static fallback.
+use entwine_core::{ArtifactKind, GraphModel, GraphNode};
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Point {
@@ -10,116 +13,221 @@ pub(crate) struct Point {
 }
 
 pub(crate) struct Layout {
-    pub size: f64,
-    pub positions: BTreeMap<DocumentId, Point>,
-    pub hub: Option<DocumentId>,
+    pub width: f64,
+    pub height: f64,
+    /// Keyed by document id, or `file:<path>` for repository file nodes.
+    pub positions: BTreeMap<String, Point>,
+    pub degrees: BTreeMap<String, usize>,
 }
 
-pub(crate) fn layout(graph: &GraphModel) -> Layout {
-    if graph.nodes.len() > 12 {
-        return role_layout(graph);
+pub(crate) fn file_key(path: &str) -> String {
+    format!("file:{path}")
+}
+
+/// Ten fixed cluster slots at 36° steps (unit vectors), so empty clusters never shift others.
+const SLOTS: [(f64, f64); 10] = [
+    (0.0, -1.0),
+    (0.587_785_252_292_473, -0.809_016_994_374_947_4),
+    (0.951_056_516_295_153_5, -0.309_016_994_374_947_5),
+    (0.951_056_516_295_153_5, 0.309_016_994_374_947_5),
+    (0.587_785_252_292_473, 0.809_016_994_374_947_4),
+    (0.0, 1.0),
+    (-0.587_785_252_292_473, 0.809_016_994_374_947_4),
+    (-0.951_056_516_295_153_5, 0.309_016_994_374_947_5),
+    (-0.951_056_516_295_153_5, -0.309_016_994_374_947_5),
+    (-0.587_785_252_292_473, -0.809_016_994_374_947_4),
+];
+// cos/sin of the golden angle, for a phyllotaxis spiral built by repeated rotation.
+const GOLDEN_COS: f64 = -0.737_368_878_078_320_1;
+const GOLDEN_SIN: f64 = 0.675_490_294_261_524_2;
+
+/// Cluster slot: documentation by role rank (0–6), then instructions, skills, repository files.
+pub(crate) fn cluster(node: &GraphNode) -> usize {
+    match node.artifact {
+        ArtifactKind::Documentation => node.role.rank() as usize,
+        ArtifactKind::AgentInstructions => 7,
+        ArtifactKind::Skill => 8,
     }
-    let mut degrees: BTreeMap<_, usize> = graph
+}
+const FILE_CLUSTER: usize = 9;
+
+pub(crate) fn layout(graph: &GraphModel, include_files: bool) -> Layout {
+    struct Item {
+        key: String,
+        cluster: usize,
+    }
+    let mut items: Vec<Item> = graph
         .nodes
         .iter()
-        .map(|node| (node.id.clone(), 0))
+        .map(|n| Item {
+            key: n.id.0.clone(),
+            cluster: cluster(n),
+        })
         .collect();
-    for edge in &graph.edges {
-        if let Some(degree) = degrees.get_mut(&edge.source) {
-            *degree += 1;
-        }
-        if let Some(degree) = degrees.get_mut(&edge.target) {
-            *degree += 1;
-        }
+    if include_files {
+        items.extend(graph.files.iter().map(|f| Item {
+            key: file_key(&f.path),
+            cluster: FILE_CLUSTER,
+        }));
     }
-    let mut ordered: Vec<_> = degrees.into_iter().collect();
-    ordered.sort_by(|(a, da), (b, db)| db.cmp(da).then_with(|| a.cmp(b)));
-    let hub = ordered.first().map(|(id, _)| id.clone());
-    let ranks: BTreeMap<_, _> = graph
-        .nodes
+    items.sort_by(|a, b| (a.cluster, &a.key).cmp(&(b.cluster, &b.key)));
+    let index: BTreeMap<&str, usize> = items
         .iter()
-        .map(|n| (n.id.clone(), n.role.rank()))
+        .enumerate()
+        .map(|(i, item)| (item.key.as_str(), i))
         .collect();
-    let mut remaining: Vec<_> = ordered.into_iter().skip(1).map(|(id, _)| id).collect();
-    // Role-aware but deterministic: convention roles first, then by id.
-    remaining.sort_by(|a, b| (ranks.get(a), a).cmp(&(ranks.get(b), b)));
-    let mut rings = Vec::new();
-    let mut start = 0;
-    let mut ring = 1;
-    while start < remaining.len() {
-        let end = (start + ring * 8).min(remaining.len());
-        rings.push((165.0 * ring as f64, &remaining[start..end]));
-        start = end;
-        ring += 1;
+    let mut edges: Vec<(usize, usize)> = graph
+        .edges
+        .iter()
+        .filter_map(|e| {
+            Some((
+                *index.get(e.source.0.as_str())?,
+                *index.get(e.target.0.as_str())?,
+            ))
+        })
+        .filter(|(a, b)| a != b)
+        .collect();
+    if include_files {
+        for file in &graph.files {
+            let Some(target) = index.get(file_key(&file.path).as_str()) else {
+                continue;
+            };
+            for source in &file.referenced_by {
+                if let Some(source) = index.get(source.0.as_str()) {
+                    edges.push((*source, *target));
+                }
+            }
+        }
     }
-    let radius = rings.last().map_or(35.0, |(radius, _)| *radius);
-    let size = (radius + 105.0) * 2.0;
-    let center = size / 2.0;
-    let mut positions = BTreeMap::new();
-    if let Some(id) = &hub {
-        positions.insert(
-            id.clone(),
-            Point {
-                x: center,
-                y: center,
-            },
+    let mut degrees = BTreeMap::new();
+    for item in &items {
+        degrees.insert(item.key.clone(), 0usize);
+    }
+    for (a, b) in &edges {
+        *degrees.get_mut(&items[*a].key).unwrap() += 1;
+        *degrees.get_mut(&items[*b].key).unwrap() += 1;
+    }
+    let n = items.len();
+    if n == 0 {
+        return Layout {
+            width: 600.0,
+            height: 400.0,
+            positions: BTreeMap::new(),
+            degrees,
+        };
+    }
+    // Initial placement: each cluster is a spiral around its slot on a ring.
+    let ring = 160.0 + 40.0 * (n as f64).sqrt();
+    let mut counts = [0usize; 10];
+    let mut position: Vec<Point> = Vec::with_capacity(n);
+    let mut spiral: [(f64, f64); 10] = [(1.0, 0.0); 10];
+    let centers: Vec<Point> = SLOTS
+        .iter()
+        .map(|(x, y)| Point {
+            x: x * ring,
+            y: y * ring,
+        })
+        .collect();
+    for item in &items {
+        let c = item.cluster;
+        let i = counts[c];
+        counts[c] += 1;
+        let (dx, dy) = spiral[c];
+        let radius = 62.0 * (i as f64 + 0.5).sqrt();
+        position.push(Point {
+            x: centers[c].x + dx * radius,
+            y: centers[c].y + dy * radius,
+        });
+        spiral[c] = (
+            dx * GOLDEN_COS - dy * GOLDEN_SIN,
+            dx * GOLDEN_SIN + dy * GOLDEN_COS,
         );
     }
-    for (ring_index, (radius, nodes)) in rings.iter().enumerate() {
-        for (index, id) in nodes.iter().enumerate() {
-            // Alternate ring rotation so radial edges do not all share spokes.
-            let angle = TAU * (index as f64 + if ring_index % 2 == 0 { 0.0 } else { 0.5 })
-                / nodes.len() as f64
-                - TAU / 4.0;
-            positions.insert(
-                (*id).clone(),
-                Point {
-                    x: (center + radius * angle.cos()).round(),
-                    y: (center + radius * angle.sin()).round(),
-                },
-            );
+    // Fruchterman–Reingold with a cooling schedule, a weak pull to the cluster center,
+    // and gravity to the origin so disconnected components stay near each other.
+    let k = 165.0;
+    let iterations = if n > 300 { 120 } else { 260 };
+    for step in 0..iterations {
+        let temperature = (ring * 0.18) * (1.0 - step as f64 / iterations as f64) + 1.0;
+        let mut force = vec![Point { x: 0.0, y: 0.0 }; n];
+        for a in 0..n {
+            for b in (a + 1)..n {
+                let mut dx = position[a].x - position[b].x;
+                let mut dy = position[a].y - position[b].y;
+                let mut d2 = dx * dx + dy * dy;
+                if d2 < 0.01 {
+                    // Coincident nodes separate along a fixed, index-derived axis.
+                    dx = 0.1 * (1.0 + (a % 3) as f64);
+                    dy = 0.1 * (1.0 + (b % 3) as f64);
+                    d2 = dx * dx + dy * dy;
+                }
+                let d = d2.sqrt();
+                let repulse = k * k / d;
+                let (fx, fy) = (dx / d * repulse, dy / d * repulse);
+                force[a].x += fx;
+                force[a].y += fy;
+                force[b].x -= fx;
+                force[b].y -= fy;
+            }
+        }
+        for (a, b) in &edges {
+            let dx = position[*a].x - position[*b].x;
+            let dy = position[*a].y - position[*b].y;
+            let d = (dx * dx + dy * dy).sqrt().max(0.01);
+            let attract = d * d / k * 0.85;
+            let (fx, fy) = (dx / d * attract, dy / d * attract);
+            force[*a].x -= fx;
+            force[*a].y -= fy;
+            force[*b].x += fx;
+            force[*b].y += fy;
+        }
+        for (i, item) in items.iter().enumerate() {
+            let center = centers[item.cluster];
+            force[i].x += (center.x - position[i].x) * 0.12;
+            force[i].y += (center.y - position[i].y) * 0.12;
+            force[i].x -= position[i].x * 0.05;
+            force[i].y -= position[i].y * 0.05;
+            let magnitude = (force[i].x * force[i].x + force[i].y * force[i].y).sqrt();
+            if magnitude > 0.0 {
+                let limited = magnitude.min(temperature);
+                position[i].x += force[i].x / magnitude * limited;
+                position[i].y += force[i].y / magnitude * limited;
+            }
         }
     }
+    let margin = 110.0;
+    let min_x = position.iter().map(|p| p.x).fold(f64::MAX, f64::min);
+    let min_y = position.iter().map(|p| p.y).fold(f64::MAX, f64::min);
+    let max_x = position.iter().map(|p| p.x).fold(f64::MIN, f64::max);
+    let max_y = position.iter().map(|p| p.y).fold(f64::MIN, f64::max);
+    let positions = items
+        .iter()
+        .zip(&position)
+        .map(|(item, p)| {
+            (
+                item.key.clone(),
+                Point {
+                    x: (p.x - min_x + margin).round(),
+                    y: (p.y - min_y + margin).round(),
+                },
+            )
+        })
+        .collect();
     Layout {
-        size,
+        width: (max_x - min_x + margin * 2.0).round().max(520.0),
+        height: (max_y - min_y + margin * 2.0).round().max(360.0),
         positions,
-        hub,
+        degrees,
     }
 }
 
-/// Role bands group presentation only; edges still come from Markdown.
-fn role_layout(graph: &GraphModel) -> Layout {
-    let mut ordered: Vec<_> = graph.nodes.iter().collect();
-    ordered.sort_by(|a, b| (a.role.rank(), &a.id).cmp(&(b.role.rank(), &b.id)));
-    let columns = 5usize;
-    let mut rows = Vec::new();
-    for rank in 0..=6 {
-        let group: Vec<_> = ordered.iter().filter(|n| n.role.rank() == rank).collect();
-        for chunk in group.chunks(columns) {
-            rows.push(chunk.to_vec());
-        }
-    }
-    let size = ((rows.len() as f64 * 160.0 + 140.0).max(1100.0)).ceil();
-    let mut positions = BTreeMap::new();
-    for (row, nodes) in rows.iter().enumerate() {
-        for (column, node) in nodes.iter().enumerate() {
-            positions.insert(
-                node.id.clone(),
-                Point {
-                    x: size / 2.0 + (column as f64 - (nodes.len() as f64 - 1.0) / 2.0) * 190.0,
-                    y: 100.0 + row as f64 * 160.0,
-                },
-            );
-        }
-    }
-    Layout {
-        size,
-        positions,
-        hub: None,
-    }
+/// Node radius from its connectivity: hubs read as hubs.
+pub(crate) fn radius(degree: usize) -> f64 {
+    13.0 + 2.0 * degree.min(6) as f64
 }
 
-/// Clip edges at the circumference and separate opposite directions with curves.
+/// Clip edges at the node outlines and bend them slightly so opposite directions separate.
+/// The browser enhancement uses the identical construction.
 pub(crate) fn edge_path(
     source: Point,
     target: Point,
@@ -159,8 +267,8 @@ pub(crate) fn edge_path(
         source.y + start_dy / start_distance * source_radius,
         control.x,
         control.y,
-        target.x - end_dx / end_distance * (target_radius + 3.0),
-        target.y - end_dy / end_distance * (target_radius + 3.0)
+        target.x - end_dx / end_distance * (target_radius + 4.0),
+        target.y - end_dy / end_distance * (target_radius + 4.0)
     )
 }
 
@@ -169,34 +277,46 @@ mod tests {
     use super::*;
     use entwine_core::*;
 
-    #[test]
-    fn the_most_connected_document_is_centered() {
-        let nodes = ["a", "b", "c"]
-            .into_iter()
-            .map(|name| GraphNode {
-                id: DocumentId(name.into()),
-                label: name.into(),
-                route: Route::home(),
-                metadata: DocumentMetadata::default(),
-                role: KnowledgeRole::Other,
-            })
-            .collect();
-        let graph = GraphModel {
-            nodes,
-            edges: [("a", "b"), ("b", "c")]
-                .into_iter()
-                .map(|(source, target)| Relation {
-                    source: DocumentId(source.into()),
-                    target: DocumentId(target.into()),
+    fn node(id: &str, role: KnowledgeRole, artifact: ArtifactKind) -> GraphNode {
+        GraphNode {
+            id: DocumentId(id.into()),
+            label: id.into(),
+            route: Route::home(),
+            metadata: DocumentMetadata::default(),
+            role,
+            artifact,
+            path: id.into(),
+            scope: None,
+        }
+    }
+    fn graph(count: usize) -> GraphModel {
+        GraphModel {
+            nodes: (0..count)
+                .map(|i| {
+                    node(
+                        &format!("{i:03}.md"),
+                        if i % 3 == 0 {
+                            KnowledgeRole::Spec
+                        } else {
+                            KnowledgeRole::Other
+                        },
+                        if i % 7 == 6 {
+                            ArtifactKind::Skill
+                        } else {
+                            ArtifactKind::Documentation
+                        },
+                    )
+                })
+                .collect(),
+            edges: (1..count)
+                .map(|i| Relation {
+                    source: DocumentId(format!("{:03}.md", i / 2)),
+                    target: DocumentId(format!("{i:03}.md")),
                     kind: RelationKind::References,
                 })
                 .collect(),
-        };
-        let result = layout(&graph);
-        assert_eq!(result.hub, Some(DocumentId("b".into())));
-        let center = result.positions[&DocumentId("b".into())];
-        assert_eq!(center.x, result.size / 2.0);
-        assert_eq!(center.y, result.size / 2.0);
+            files: Vec::new(),
+        }
     }
 
     #[test]
@@ -216,56 +336,46 @@ mod tests {
     }
 
     #[test]
-    fn layouts_fit_the_canvas_and_have_distinct_two_dimensional_positions() {
-        for count in [1, 5, 20, 100] {
-            let graph = GraphModel {
-                nodes: (0..count)
-                    .map(|i| GraphNode {
-                        id: DocumentId(format!("{i:03}.md")),
-                        label: format!("Document {i}"),
-                        route: Route::home(),
-                        metadata: DocumentMetadata::default(),
-                        role: KnowledgeRole::Other,
-                    })
-                    .collect(),
-                edges: Vec::new(),
+    fn layouts_are_deterministic_finite_distinct_and_inside_the_canvas() {
+        for count in [1, 5, 20, 100, 250] {
+            let g = graph(count);
+            let first = layout(&g, false);
+            assert_eq!(first.positions.len(), count);
+            let again = layout(&g, false);
+            let key = |l: &Layout| {
+                l.positions
+                    .iter()
+                    .map(|(k, p)| (k.clone(), p.x as i64, p.y as i64))
+                    .collect::<Vec<_>>()
             };
-            let result = layout(&graph);
-            assert_eq!(result.positions.len(), count);
-            let unique: std::collections::BTreeSet<_> = result
+            assert_eq!(key(&first), key(&again));
+            let mut reordered = g.clone();
+            reordered.nodes.reverse();
+            assert_eq!(key(&first), key(&layout(&reordered, false)));
+            let distinct: std::collections::BTreeSet<_> = first
                 .positions
                 .values()
-                .map(|p| (p.x as i32, p.y as i32))
+                .map(|p| (p.x as i64, p.y as i64))
                 .collect();
-            assert_eq!(unique.len(), count);
-            for point in result.positions.values() {
-                assert!(
-                    point.x >= 90.0
-                        && point.x <= result.size - 90.0
-                        && point.y >= 90.0
-                        && point.y <= result.size - 90.0
-                );
+            assert_eq!(distinct.len(), count, "{count} nodes overlap exactly");
+            for p in first.positions.values() {
+                assert!(p.x.is_finite() && p.y.is_finite());
+                assert!(p.x >= 100.0 && p.x <= first.width - 100.0);
+                assert!(p.y >= 100.0 && p.y <= first.height - 100.0);
             }
-            if count > 1 {
-                assert!(
-                    unique
-                        .iter()
-                        .map(|(x, _)| x)
-                        .collect::<std::collections::BTreeSet<_>>()
-                        .len()
-                        > 1
-                );
-            }
-            let mut reordered = graph.clone();
-            reordered.nodes.reverse();
-            assert_eq!(
-                unique,
-                layout(&reordered)
-                    .positions
-                    .values()
-                    .map(|p| (p.x as i32, p.y as i32))
-                    .collect()
-            );
         }
+    }
+
+    #[test]
+    fn nodes_keep_a_readable_minimum_distance() {
+        let result = layout(&graph(60), false);
+        let points: Vec<_> = result.positions.values().collect();
+        let mut closest = f64::MAX;
+        for (i, a) in points.iter().enumerate() {
+            for b in &points[i + 1..] {
+                closest = closest.min((a.x - b.x).hypot(a.y - b.y));
+            }
+        }
+        assert!(closest >= 30.0, "closest pair is {closest:.1}px apart");
     }
 }

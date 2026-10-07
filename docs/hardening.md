@@ -236,3 +236,50 @@ they are reported explicitly instead of claiming verification that did not occur
 | 12. Independent of Agentyx | Yes; validation input only |
 | 13. Independent of Flowview | Yes; validation input only |
 | 14. No built-in AI/LLM dependency | Yes |
+
+## Repository knowledge and graph milestone
+
+Added on top of the hardening baseline, unreleased at the time of writing:
+optional `entwine.toml`, discovery of `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and
+`SKILL.md` ([spec](specs/agent-knowledge.md)), publication as a separate switch,
+context schema 0.4, and an interactive graph. No AI, network, or external
+integration was added.
+
+### Graph performance
+
+One local measurement on macOS arm64. Synthetic projects have three random
+links per document; "mixed" adds instruction files and skills. Build times are
+debug-binary wall-clock for the whole command; the page is the generated
+`__entwine/graph/index.html`, which includes the full text index.
+
+| Nodes | Content | Build s | Graph page KB |
+| ---: | --- | ---: | ---: |
+| 20 | docs | 0.02 | 36 |
+| 50 | docs | 0.03 | 89 |
+| 100 | docs | 0.08 | 177 |
+| 100 | 60 docs, 20 instruction files, 19 skills | 0.09 | 170 |
+| 250 | 150 docs, 50 instruction files, 49 skills | 0.37 | 421 |
+
+`graph.js` is about 20 KB with no dependencies. In a browser, dragging a node in
+the 250-node graph with the live simulation running over about 2.5 seconds
+produced a median frame time of 8.3 ms and a maximum of 10.3 ms (a 120 Hz
+display), so interaction was not the limit at that size. Above 150 nodes the page
+opens with the text index first and the visual graph collapsed. The layout is
+O(n²) per iteration, which is fine at these sizes and would need work well
+beyond a few hundred nodes.
+
+### What was verified
+
+Rust tests cover config parsing and strictness, zero-config compatibility
+(agent files ignored, links stay plain repository references), discovery of all
+four file names, hierarchical scopes, per-category switches, monorepo-relative
+paths, symlink and vendored-directory exclusion, skill metadata and resources,
+tolerant warnings for malformed agent files, site output with publication off
+(no agent path or skill name appears in any output file) and on, context schema
+0.4, deterministic layout and output, and the CLI `check` report. Browser
+checks on the generated demo (scripted events in the in-app browser, not an
+automated test suite) confirmed pan, wheel zoom, drag and pin, `?focus=` deep
+links, the inspector, neighbor dimming, kind and role filters, Focus mode,
+keyboard activation of a node, and Escape to clear. No screen-reader or
+keyboard-only walkthrough with assistive technology was done, and there is no
+automated browser test for the script.

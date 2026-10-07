@@ -52,6 +52,26 @@ impl Route {
             format!("/{stem}/")
         }))
     }
+    /// A generated Entwine view route below `__entwine/`, such as `__entwine/agents/skills/x`.
+    /// Segments must already be sanitized; anything unsafe is rejected.
+    pub fn generated(path: &str) -> Result<Self, String> {
+        let trimmed = path.trim_matches('/');
+        let mut parts = trimmed.split('/');
+        if parts.next() != Some("__entwine")
+            || trimmed.split('/').any(|p| {
+                p.is_empty()
+                    || p == "."
+                    || p == ".."
+                    || p.starts_with('.')
+                    || !p
+                        .chars()
+                        .all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c))
+            })
+        {
+            return Err(format!("Invalid generated route: {path}"));
+        }
+        Ok(Self(format!("/{trimmed}/")))
+    }
     /// The route as a UTF-8 string.
     pub fn as_str(&self) -> &str {
         &self.0
@@ -159,6 +179,133 @@ pub fn classify(id: &str, kind: Option<&str>) -> (KnowledgeRole, Option<String>)
     )
 }
 
+/// Optional `entwine.toml`. Every field defaults to the zero-config behavior:
+/// compile `docs/`, discover nothing else, publish nothing agent-facing.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Config {
+    pub discovery: DiscoveryConfig,
+    pub site: SiteConfig,
+}
+/// Which repository knowledge artifacts are discovered (modeled in context and checks).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct DiscoveryConfig {
+    /// `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` at any depth.
+    pub agent_instructions: bool,
+    /// `SKILL.md` manifests at any depth.
+    pub skills: bool,
+}
+/// Publication policy: discovery never implies publication.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct SiteConfig {
+    /// Include discovered agent-facing artifacts in the generated site and its graph.
+    pub include_agent_knowledge: bool,
+}
+impl Config {
+    pub fn discovers_agent_knowledge(&self) -> bool {
+        self.discovery.agent_instructions || self.discovery.skills
+    }
+}
+
+/// What kind of repository artifact a document is. Orthogonal to [`KnowledgeRole`], which
+/// says what a document *means*; this says what *kind of file* it is.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ArtifactKind {
+    /// Durable project documentation under `docs/`.
+    #[default]
+    Documentation,
+    /// Agent-facing instructions such as `AGENTS.md`, `CLAUDE.md`, or `GEMINI.md`.
+    AgentInstructions,
+    /// A skill manifest (`SKILL.md`) and its enclosing skill folder.
+    Skill,
+}
+impl ArtifactKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Documentation => "documentation",
+            Self::AgentInstructions => "agent_instructions",
+            Self::Skill => "skill",
+        }
+    }
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Documentation => "Documentation",
+            Self::AgentInstructions => "Agent instructions",
+            Self::Skill => "Skill",
+        }
+    }
+    /// Agent-facing artifacts are the ones governed by publication policy.
+    pub fn is_agent_facing(self) -> bool {
+        self != Self::Documentation
+    }
+}
+
+/// The file-name convention an agent-facing artifact follows. These name conventions,
+/// not products: Entwine models them and never resolves or runs anything.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentConvention {
+    AgentsMd,
+    ClaudeMd,
+    GeminiMd,
+    SkillMd,
+}
+impl AgentConvention {
+    /// Recognize a convention from an exact file name (case-sensitive, as on case-sensitive hosts).
+    pub fn from_file_name(name: &str) -> Option<Self> {
+        Some(match name {
+            "AGENTS.md" => Self::AgentsMd,
+            "CLAUDE.md" => Self::ClaudeMd,
+            "GEMINI.md" => Self::GeminiMd,
+            "SKILL.md" => Self::SkillMd,
+            _ => return None,
+        })
+    }
+    pub fn file_name(self) -> &'static str {
+        match self {
+            Self::AgentsMd => "AGENTS.md",
+            Self::ClaudeMd => "CLAUDE.md",
+            Self::GeminiMd => "GEMINI.md",
+            Self::SkillMd => "SKILL.md",
+        }
+    }
+    pub fn kind(self) -> ArtifactKind {
+        if self == Self::SkillMd {
+            ArtifactKind::Skill
+        } else {
+            ArtifactKind::AgentInstructions
+        }
+    }
+}
+
+/// Structure of a discovered agent-facing artifact. Absent on ordinary documentation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AgentDetails {
+    pub convention: AgentConvention,
+    /// Repository-relative path of the file, always `/`-separated.
+    pub path: String,
+    /// Instruction scope: the project-relative directory the file sits in
+    /// (`""` is the project root). Structural only; no provider precedence is simulated.
+    pub scope: Option<String>,
+    /// `name` frontmatter of a skill, if present.
+    pub name: Option<String>,
+    /// `description` frontmatter of a skill, if present.
+    pub description: Option<String>,
+    /// Repository-relative directory of a skill (like `path`).
+    pub skill_directory: Option<String>,
+    /// Files colocated with a skill manifest, relative to the skill directory. Never read or run.
+    pub resources: Vec<String>,
+}
+
+/// Document id prefix that keeps agent artifacts distinct from `docs/` paths.
+/// `:` cannot occur in a documentation path, so ids never collide.
+pub const REPOSITORY_ID_PREFIX: &str = "repo:";
+
 /// An extracted heading with the exact generated HTML identifier.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Heading {
@@ -205,8 +352,21 @@ pub struct Document {
     pub links: Vec<Link>,
     pub anchors: Vec<String>,
     pub repository_references: Vec<RepositoryReference>,
+    #[serde(default)]
+    pub artifact: ArtifactKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent: Option<AgentDetails>,
     pub content: String,
     pub html: String,
+}
+impl Document {
+    /// Repository path of the source file given the documentation root prefix.
+    pub fn source_path(&self, docs_prefix: &str) -> String {
+        match &self.agent {
+            Some(agent) => agent.path.clone(),
+            None => format!("{docs_prefix}/{}", self.id.0),
+        }
+    }
 }
 
 /// The MVP has one explicit relationship kind.
@@ -316,6 +476,8 @@ pub struct SitePage {
     pub headings: Vec<Heading>,
     pub metadata: DocumentMetadata,
     pub role: KnowledgeRole,
+    pub artifact: ArtifactKind,
+    pub graph_id: Option<DocumentId>,
     pub backlinks: Vec<PageReference>,
     pub references: Vec<PageReference>,
     pub source_path: Option<String>,
@@ -330,6 +492,29 @@ pub struct SiteModel {
     pub knowledge_route: String,
     pub knowledge: Vec<KnowledgeGroup>,
     pub repository_reference_count: usize,
+    /// Agent-facing knowledge published on the site; `None` when publication is off.
+    pub agents: Option<AgentsModel>,
+}
+/// One agent-facing artifact, ready for the generated Agents views.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AgentEntry {
+    pub id: DocumentId,
+    pub title: String,
+    pub route: Route,
+    pub kind: ArtifactKind,
+    pub details: AgentDetails,
+    /// Documents and artifacts this one references / is referenced by.
+    pub references: Vec<PageReference>,
+    pub backlinks: Vec<PageReference>,
+    pub html: String,
+    pub source_url: Option<String>,
+    /// Resource path (relative to the skill directory) and an optional source link.
+    pub resource_links: Vec<(String, Option<String>)>,
+}
+/// The generated Agents section, deterministic and grouped.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AgentsModel {
+    pub entries: Vec<AgentEntry>,
 }
 /// Pages of one knowledge role, for the generated Project Knowledge overview.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -345,12 +530,24 @@ pub struct GraphNode {
     pub route: Route,
     pub metadata: DocumentMetadata,
     pub role: KnowledgeRole,
+    pub artifact: ArtifactKind,
+    /// Repository path of the source file.
+    pub path: String,
+    /// Instruction scope (`""` is the whole project), for agent instructions.
+    pub scope: Option<String>,
+}
+/// A repository file referenced by documents; a secondary, optional graph node.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct GraphFile {
+    pub path: String,
+    pub referenced_by: Vec<DocumentId>,
 }
 /// Deterministic graph projection.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GraphModel {
     pub nodes: Vec<GraphNode>,
     pub edges: Vec<Relation>,
+    pub files: Vec<GraphFile>,
 }
 /// Structured context is versioned separately from the package version.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -372,6 +569,9 @@ pub struct ContextDocument {
     pub backlinks: Vec<DocumentId>,
     pub anchors: Vec<String>,
     pub repository_references: Vec<RepositoryReference>,
+    pub artifact: ArtifactKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent: Option<AgentDetails>,
     pub content: String,
 }
 /// Resolve the title consistently, including for index pages.

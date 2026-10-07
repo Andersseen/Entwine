@@ -1,20 +1,36 @@
 # Current state
 
-The first public release was v0.1.0. The current source implements a zero-config compiler for `docs/**/*.md`, the
+The current source implements a zero-config compiler for `docs/**/*.md`, the
 [Entwine Knowledge Convention](convention.md) v0.1, provider-native publishing
-setup, and a public showcase built from its own output.
+setup, optional [agent knowledge](specs/agent-knowledge.md) discovery, an
+interactive graph, and a public showcase built from its own output.
+
+## Release status
+
+Verified on 7 October 2026:
+
+| Version | GitHub Releases | npm `@entwine/cli` |
+| --- | --- | --- |
+| 0.1.0 | Public pre-release | Published |
+| 0.2.0 | Public pre-release, four native archives and `SHA256SUMS` | Published, with all four platform packages |
+| 0.2.1 | **Draft**, not public | Published and `latest`, with all four platform packages |
+
+Everything described below as agent knowledge, the interactive graph, optional
+configuration, and context schema 0.4 is in the source on this branch and is
+**not** in any released version. The branch was cut before the 0.2.1 release
+commit. Released context output is schema 0.3.
 
 ## Implemented commands
 
 | Command | Result |
 | --- | --- |
 | `entwine init [project]` | Scaffolds missing recommended knowledge files; never overwrites |
-| `entwine check [project]` | Diagnostics, knowledge coverage, non-zero exit on errors |
+| `entwine check [project]` | Diagnostics, knowledge coverage, discovered agent knowledge when configured, non-zero exit on errors |
 | `entwine check --strict-knowledge` | Also fails when a recommended area is missing |
 | `entwine build [project]` | Static docs, copied assets, graph, Knowledge overview in `dist/` |
 | `entwine graph [project]` | Identical to `build`; reports the graph page location |
 | `entwine context [project]` | Complete deterministic Markdown context |
-| `entwine context [project] --json` | Versioned structured JSON context |
+| `entwine context [project] --json` | Versioned structured JSON context (schema 0.4), including discovered agent artifacts |
 | `entwine dev [project] --port 4173` | Watched build and loopback HTTP server |
 | `entwine setup [project]` | Generates GitHub, GitLab, or Bitbucket validation and publishing config |
 
@@ -47,17 +63,48 @@ decision, spec, or other. A recognized `type` wins, then the canonical path, the
 path warns and never fails. `entwine check` reports which recommended areas are
 represented; that is presence, not quality. See the [convention](convention.md).
 
+## Optional configuration and repository knowledge
+
+`entwine.toml` is optional. Without it, only `docs/` is compiled and nothing
+agent-facing is discovered or published. With it, `[discovery]` turns on
+`agent_instructions` (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`) and `skills`
+(`SKILL.md`), and `[site] include_agent_knowledge` separately decides whether
+they reach the generated site. Discovered files are always present in
+`entwine context` and reported by `entwine check`; they are public only when
+publication is explicitly enabled. Unknown keys are errors. See
+[agent knowledge](specs/agent-knowledge.md).
+
+Each document has a role (what it means) and an artifact kind (`documentation`,
+`agent_instructions`, `skill`). Instruction files carry a structural scope (the
+directory they sit in); skills carry folder, `name`, `description`, and listed
+resources. Links between these files and documentation become relationships.
+Published pages live under `/__entwine/agents/` (overview, instructions, skills,
+scopes, one page each). `entwine init` does not scaffold these files.
+
 ## Reading, graph, and knowledge views
 
 Documentation uses neutral gray surfaces with automatic light/dark support.
 Mobile navigation and page headings use native collapsible menus. Pages show a
 role badge, and the sidebar links to two Entwine-native views: the generated
 Project knowledge overview at `/__entwine/knowledge/` (what exists) and the graph
-(how it is connected). Small graphs center the most connected document. Graphs above twelve nodes
-use deterministic role bands and directed curved edges. Above fifty nodes or
-two hundred edges, an open role-grouped text index becomes primary; the full
-visual graph remains available in a native disclosure. Node names include the role, and document lists are grouped by role, so
-meaning never depends on color. Document and relationship lists remain complete. Pages show outgoing references,
+(how it is connected).
+
+The graph page is static HTML with an inline SVG laid out at build time by a
+deterministic force-directed layout, clustered by artifact kind and role. Shape
+shows the kind (circle documentation, square instructions, diamond skill, dashed
+square repository file), letters show the role, and colors are secondary, so
+meaning never depends on color. A small dependency-free script
+(`__entwine/graph.js`, about 20 KB) adds pan, wheel/pinch zoom, node dragging
+(dragged nodes stay pinned until Reset layout), Fit, Reset layout, filters by
+kind (documentation, instructions, skills, repository references, off by default)
+and by role, a detail inspector (kind, role, source, scope, in/out/repository
+counts, clickable neighbors, open page), neighbor highlighting, a Focus mode
+that hides everything but a node and its neighbors, and `?focus=<id>` deep links
+(pages link to their own node). Labels hide when zoomed out. Without the script
+the page still shows the SVG, the legend, and the complete grouped document
+index, relationship list, and referenced repository files. Above 150 nodes or 600
+edges the text index leads and the visual graph starts collapsed. The role
+badges, document lists, and relationship list remain complete. Pages show outgoing references,
 backlinks, and Markdown source paths. Large sibling navigation lists show twenty
 entries plus the current page/ancestors and a link to the complete Knowledge index.
 
@@ -72,7 +119,7 @@ and verifies every relative link, asset, and fragment under both mount points.
 Tagged `v*` releases publish native binaries for Linux x86_64, macOS arm64, macOS
 x86_64, and Windows x86_64 on GitHub Releases, with SHA-256 checksums, and the
 same binaries to npm as `@entwine/cli` plus one `@entwine/cli-<platform>` package
-per target. Version 0.1.0 is published on npm and GitHub Releases. Generated CI pins
+per target. See [release status](#release-status). Generated CI pins
 `@entwine/cli` at the CLI's own version; see [deployment](deployment.md).
 
 ## Provider-native publishing
@@ -94,15 +141,16 @@ graphs of 1, 5, 20, 50, and 100 nodes.
 
 ## Limits
 
-No search, theme configuration, graph dragging or physics, incremental
-compilation, or browser reload. Refresh after dev rebuilds. The graph uses a
-fixed SVG layout with a complete text relationship list; large graphs prioritize an open role-grouped index, with the full SVG available
-on demand. Binaries are unsigned, and Linux builds
+No search, theme configuration, incremental compilation, or browser reload.
+Refresh after dev rebuilds. The live graph layout is not saved, the simulation
+is a light approximation of the build-time layout, and agent instruction scope
+is structural only: Entwine does not simulate which file any tool loads.
+Agent discovery ignores `.gitignore`. Binaries are unsigned, and Linux builds
 link the system glibc. Generated GitLab and Bitbucket pipelines are verified for
 syntax and structure but have not been run on those providers; GitLab needs 17.10
 or later. A page that links to its own heading counts as referencing itself. Raw
 HTML is escaped except empty anchors with a single safe quoted `id` or `name`. Symbolic links are rejected. Builds own `dist/` entirely.
-Context schema 0.3 is experimental. API compatibility is not guaranteed before 1.0.
+Context schema 0.4 is experimental. API compatibility is not guaranteed before 1.0.
 
 Read the [architecture](architecture.md) and [future roadmap](roadmap.md).
 
@@ -115,7 +163,8 @@ Read the [architecture](architecture.md) and [future roadmap](roadmap.md).
 | Bitbucket Cloud | Yes | No | No |
 
 Entwine’s own GitHub CI, release workflow, and Cloudflare showcase deployment
-were verified successful on the v0.1.0 main commit. Those are different from a
+were verified successful on the v0.1.0 main commit; they were not re-verified for
+the changes on this branch. Those are different from a
 consumer’s generated GitHub Pages workflow. No dedicated hosted provider test
 repository or GitLab/Bitbucket credentials were used. See
 [hardening evidence](hardening.md) for exact validation and measurements.

@@ -217,6 +217,8 @@ pub(crate) fn parse(
             links,
             anchors,
             repository_references: Vec::new(),
+            artifact: ArtifactKind::Documentation,
+            agent: None,
             content: text.into(),
             html: String::new(),
         },
@@ -282,4 +284,53 @@ fn explicit_anchor(text: &str) -> Option<String> {
         return None;
     }
     Some(id.to_string())
+}
+
+/// `name` and `description` of a skill manifest, whitespace-collapsed. Missing,
+/// malformed, or non-string values are simply absent; nothing is invented.
+pub(crate) fn skill_fields(text: &str) -> (Option<String>, Option<String>) {
+    let text = text.strip_prefix('\u{feff}').unwrap_or(text);
+    if text.lines().next() != Some("---") {
+        return (None, None);
+    }
+    let mut yaml = String::new();
+    let mut closed = false;
+    for line in text.lines().skip(1) {
+        if line.trim_end() == "---" {
+            closed = true;
+            break;
+        }
+        yaml.push_str(line);
+        yaml.push('\n');
+    }
+    let Ok(serde_yaml::Value::Mapping(mapping)) = serde_yaml::from_str::<serde_yaml::Value>(&yaml)
+    else {
+        return (None, None);
+    };
+    if !closed {
+        return (None, None);
+    }
+    let field = |key: &str| {
+        mapping
+            .get(key)
+            .and_then(|v| v.as_str())
+            .map(|v| v.split_whitespace().collect::<Vec<_>>().join(" "))
+            .filter(|v| !v.is_empty())
+    };
+    (field("name"), field("description"))
+}
+
+#[cfg(test)]
+mod skill_tests {
+    use super::skill_fields;
+    #[test]
+    fn reads_name_and_folded_description_only_when_present() {
+        let text = "---\nname: triage\ndescription: >\n  Sort incoming\n  reports.\nallowed-tools: x\n---\n# Body";
+        assert_eq!(
+            skill_fields(text),
+            (Some("triage".into()), Some("Sort incoming reports.".into()))
+        );
+        assert_eq!(skill_fields("# No frontmatter"), (None, None));
+        assert_eq!(skill_fields("---\nname: [oops\n---\n"), (None, None));
+    }
 }

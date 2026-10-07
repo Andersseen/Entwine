@@ -14,7 +14,14 @@ Continue collecting evidence from real adopters of the standalone compiler.
   rebuilds unless evidence demonstrates a need for more complexity.
 - Evaluate additional repository reference types (directories and images outside
   `docs/`) only when useful source-link behavior can be specified safely.
-- Keep improving diagnostics from consumer reports and track context 0.3 adoption.
+- Keep improving diagnostics from consumer reports and track context 0.4 adoption.
+- Gather feedback on [agent knowledge](specs/agent-knowledge.md) and the
+  interactive graph from real repositories: which conventions are missing, how
+  scope should be presented, and where the graph needs more than filtering and
+  focus. Instruction scope stays structural unless a clear, tool-neutral need
+  appears.
+- Persist user-chosen graph layouts and extend filtering only if real use shows
+  the need; the text index remains authoritative.
 
 The [hardening evidence](hardening.md) records completed compatibility fixes,
 measurements, provider evidence, and remaining limits.
@@ -32,8 +39,8 @@ commits Entwine to a specific provider or integration.
 - Semantic context selection, so tools can request the relevant slice of
   knowledge.
 - Additional knowledge roles, if the [convention](convention.md) proves too small.
-- Search, small opt-in configuration, and broader distribution, evaluated
-  separately. Preserve the
+- Search and broader distribution, evaluated separately. Configuration is
+  deliberately small (`entwine.toml`) and grows only with concrete needs. Preserve the
   [canonical model boundary](architecture.md#canonical-representation).
 
 Entwine will not generate documentation with AI or invent project facts; it

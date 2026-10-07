@@ -1,13 +1,18 @@
 //! Scan and parse each document once, resolve a canonical model, then project it.
+mod agents_page;
+mod discovery;
 mod graph_layout;
+mod graph_page;
 mod markdown;
 mod projections;
 mod render;
 mod resolve;
 
+pub use agents_page::render_agents;
 use entwine_core::*;
+pub use graph_page::{render_graph, render_graph_script};
 pub use projections::{context_json, context_markdown};
-pub use render::{render_graph, render_knowledge, render_site, StaticFile};
+pub use render::{render_knowledge, render_site, StaticFile};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs, io,
@@ -27,6 +32,8 @@ pub struct Compilation {
     pub assets: Vec<StaticFile>,
     /// Validated repository paths used by links, including missing file targets.
     pub repository_dependencies: Vec<String>,
+    /// The configuration this compilation used (defaults when no `entwine.toml` exists).
+    pub config: Config,
 }
 impl Compilation {
     /// Fatal diagnostics prevent output publication.
@@ -68,11 +75,42 @@ fn case_collision(
     (previous_route != route.as_str()).then_some(previous)
 }
 
-/// Every file of a complete static site: pages, graph, knowledge overview, and assets.
+/// Read the optional `entwine.toml` beside `docs/`. A missing file is the zero-config default;
+/// a malformed file or unknown key is an error naming the problem.
+pub fn load_config(project: &Path) -> io::Result<Config> {
+    let path = project.join("entwine.toml");
+    match fs::symlink_metadata(&path) {
+        Ok(meta) if meta.file_type().is_symlink() => Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "entwine.toml must not be a symbolic link",
+        )),
+        Ok(_) => {
+            let text = fs::read_to_string(&path)
+                .map_err(|e| io::Error::new(e.kind(), format!("Cannot read entwine.toml: {e}")))?;
+            parse_config(&text)
+        }
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(Config::default()),
+        Err(e) => Err(e),
+    }
+}
+
+/// Parse `entwine.toml` text. Unknown keys are rejected so typos never silently publish or hide.
+pub fn parse_config(text: &str) -> io::Result<Config> {
+    toml::from_str(text).map_err(|e| {
+        io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("Invalid entwine.toml: {}", e.message().trim()),
+        )
+    })
+}
+
+/// Every file of a complete static site: pages, graph, knowledge overview, agents, and assets.
 pub fn render(compilation: &Compilation) -> Vec<StaticFile> {
     let mut files = render_site(&compilation.site);
     files.push(render_graph(&compilation.graph));
+    files.push(render_graph_script());
     files.push(render_knowledge(&compilation.site));
+    files.extend(render_agents(&compilation.site));
     files.extend(compilation.assets.clone());
     files
 }
@@ -124,12 +162,28 @@ pub fn compile(project: &Path) -> io::Result<Compilation> {
     compile_with_source(project, project, None)
 }
 
+/// Compile with the project's `entwine.toml` (or defaults) and no source metadata.
+pub fn compile_configured(project: &Path) -> io::Result<Compilation> {
+    compile_with_config(project, project, None, &load_config(project)?)
+}
+
 /// Compile with a validated repository boundary and optional local source metadata.
 /// Git inspection belongs to callers; compilation never invokes Git or the network.
 pub fn compile_with_source(
     project: &Path,
     repository: &Path,
     source: Option<&RepositorySource>,
+) -> io::Result<Compilation> {
+    compile_with_config(project, repository, source, &Config::default())
+}
+
+/// Compile with explicit configuration. Discovery of agent-facing artifacts only happens
+/// when the configuration enables it; publication is a separate, explicit setting.
+pub fn compile_with_config(
+    project: &Path,
+    repository: &Path,
+    source: Option<&RepositorySource>,
+    config: &Config,
 ) -> io::Result<Compilation> {
     if source.is_some_and(|s| {
         !s.file_base_url.starts_with("https://")
@@ -295,6 +349,102 @@ pub fn compile_with_source(
         .map(|a| a.path.clone())
         .collect::<BTreeSet<_>>();
     let mut repository_dependencies = Vec::new();
+    let docs_prefix = root
+        .strip_prefix(&repository)
+        .unwrap_or(&root)
+        .to_string_lossy()
+        .replace('\\', "/");
+    let project_prefix = project
+        .strip_prefix(&repository)
+        .unwrap_or(Path::new(""))
+        .to_string_lossy()
+        .replace('\\', "/");
+    let publish_agents = config.site.include_agent_knowledge;
+    let mut agent_parsed = Vec::new();
+    let mut artifact_paths: resolve::Artifacts = BTreeMap::new();
+    for found in discovery::discover(&project, &project_prefix, config, &mut diagnostics) {
+        let id = format!("{REPOSITORY_ID_PREFIX}{}", found.path);
+        let route = match discovery::route_for(found.convention, &found.path) {
+            Ok(route) => route,
+            Err(message) => {
+                diagnostics.push(warning(&id, None, message));
+                continue;
+            }
+        };
+        if let Some(previous) = routes.insert(route.clone(), found.path.clone()) {
+            diagnostics.push(error(
+                &id,
+                None,
+                format!(
+                    "Route collision at {}: also produced by {previous}",
+                    route.as_str()
+                ),
+            ));
+            continue;
+        }
+        if let Some(previous) = case_collision(&mut folded_routes, &route, &found.path) {
+            diagnostics.push(error(
+                &id,
+                None,
+                format!("Routes differ only by case: {previous} and {}", found.path),
+            ));
+        }
+        let mut local = Vec::new();
+        let mut document = markdown::parse(&id, route.clone(), &found.text, &mut local);
+        // Agent files are written for tools: tolerate their frontmatter and links.
+        diagnostics.extend(local.into_iter().map(|mut d| {
+            d.severity = DiagnosticSeverity::Warning;
+            d.source = id.clone();
+            d
+        }));
+        let (name, description) = if found.convention == AgentConvention::SkillMd {
+            markdown::skill_fields(&found.text)
+        } else {
+            (None, None)
+        };
+        // Titles and scopes are relative to the project, not to a larger repository.
+        let relative = |path: &str| {
+            path.strip_prefix(&project_prefix)
+                .map_or(path, |rest| rest.trim_start_matches('/'))
+                .to_string()
+        };
+        let directory = relative(discovery::parent(&found.path));
+        let doc = &mut document.document;
+        doc.role = KnowledgeRole::Other;
+        doc.artifact = found.convention.kind();
+        doc.title = if found.convention == AgentConvention::SkillMd {
+            name.clone()
+                .or_else(|| {
+                    doc.headings
+                        .iter()
+                        .find(|h| h.level == 1)
+                        .map(|h| h.text.clone())
+                })
+                .unwrap_or_else(|| {
+                    humanize(
+                        directory
+                            .rsplit('/')
+                            .next()
+                            .filter(|d| !d.is_empty())
+                            .unwrap_or("skill"),
+                    )
+                })
+        } else {
+            relative(&found.path)
+        };
+        doc.agent = Some(AgentDetails {
+            convention: found.convention,
+            path: found.path.clone(),
+            scope: (found.convention != AgentConvention::SkillMd).then(|| directory.clone()),
+            name,
+            description,
+            skill_directory: (found.convention == AgentConvention::SkillMd)
+                .then(|| discovery::parent(&found.path).to_string()),
+            resources: found.resources.clone(),
+        });
+        artifact_paths.insert(found.path.clone(), (doc.id.clone(), route));
+        agent_parsed.push(document);
+    }
     for document in &mut parsed {
         resolve::links(
             document,
@@ -303,11 +453,42 @@ pub fn compile_with_source(
             &root,
             &repository,
             source,
+            &artifact_paths,
+            publish_agents,
             &mut repository_dependencies,
             &mut diagnostics,
         );
     }
-    let documents: Vec<_> = parsed.into_iter().map(markdown::finish).collect();
+    let doc_paths: BTreeMap<String, (DocumentId, Route)> = parsed
+        .iter()
+        .map(|p| {
+            (
+                format!("{docs_prefix}/{}", p.document.id.0),
+                (p.document.id.clone(), p.document.route.clone()),
+            )
+        })
+        .collect();
+    for document in &mut agent_parsed {
+        let path = document
+            .document
+            .agent
+            .as_ref()
+            .map(|a| a.path.clone())
+            .unwrap_or_default();
+        resolve::artifact_links(
+            document,
+            &path,
+            &resolve::ArtifactContext {
+                documents: &doc_paths,
+                artifacts: &artifact_paths,
+                repository: &repository,
+            },
+            &mut repository_dependencies,
+            &mut diagnostics,
+        );
+    }
+    let mut documents: Vec<_> = parsed.into_iter().map(markdown::finish).collect();
+    documents.extend(agent_parsed.into_iter().map(markdown::finish));
     let relations = documents
         .iter()
         .flat_map(|d| {
@@ -326,7 +507,11 @@ pub fn compile_with_source(
         documents,
         relations,
     };
-    for document in &knowledge.documents {
+    for document in knowledge
+        .documents
+        .iter()
+        .filter(|d| d.artifact == ArtifactKind::Documentation)
+    {
         if document.route.as_str() != "/" && knowledge.backlinks(&document.id).is_empty() {
             diagnostics.push(Diagnostic {
                 severity: DiagnosticSeverity::Warning,
@@ -336,7 +521,7 @@ pub fn compile_with_source(
             });
         }
     }
-    let (mut site, graph, context) = projections::project(&knowledge);
+    let (mut site, graph, context) = projections::project(&knowledge, publish_agents, &docs_prefix);
     projections::source_links(&mut site, &knowledge, &root, &repository, source);
     let mut page_routes = BTreeMap::new();
     for page in &site.pages {
@@ -359,9 +544,27 @@ pub fn compile_with_source(
         .collect();
     output_paths.extend([
         "__entwine/style.css".into(),
+        "__entwine/graph.js".into(),
         "__entwine/graph/index.html".into(),
         "__entwine/knowledge/index.html".into(),
     ]);
+    if let Some(agents) = &site.agents {
+        output_paths.extend(
+            [
+                "__entwine/agents/index.html",
+                "__entwine/agents/instructions/index.html",
+                "__entwine/agents/skills/index.html",
+                "__entwine/agents/scopes/index.html",
+            ]
+            .map(String::from),
+        );
+        output_paths.extend(
+            agents
+                .entries
+                .iter()
+                .map(|e| format!("{}index.html", e.route.as_str().trim_start_matches('/'))),
+        );
+    }
     for (index, path) in output_paths.iter().enumerate() {
         if output_paths.iter().skip(index + 1).any(|other| {
             other.starts_with(&(path.clone() + "/")) || path.starts_with(&(other.clone() + "/"))
@@ -423,6 +626,7 @@ pub fn compile_with_source(
         diagnostics,
         assets,
         repository_dependencies,
+        config: config.clone(),
     })
 }
 

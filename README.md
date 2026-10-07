@@ -42,7 +42,8 @@ Entwine's own showcase is published to Cloudflare Pages. (That is this project's
 **Website & demo:** [entwine.andersseen.dev](https://entwine.andersseen.dev)  
 **Live demo project:** [/demo/](https://entwine.andersseen.dev/demo/) (fictional `examples/kitchen-sink`)  
 **Demo Knowledge overview:** [/__entwine/knowledge/](https://entwine.andersseen.dev/demo/__entwine/knowledge/)  
-**Demo graph:** [/__entwine/graph/](https://entwine.andersseen.dev/demo/__entwine/graph/)
+**Demo graph:** [/__entwine/graph/](https://entwine.andersseen.dev/demo/__entwine/graph/) (pan, zoom, drag, filter, focus)  
+**Demo agent knowledge:** [/__entwine/agents/](https://entwine.andersseen.dev/demo/__entwine/agents/) (instructions and skills, published on purpose)
 
 **Binaries:** [GitHub Releases](https://github.com/Andersseen/Entwine/releases)  
 **Deployment config:** [apps/www/DEPLOYMENT.md](apps/www/DEPLOYMENT.md)
@@ -51,7 +52,8 @@ Entwine's own showcase is published to Cloudflare Pages. (That is this project's
 
 - Static HTML/CSS documentation with automatic nested navigation and heading TOCs
 - File-based routes, resolved Markdown links, and automatic backlinks
-- A linked SVG project graph, a generated Knowledge overview, and role badges
+- An interactive project graph (static SVG first; pan, zoom, drag, filter by kind and role, focus a node's neighbors, deep-link with `?focus=`), a generated Knowledge overview, and role badges
+- Optional repository knowledge: with an `entwine.toml`, Entwine discovers `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and `SKILL.md`, models their scope and links to your docs, and keeps publication a separate, explicit choice
 - A predictable convention for project knowledge, with `init`, coverage in `check`, and
   provider-native publishing through `setup`
 - Validation of broken links/anchors, collisions, metadata, and unsafe paths
@@ -104,7 +106,7 @@ entwine build                     # dist/ including graph and Knowledge overview
 entwine graph                     # same as build; the graph is always published
 entwine check --strict-knowledge  # also fail when a recommended area is missing
 entwine context                   # Markdown to stdout
-entwine context --json            # structured JSON (schema 0.3) with roles
+entwine context --json            # structured JSON (schema 0.4) with roles and artifact kinds
 ```
 
 Every command accepts an optional project directory, defaulting to the current
@@ -116,7 +118,8 @@ entwine dev examples/kitchen-sink --port 4300
 cargo run -p entwine-cli -- context examples/kitchen-sink --json
 ```
 
-No configuration is required. Defaults are `docs/` and `dist/`. Output owns the
+No configuration is required. Defaults are `docs/` and `dist/`; an optional
+[`entwine.toml`](#repository-knowledge-optional) only switches on agent knowledge. Output owns the
 entire `dist/` tree; an existing directory without Entwine's marker is refused.
 Rebuilds remove stale pages and preserve the last successful output on validation
 failure. Deploy the resulting directory to any static host, including project
@@ -146,6 +149,39 @@ understood as architecture without renaming. `entwine check` shows which areas
 exist (presence, never a quality score), and `--strict-knowledge` is the opt-in
 for teams that want enforcement. Entwine complements `README.md`, `AGENTS.md`,
 `SKILL.md`, MCP, and OpenSpec; see [docs/convention.md](docs/convention.md).
+
+## Repository knowledge (optional)
+
+Durable documentation lives in `docs/`. Repositories also hold agent-facing
+files. Entwine can discover and model them next to your documentation. It reads
+and structures them; it does not run, evaluate, or resolve them for any tool.
+This is off until you add an `entwine.toml` at the project root:
+
+```toml
+[discovery]
+agent_instructions = true   # AGENTS.md, CLAUDE.md, GEMINI.md at any depth
+skills = true               # SKILL.md manifests (folder resources are listed, never run)
+
+[site]
+include_agent_knowledge = false   # default; true publishes them in the generated site
+```
+
+| What | Default | With `entwine.toml` |
+| --- | --- | --- |
+| `docs/` compiled to `dist/` | on | on |
+| Agent instructions and skills **discovered** | off | per `[discovery]` |
+| In `entwine context` and `check` | no | yes, when discovered |
+| In the **public site** and graph | no | only if `include_agent_knowledge = true` |
+
+Discovery and publication are separate on purpose: instructions can be internal,
+so a file can be in your context without ever reaching a public site. Unknown
+keys in `entwine.toml` are errors, so a typo never silently publishes anything.
+Instruction files carry a structural **scope** (the directory they sit in), skills
+carry their folder and resources, and links between these files and your docs
+become graph relationships. Discovery skips `docs/`, `node_modules`, `dist`,
+`target`, `.git`, and symbolic links. `entwine init` stays focused on the
+documentation convention and does not generate these files. Details:
+[agent knowledge](docs/specs/agent-knowledge.md).
 
 ## Publishing with your Git provider
 
@@ -252,18 +288,21 @@ cargo run -p entwine-cli -- build examples/kitchen-sink
 pnpm smoke:setup      # init + setup for every provider in fresh repositories
 ```
 
-The kitchen-sink is a healthy twelve-document consumer that follows the convention. Dedicated broken fixtures
+The kitchen-sink is a healthy twelve-document consumer that follows the convention, plus
+instruction files and skills discovered through its `entwine.toml`. Dedicated broken fixtures
 live in `crates/entwine-engine/tests/fixtures/`. Tests invoke the real compiler and
 binary. CI validates both fixtures and Entwine's own documentation.
 
 ## Limits
 
-Full rebuilds, manual browser refresh, no search or theme configuration. SVG graph
-layout is deterministic: radial for small projects, role bands for medium
-projects, and a complete role-grouped text overview for large/dense projects;
-there is no force simulation or zoom UI. Routes that differ only by case are errors; `.md` is the
+Full rebuilds, manual browser refresh, no search or theme configuration. The graph
+page is static SVG with a deterministic, clustered initial layout and a complete
+text index; a small script adds interaction (about 20 KB, no dependencies, and
+the page works without it). Dragged nodes stay pinned until the layout is reset,
+and the live layout is not saved. Above 150 nodes the text index leads and the
+visual graph starts collapsed. Routes that differ only by case are errors; `.md` is the
 supported Markdown extension. Symbolic links are not supported. Context schema
-`0.3` and Rust APIs are experimental.
+`0.4` and Rust APIs are experimental.
 
 MIT licensed. Contributions: [CONTRIBUTING.md](CONTRIBUTING.md).
 # Website deployment

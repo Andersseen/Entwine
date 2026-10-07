@@ -66,8 +66,8 @@ All generated pipelines do the same thing:
 Generated files install `@entwine/cli` pinned to the version of the CLI that wrote
 them, through a single clearly marked install line and version variable. If you
 use a different installation path, such as a release binary, change that line.
-Version 0.1.0 is published on npm and GitHub Releases. Generated setup pins the
-CLI version for reproducible builds.
+Generated setup pins the CLI version for reproducible builds. See
+[current state](state.md#release-status) for which versions are published.
 
 ### GitHub Pages
 

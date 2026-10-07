@@ -79,8 +79,9 @@ const providers = [
           </h1>
           <p class="lead">
             Turn the Markdown in your repository into navigable documentation,
-            relationships, graphs, backlinks, validation, and structured
-            context.
+            an interactive knowledge graph, backlinks, validation, and
+            structured context. Optionally model agent instructions and skills
+            alongside your docs.
           </p>
           <p class="actions">
             <a class="button" href="#start">
@@ -90,7 +91,10 @@ const providers = [
               Live demo → documentation
             </a>
             <a class="button secondary" href="/demo/__entwine/graph/">
-              Graph → relationships
+              Explore the graph
+            </a>
+            <a class="button secondary" href="/demo/__entwine/agents/">
+              See agent knowledge
             </a>
             <a class="button secondary" href="/demo/__entwine/knowledge/">
               Knowledge → coverage
@@ -204,6 +208,18 @@ Docs + Graph + Context</code></pre>
             is no second parser, and no AI inside Entwine.
           </p>
           <p>
+            Repository knowledge goes beyond <code>docs/</code>. With a small,
+            optional <code>entwine.toml</code>, Entwine discovers
+            <code>AGENTS.md</code>, <code>CLAUDE.md</code>,
+            <code>GEMINI.md</code>, and <code>SKILL.md</code>, models their
+            scope, skill folders, and links to your documentation, and shows
+            them in the graph and an
+            <a href="/demo/__entwine/agents/">Agents view</a>. Discovery is
+            separate from publication: by default these files appear in context
+            only, never on the public site. Entwine reads and structures them;
+            it does not run them.
+          </p>
+          <p>
             See it in the <a href="/demo/">demo project</a>: its
             <a href="/demo/__entwine/knowledge/">Knowledge overview</a> shows
             what exists, and its <a href="/demo/__entwine/graph/">graph</a>
@@ -215,8 +231,10 @@ Docs + Graph + Context</code></pre>
         <div>
           <h2>Start here.</h2>
           <p>
-            No account, documentation app, or configuration file.
-            <code>entwine build</code> remains available for any custom hosting.
+            No account, documentation app, or configuration file required;
+            <code>entwine.toml</code> is optional and only needed for agent
+            knowledge. <code>entwine build</code> remains available for any
+            custom hosting.
           </p>
           <p>
             Install Entwine {version} from npm, or download a native binary for
@@ -296,18 +314,20 @@ entwine build</code></pre>
           <h3>Predictable, inspectable output</h3>
           <p>
             File-based routes. Stable ordering. Automatically derived backlinks.
-            A linked SVG graph. Markdown or JSON context. No AI inference or
-            network requests during builds.
+            A graph that is static SVG first, with an optional small script for
+            pan, zoom, drag, filters, and focus. Markdown or JSON context. No AI
+            inference or network requests during builds.
           </p>
         </div>
       </section>
       <aside class="experimental">
-        <strong>A deliberate first release.</strong>
+        <strong>Experimental and pre-1.0.</strong>
         <p>
           Entwine {version} is experimental and pre-stable. APIs and the context
           schema may change before 1.0. There is no search, plugin system, or
-          interactive graph physics. The Knowledge Convention is an open
-          proposal that has to earn adoption, not a standard.
+          hosted service. The graph’s interactivity is a small script on a
+          static page. The Knowledge Convention is an open proposal that has to
+          earn adoption, not a standard.
         </p>
       </aside>
     </main>

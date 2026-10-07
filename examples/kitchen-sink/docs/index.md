@@ -11,7 +11,8 @@ example of Entwine and its Knowledge Convention.
 ## How to read this demo
 
 This is what Entwine compiles from plain Markdown under `docs/`. There is no
-documentation framework, theme, or configuration file in the project.
+documentation framework or theme, and `docs/` needs no configuration. The optional
+`entwine.toml` only switches on agent knowledge discovery (see below).
 
 1. **Browse the knowledge.** Each page carries a role badge: Architecture,
    Current state, Roadmap, Decision, or Specification.
@@ -37,6 +38,16 @@ documentation framework, theme, or configuration file in the project.
 The runbook is a free-form guide with its own `type`, and the data model lives in
 `design/` rather than `architecture.md`; Entwine recognizes it as architecture
 from its metadata. The convention is recommended, not required.
+
+## Agent knowledge
+
+Besides durable documentation, Harbor keeps agent-facing files in the repository:
+the [project instructions](../AGENTS.md), scoped instructions for the
+[catalogue API](../services/catalogue-api/AGENTS.md), and two skills such as
+[triage a dataset report](../.claude/skills/triage-dataset-report/SKILL.md).
+The [`entwine.toml`](../entwine.toml) in this example turns discovery on and
+publishes them, so the **Agents** view and the graph show how they connect to
+the documents above. Without that file Entwine would ignore them.
 
 ## Local workflow
 

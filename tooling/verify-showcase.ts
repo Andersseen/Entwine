@@ -90,6 +90,7 @@ export function verify(artifact = showcase.output): void {
     'href="/demo/"',
     'href="/demo/__entwine/knowledge/"',
     'href="/demo/__entwine/graph/"',
+    'href="/demo/__entwine/agents/"',
   ]) {
     if (!landing.includes(link))
       throw new Error(`Landing page does not link to ${link}`);
