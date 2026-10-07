@@ -17,7 +17,7 @@
     "typecheck": "turbo run typecheck && tsc -p tooling/tsconfig.json && tsc -p e2e/tsconfig.json",
     "format": "cargo fmt --all && biome format --write . && prettier --plugin=prettier-plugin-astro --write 'apps/**/*.astro'",
     "format:check": "cargo fmt --all --check && biome format . && prettier --plugin=prettier-plugin-astro --check 'apps/**/*.astro'",
-    "agents:doctor": "agentyx doctor --check",
+    "agents:doctor": "agentyx doctor && agentyx install --dry-run | grep -q \"0 to create, 0 to update, 0 to remove\"",
     "test:tooling": "node --test tooling/*.test.ts",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:tooling && pnpm build:showcase && pnpm smoke:setup && pnpm smoke:npm",
     "build:showcase": "node tooling/build-showcase.ts",
