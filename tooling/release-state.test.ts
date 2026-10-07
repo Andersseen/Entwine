@@ -14,6 +14,7 @@ import {
   planResume,
   releasePackages,
 } from "./release-state.ts";
+import { binaryPath } from "./targets.ts";
 
 const draft = (tagName: string) => ({ tagName, isDraft: true });
 const published = (tagName: string) => ({ tagName, isDraft: false });
@@ -244,5 +245,20 @@ test("a genuinely failed publish is reported", async () => {
       },
     ),
     /npm publish failed for p@1\.0\.0: E403/,
+  );
+});
+
+test("windows binaries get their .exe suffix exactly once", () => {
+  assert.equal(
+    binaryPath("target/debug/entwine", "win32"),
+    "target/debug/entwine.exe",
+  );
+  assert.equal(
+    binaryPath("target/debug/entwine.exe", "win32"),
+    "target/debug/entwine.exe",
+  );
+  assert.equal(
+    binaryPath("target/debug/entwine", "linux"),
+    "target/debug/entwine",
   );
 });
