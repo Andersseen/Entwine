@@ -1,6 +1,6 @@
 {
   "name": "@entwine/cli",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Entwine — repository-native project knowledge compiler. Installs the native Rust CLI.",
   "license": "MIT",
   "type": "module",
