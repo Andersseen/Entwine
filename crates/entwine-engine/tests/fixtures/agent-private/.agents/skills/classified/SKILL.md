@@ -1,0 +1,7 @@
+---
+name: TOKEN-SKILL-NAME
+description: TOKEN-SKILL-DESCRIPTION
+---
+# TOKEN-SKILL-HEADING
+
+TOKEN-SKILL-BODY. ![x](assets/TOKEN-IMAGE.svg)

@@ -6,7 +6,7 @@ use crate::render::{escape, frame_with, StaticFile};
 use crate::resolve::relative_url;
 use entwine_core::*;
 use serde::Serialize;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 const ROUTE: &str = "/__entwine/graph/";
 /// Above this size the text index leads and the visual graph starts collapsed.
@@ -62,19 +62,6 @@ fn shape(artifact: Option<ArtifactKind>, r: f64) -> String {
     }
 }
 
-/// Keep the end of a path, which is the part that tells paths apart.
-fn truncate_start(value: &str, max: usize) -> String {
-    let chars: Vec<char> = value.chars().collect();
-    if chars.len() <= max {
-        value.to_string()
-    } else {
-        format!(
-            "…{}",
-            chars[chars.len() - (max - 1)..].iter().collect::<String>()
-        )
-    }
-}
-
 fn truncate(label: &str, max: usize) -> String {
     let chars: Vec<char> = label.trim().chars().collect();
     if chars.len() <= max {
@@ -82,10 +69,6 @@ fn truncate(label: &str, max: usize) -> String {
     } else {
         chars[..max - 1].iter().collect::<String>() + "…"
     }
-}
-
-fn is_true(value: &bool) -> bool {
-    *value
 }
 
 #[derive(Serialize)]
@@ -99,18 +82,6 @@ struct JsonNode<'a> {
     kind_label: &'a str,
     path: &'a str,
     scope: Option<&'a str>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    location: Option<&'a str>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    qualifier: Option<String>,
-    /// False when the node has no visible relationship (laid out in the unlinked block).
-    #[serde(skip_serializing_if = "is_true")]
-    linked: bool,
-    /// The canonical skill this node is an exposure of (hidden unless exposures are shown).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    exposure_of: Option<&'a str>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    exposed_through: Vec<&'a str>,
     x: f64,
     y: f64,
     r: f64,
@@ -166,9 +137,6 @@ fn legend(graph: &GraphModel) -> String {
                     artifact: ArtifactKind::Documentation,
                     path: String::new(),
                     scope: None,
-                    location: None,
-                    exposure_of: None,
-                    exposures: 0,
                 });
                 items.push(format!(
                     "<li>{} {}</li>",
@@ -198,12 +166,6 @@ fn legend(graph: &GraphModel) -> String {
             icon(Some(ArtifactKind::Skill), "kind-skill", "Sk")
         ));
     }
-    if graph.nodes.iter().any(|n| n.exposure_of.is_some()) {
-        items.push(format!(
-            "<li>{} Skill exposure (hidden by default)</li>",
-            icon(Some(ArtifactKind::Skill), "kind-skill is-exposure", "Sk")
-        ));
-    }
     if !graph.files.is_empty() {
         items.push(format!(
             "<li>{} Repository file (optional)</li>",
@@ -222,46 +184,12 @@ pub fn render_graph(graph: &GraphModel) -> StaticFile {
     let layout: Layout = layout(graph, true);
     let degree_of = |key: &str| layout.degrees.get(key).copied().unwrap_or(0);
     let point = |key: &str| -> Option<Point> { layout.positions.get(key).copied() };
-    let exposures: BTreeSet<&DocumentId> = graph
-        .nodes
-        .iter()
-        .filter(|n| n.exposure_of.is_some())
-        .map(|n| &n.id)
-        .collect();
-    // Counts describe what is visible by default: edges to exposures are listed on the
-    // canonical node as "exposed through", not as links.
     let mut incoming: BTreeMap<&DocumentId, usize> = BTreeMap::new();
     let mut outgoing: BTreeMap<&DocumentId, usize> = BTreeMap::new();
     for edge in &graph.edges {
-        if exposures.contains(&edge.source) || exposures.contains(&edge.target) {
-            continue;
-        }
         *outgoing.entry(&edge.source).or_default() += 1;
         *incoming.entry(&edge.target).or_default() += 1;
     }
-    let mut label_counts: BTreeMap<&str, usize> = BTreeMap::new();
-    for node in graph.nodes.iter().filter(|n| n.exposure_of.is_none()) {
-        *label_counts.entry(node.label.as_str()).or_default() += 1;
-    }
-    let exposed_through: BTreeMap<&DocumentId, Vec<&GraphNode>> = {
-        let mut map: BTreeMap<&DocumentId, Vec<&GraphNode>> = BTreeMap::new();
-        for node in &graph.nodes {
-            if let Some(canonical) = &node.exposure_of {
-                map.entry(canonical).or_default().push(node);
-            }
-        }
-        map
-    };
-    // A second line tells apart nodes whose titles collide; exposures always carry one.
-    let qualifier = |node: &GraphNode| -> Option<String> {
-        let ambiguous = node.exposure_of.is_some()
-            || label_counts.get(node.label.as_str()).copied().unwrap_or(0) > 1;
-        let place = node
-            .location
-            .as_deref()
-            .or_else(|| node.path.rsplit_once('/').map(|(dir, _)| dir))?;
-        ambiguous.then(|| truncate_start(if place.is_empty() { "." } else { place }, 28))
-    };
     let (width, height) = (layout.width, layout.height);
     let kinds = graph
         .nodes
@@ -284,12 +212,7 @@ pub fn render_graph(graph: &GraphModel) -> StaticFile {
                     .get(id)
                     .map_or_else(|| id.0.clone(), |n| n.label.clone())
             };
-            let hidden = if exposures.contains(&edge.source) || exposures.contains(&edge.target) {
-                " is-off"
-            } else {
-                ""
-            };
-            svg.push_str(&format!("<path class=\"edge{hidden}\" data-source=\"{}\" data-target=\"{}\" d=\"{path}\" marker-end=\"url(#arrow)\"><title>{} references {}</title></path>", escape(&edge.source.0), escape(&edge.target.0), escape(&name(&edge.source)), escape(&name(&edge.target))));
+            svg.push_str(&format!("<path class=\"edge\" data-source=\"{}\" data-target=\"{}\" d=\"{path}\" marker-end=\"url(#arrow)\"><title>{} references {}</title></path>", escape(&edge.source.0), escape(&edge.target.0), escape(&name(&edge.source)), escape(&name(&edge.target))));
         }
     }
     for file in &graph.files {
@@ -317,23 +240,8 @@ pub fn render_graph(graph: &GraphModel) -> StaticFile {
         let r = radius(degree_of(&node.id.0));
         let name = node_name(node);
         let href = route_href(&node.route);
-        let exposure = node.exposure_of.is_some();
-        let qualifier = qualifier(node);
-        let classes = format!(
-            "graph-node kind-{} role-{}{}",
-            node.artifact.as_str(),
-            node.role.as_str(),
-            if exposure { " is-exposure is-off" } else { "" }
-        );
-        let qualifier_text = qualifier.as_deref().map_or_else(String::new, |q| {
-            format!(
-                "<text class=\"node-qualifier\" text-anchor=\"middle\" y=\"{}\">{}</text>",
-                r + 31.0,
-                escape(q)
-            )
-        });
-        svg.push_str(&format!("<a class=\"{classes}\" href=\"{}\" data-node=\"{}\" data-kind=\"{}\" data-role=\"{}\" aria-label=\"{}\" transform=\"translate({} {})\"><title>{}</title><g class=\"shape\">{}<text class=\"glyph\" text-anchor=\"middle\" dy=\"0.35em\">{}</text></g><text class=\"node-label\" text-anchor=\"middle\" y=\"{}\">{}</text>{qualifier_text}</a>",
-            escape(&href), escape(&node.id.0), node.artifact.as_str(), node.role.as_str(), escape(&name), p.x, p.y, escape(&name),
+        svg.push_str(&format!("<a class=\"graph-node kind-{} role-{}\" href=\"{}\" data-node=\"{}\" data-kind=\"{}\" data-role=\"{}\" aria-label=\"{}\" transform=\"translate({} {})\"><title>{}</title><g class=\"shape\">{}<text class=\"glyph\" text-anchor=\"middle\" dy=\"0.35em\">{}</text></g><text class=\"node-label\" text-anchor=\"middle\" y=\"{}\">{}</text></a>",
+            node.artifact.as_str(), node.role.as_str(), escape(&href), escape(&node.id.0), node.artifact.as_str(), node.role.as_str(), escape(&name), p.x, p.y, escape(&name),
             shape(Some(node.artifact), r), glyph(node), r + 17.0, escape(&truncate(&node.label, 24))));
         json_nodes.push(JsonNode {
             id: &node.id.0,
@@ -345,14 +253,6 @@ pub fn render_graph(graph: &GraphModel) -> StaticFile {
             kind_label: node.artifact.label(),
             path: &node.path,
             scope: node.scope.as_deref(),
-            location: node.location.as_deref(),
-            qualifier,
-            linked: !layout.unlinked.contains(&node.id.0),
-            exposure_of: node.exposure_of.as_ref().map(|id| id.0.as_str()),
-            exposed_through: exposed_through
-                .get(&node.id)
-                .map(|list| list.iter().map(|n| n.id.0.as_str()).collect())
-                .unwrap_or_default(),
             x: p.x,
             y: p.y,
             r,
@@ -377,11 +277,6 @@ pub fn render_graph(graph: &GraphModel) -> StaticFile {
             kind_label: "Repository file",
             path: &file.path,
             scope: None,
-            location: None,
-            qualifier: None,
-            linked: true,
-            exposure_of: None,
-            exposed_through: Vec::new(),
             x: p.x,
             y: p.y,
             r: 9.0,
@@ -409,23 +304,8 @@ pub fn render_graph(graph: &GraphModel) -> StaticFile {
         (a.artifact, a.role.rank(), &a.id).cmp(&(b.artifact, b.role.rank(), &b.id))
     });
     let entry = |n: &GraphNode| {
-        let nested = exposed_through
-            .get(&n.id)
-            .map(|list| {
-                format!(
-                    "<ul class=\"exposure-list\">{}</ul>",
-                    list.iter()
-                        .map(|e| format!(
-                            "<li><span class=\"role-tag\">exposed through</span> <a href=\"{}\"><code>{}</code></a></li>",
-                            escape(&route_href(&e.route)),
-                            escape(&e.path)
-                        ))
-                        .collect::<String>()
-                )
-            })
-            .unwrap_or_default();
         format!(
-            "<li><a href=\"{}\">{}</a> <code>{}</code>{}{nested}</li>",
+            "<li><a href=\"{}\">{}</a> <code>{}</code>{}</li>",
             escape(&route_href(&n.route)),
             escape(&n.label),
             escape(&n.path),
@@ -462,7 +342,7 @@ pub fn render_graph(graph: &GraphModel) -> StaticFile {
     for kind in [ArtifactKind::AgentInstructions, ArtifactKind::Skill] {
         let items = ordered
             .iter()
-            .filter(|n| n.artifact == kind && n.exposure_of.is_none())
+            .filter(|n| n.artifact == kind)
             .map(|n| entry(n))
             .collect::<String>();
         if !items.is_empty() {
@@ -478,23 +358,7 @@ pub fn render_graph(graph: &GraphModel) -> StaticFile {
     }
     let relation_tag = |n: &GraphNode| match n.artifact {
         ArtifactKind::Documentation => String::new(),
-        _ if n.exposure_of.is_some() => format!(
-            " <span class=\"role-tag\">{} exposure</span> <code>{}</code>",
-            n.artifact.label(),
-            escape(&n.path)
-        ),
-        kind => {
-            let ambiguous = label_counts.get(n.label.as_str()).copied().unwrap_or(0) > 1;
-            format!(
-                " <span class=\"role-tag\">{}</span>{}",
-                kind.label(),
-                if ambiguous {
-                    format!(" <code>{}</code>", escape(&n.path))
-                } else {
-                    String::new()
-                }
-            )
-        }
+        kind => format!(" <span class=\"role-tag\">{}</span>", kind.label()),
     };
     let relationships = graph
         .edges
@@ -562,22 +426,6 @@ pub fn render_graph(graph: &GraphModel) -> StaticFile {
     if !graph.files.is_empty() {
         kind_filters.push_str("<label><input type=\"checkbox\" data-filter-kind=\"repository_file\"> Repository references</label>");
     }
-    if !exposures.is_empty() {
-        kind_filters.push_str(&format!(
-            "<label title=\"Manifests that only expose a canonical skill to another tool\"><input type=\"checkbox\" data-filter-exposures> Skill exposures ({})</label>",
-            exposures.len()
-        ));
-    }
-    if !layout.unlinked.is_empty() {
-        // Unlinked nodes are hidden by default only when they would crowd out the connected graph.
-        let crowding = layout.unlinked.len() > 12
-            && layout.unlinked.len() > graph.nodes.len() - exposures.len() - layout.unlinked.len();
-        kind_filters.push_str(&format!(
-            "<label title=\"Nodes with no relationship to anything else; all remain in the index below\"><input type=\"checkbox\" data-filter-unlinked{}> Unlinked ({})</label>",
-            if crowding { "" } else { " checked" },
-            layout.unlinked.len()
-        ));
-    }
     let mut role_filters = String::new();
     for role in RECOMMENDED_ROLES
         .iter()
@@ -595,16 +443,6 @@ pub fn render_graph(graph: &GraphModel) -> StaticFile {
             ));
         }
     }
-    let shown = graph.nodes.len() - exposures.len();
-    let hidden_note = if exposures.is_empty() {
-        String::new()
-    } else {
-        format!(
-            " · {} skill exposure{} collapsed into canonical skills",
-            exposures.len(),
-            if exposures.len() == 1 { "" } else { "s" }
-        )
-    };
     let summary = if kinds == 0 {
         format!(
             "{} documents · {} relationships",
@@ -613,9 +451,10 @@ pub fn render_graph(graph: &GraphModel) -> StaticFile {
         )
     } else {
         format!(
-            "{shown} nodes ({} documentation, {} agent-facing) · {} relationships{hidden_note}",
+            "{} nodes ({} documentation, {} agent-facing) · {} relationships",
+            graph.nodes.len(),
             graph.nodes.len() - kinds,
-            kinds - exposures.len(),
+            kinds,
             graph.edges.len()
         )
     };

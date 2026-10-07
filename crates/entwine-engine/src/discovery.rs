@@ -2,13 +2,7 @@
 //! nothing found is executed, copied, or published by this module.
 use crate::warning;
 use entwine_core::*;
-use ignore::gitignore::{Gitignore, GitignoreBuilder};
-use std::{
-    cell::RefCell,
-    collections::HashMap,
-    fs,
-    path::{Path, PathBuf},
-};
+use std::{fs, path::Path};
 use walkdir::WalkDir;
 
 const MAX_DEPTH: usize = 12;
@@ -42,93 +36,18 @@ fn skipped(name: &str) -> bool {
     SKIPPED_DIRECTORIES.contains(&name) || name.starts_with(".entwine-")
 }
 
-/// Everything discovery found, plus how many convention files `.gitignore` kept out.
-pub(crate) struct Discovered {
-    pub found: Vec<Found>,
-    pub ignored: usize,
-}
-
-/// Git ignore rules, evaluated without Git: the `.gitignore` files from the repository root down
-/// to each directory, plus the repository's `.git/info/exclude`. The Git index, global
-/// ignore files, and the `git` program are never consulted, so results depend only on files
-/// inside the repository and are identical on every machine. A repository without `.git`
-/// still honors the `.gitignore` files it contains.
-struct IgnoreRules {
-    repository: PathBuf,
-    cache: RefCell<HashMap<PathBuf, Option<Gitignore>>>,
-}
-impl IgnoreRules {
-    fn new(repository: &Path) -> Self {
-        Self {
-            repository: repository.to_path_buf(),
-            cache: RefCell::default(),
-        }
-    }
-    fn rules_in(&self, directory: &Path) -> Option<Gitignore> {
-        let mut builder = GitignoreBuilder::new(directory);
-        let mut any = builder.add(directory.join(".gitignore")).is_none()
-            && directory.join(".gitignore").is_file();
-        if directory == self.repository {
-            let exclude = directory.join(".git").join("info").join("exclude");
-            if exclude.is_file() {
-                any |= builder.add(exclude).is_none();
-            }
-        }
-        if !any {
-            return None;
-        }
-        builder.build().ok()
-    }
-    /// Whether `path` (below the repository) is ignored. The caller prunes ignored directories,
-    /// so ignored parents never need re-checking here.
-    fn ignored(&self, path: &Path, is_dir: bool) -> bool {
-        let Ok(relative) = path.strip_prefix(&self.repository) else {
-            return false;
-        };
-        let mut directory = self.repository.clone();
-        let mut verdict = false;
-        let mut components = relative.components().peekable();
-        loop {
-            let matched = {
-                let mut cache = self.cache.borrow_mut();
-                let rules = cache
-                    .entry(directory.clone())
-                    .or_insert_with(|| self.rules_in(&directory));
-                rules.as_ref().map(|r| {
-                    let m = r.matched(path, is_dir);
-                    (m.is_ignore(), m.is_whitelist())
-                })
-            };
-            match matched {
-                Some((true, _)) => verdict = true,
-                Some((_, true)) => verdict = false,
-                _ => {}
-            }
-            let Some(next) = components.next() else { break };
-            if components.peek().is_none() {
-                break; // `next` is the entry itself, not a directory to descend into
-            }
-            directory.push(next);
-        }
-        verdict
-    }
-}
-
 /// Walk `project` (never `docs/`, never through symbolic links) for enabled conventions.
 /// `prefix` is the project's repository-relative directory (empty at the repository root).
 pub(crate) fn discover(
     project: &Path,
-    repository: &Path,
     prefix: &str,
     config: &Config,
     diagnostics: &mut Vec<Diagnostic>,
-) -> Discovered {
+) -> Vec<Found> {
     let mut found = Vec::new();
-    let mut ignored = 0;
     if !config.discovers_agent_knowledge() {
-        return Discovered { found, ignored };
+        return found;
     }
-    let rules = IgnoreRules::new(repository);
     let walker = WalkDir::new(project)
         .follow_links(false)
         .max_depth(MAX_DEPTH)
@@ -137,8 +56,7 @@ pub(crate) fn discover(
             entry.depth() == 0
                 || !(entry.file_type().is_dir()
                     && (skipped(&entry.file_name().to_string_lossy())
-                        || (entry.depth() == 1 && entry.file_name() == "docs")
-                        || rules.ignored(entry.path(), true)))
+                        || (entry.depth() == 1 && entry.file_name() == "docs")))
         });
     for (visited, entry) in walker.flatten().enumerate() {
         if visited >= MAX_VISITED {
@@ -164,10 +82,6 @@ pub(crate) fn discover(
             _ => config.discovery.agent_instructions,
         };
         if !enabled {
-            continue;
-        }
-        if rules.ignored(entry.path(), false) {
-            ignored += 1;
             continue;
         }
         let Ok(relative) = entry.path().strip_prefix(project) else {
@@ -200,7 +114,7 @@ pub(crate) fn discover(
             entry
                 .path()
                 .parent()
-                .map(|directory| skill_resources(directory, &rules))
+                .map(skill_resources)
                 .unwrap_or_default()
         } else {
             Vec::new()
@@ -213,21 +127,16 @@ pub(crate) fn discover(
         });
     }
     found.sort_by(|a, b| a.path.cmp(&b.path));
-    Discovered { found, ignored }
+    found
 }
 
-/// File names colocated with a skill manifest; contents are never read. Ignored files are not
-/// listed, so a private scratch file next to a skill stays invisible.
-fn skill_resources(directory: &Path, rules: &IgnoreRules) -> Vec<String> {
+/// File names colocated with a skill manifest; contents are never read.
+fn skill_resources(directory: &Path) -> Vec<String> {
     let mut resources: Vec<String> = WalkDir::new(directory)
         .follow_links(false)
         .max_depth(4)
         .into_iter()
-        .filter_entry(|e| {
-            e.depth() == 0
-                || !(skipped(&e.file_name().to_string_lossy())
-                    || rules.ignored(e.path(), e.file_type().is_dir()))
-        })
+        .filter_entry(|e| e.depth() == 0 || !skipped(&e.file_name().to_string_lossy()))
         .flatten()
         .filter(|e| e.file_type().is_file())
         .filter_map(|e| {

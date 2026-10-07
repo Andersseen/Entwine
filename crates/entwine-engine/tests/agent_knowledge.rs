@@ -234,7 +234,7 @@ fn discovery_without_publication_keeps_agents_out_of_the_site_but_in_context() {
     let temp = repository();
     let c = compile_with(temp.path(), &config(true, true, false));
     // Context is complete and carries the new schema fields.
-    assert_eq!(c.context.schema_version, "0.5");
+    assert_eq!(c.context.schema_version, "0.4");
     assert_eq!(
         c.context
             .documents

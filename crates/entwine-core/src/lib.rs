@@ -283,24 +283,6 @@ impl AgentConvention {
     }
 }
 
-/// What proves that one skill manifest is only an exposure of another. Evidence is declared or
-/// structural, never inferred from similar text. More bases may be added when real
-/// repositories show them; consumers should treat unknown values as "an exposure".
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ExposureBasis {
-    /// The exposure links to the canonical `SKILL.md`, declares the same `name`, and carries no
-    /// colocated files of its own.
-    DeclaredLink,
-}
-impl ExposureBasis {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::DeclaredLink => "declared_link",
-        }
-    }
-}
-
 /// Structure of a discovered agent-facing artifact. Absent on ordinary documentation.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AgentDetails {
@@ -318,16 +300,6 @@ pub struct AgentDetails {
     pub skill_directory: Option<String>,
     /// Files colocated with a skill manifest, relative to the skill directory. Never read or run.
     pub resources: Vec<String>,
-    /// Canonical skill this manifest is a provable exposure (bridge, alias) of. Origin is
-    /// orthogonal to the artifact kind: an exposure is still a skill.
-    #[serde(default)]
-    pub exposure_of: Option<DocumentId>,
-    /// Why `exposure_of` holds.
-    #[serde(default)]
-    pub exposure_basis: Option<ExposureBasis>,
-    /// Manifests that are exposures of this one, sorted.
-    #[serde(default)]
-    pub exposures: Vec<DocumentId>,
 }
 
 /// Document id prefix that keeps agent artifacts distinct from `docs/` paths.
@@ -523,15 +495,6 @@ pub struct SiteModel {
     /// Agent-facing knowledge published on the site; `None` when publication is off.
     pub agents: Option<AgentsModel>,
 }
-/// A link to another artifact or document from an Agents page, with what it points at.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AgentLink {
-    pub title: String,
-    pub route: Route,
-    pub kind: ArtifactKind,
-    /// Repository path of the source file.
-    pub path: String,
-}
 /// One agent-facing artifact, ready for the generated Agents views.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AgentEntry {
@@ -541,12 +504,8 @@ pub struct AgentEntry {
     pub kind: ArtifactKind,
     pub details: AgentDetails,
     /// Documents and artifacts this one references / is referenced by.
-    pub references: Vec<AgentLink>,
-    pub backlinks: Vec<AgentLink>,
-    /// The canonical skill this entry is an exposure of, if proven.
-    pub canonical: Option<AgentLink>,
-    /// Manifests that only expose this skill.
-    pub exposures: Vec<AgentLink>,
+    pub references: Vec<PageReference>,
+    pub backlinks: Vec<PageReference>,
     pub html: String,
     pub source_url: Option<String>,
     /// Resource path (relative to the skill directory) and an optional source link.
@@ -576,12 +535,6 @@ pub struct GraphNode {
     pub path: String,
     /// Instruction scope (`""` is the whole project), for agent instructions.
     pub scope: Option<String>,
-    /// Directory containing the skill folder (for example `.agents/skills`), for skills.
-    pub location: Option<String>,
-    /// Canonical skill this node merely exposes. Such nodes are collapsed by default.
-    pub exposure_of: Option<DocumentId>,
-    /// Number of exposures of this skill.
-    pub exposures: usize,
 }
 /// A repository file referenced by documents; a secondary, optional graph node.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
