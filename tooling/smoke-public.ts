@@ -13,14 +13,26 @@ if (!version || !/^\d+\.\d+\.\d+(-[A-Za-z0-9.-]+)?$/.test(version)) {
 const temporary = mkdtempSync(join(tmpdir(), "entwine-registry-"));
 try {
   const npm = process.platform === "win32" ? "npm.cmd" : "npm";
-  execFileSync(
-    npm,
-    ["install", "--prefix", temporary, `@entwine/cli@${version}`],
-    {
-      stdio: "inherit",
-      shell: process.platform === "win32",
-    },
-  );
+  const shell = process.platform === "win32";
+  // The registry is eventually consistent: a version published seconds ago can answer
+  // ETARGET for a short while, so retry the install before treating it as a failure.
+  const attempts = 12;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      execFileSync(
+        npm,
+        ["install", "--prefix", temporary, `@entwine/cli@${version}`],
+        { stdio: "inherit", shell },
+      );
+      break;
+    } catch (error) {
+      if (attempt === attempts) throw error;
+      console.log(
+        `@entwine/cli@${version} is not installable yet (attempt ${attempt}/${attempts}); retrying in 15s`,
+      );
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 15_000);
+    }
+  }
   const consumer = join(temporary, "consumer");
   mkdirSync(consumer);
   const launcher = join(

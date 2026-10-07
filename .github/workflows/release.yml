@@ -44,19 +44,30 @@ jobs:
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-      - name: Validate retry tag
+      # A draft release has no Git tag yet: the tag is created when the release is
+      # published. Resume therefore resolves the commit the draft targets, and refuses
+      # to continue if a tag for it already exists at a different commit.
+      - name: Resolve the draft release to resume
+        id: draft
         if: github.event_name == 'workflow_dispatch'
         env:
           RELEASE_TAG: ${{ inputs.tag }}
           GH_TOKEN: ${{ github.token }}
         run: |
           [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Expected vX.Y.Z" >&2; exit 1; }
-          draft=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)
+          read -r draft target < <(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,targetCommitish --jq '"\(.isDraft) \(.targetCommitish)"')
           [[ "$draft" == true ]] || { echo "Retry only an existing draft release" >&2; exit 1; }
+          sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$target" --jq .sha)
+          tagged=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq .object.sha 2>/dev/null || true)
+          if [[ -n "$tagged" && "$tagged" != "$sha" ]]; then
+            echo "Tag $RELEASE_TAG points to $tagged but the draft targets $sha" >&2
+            exit 1
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         if: github.event_name == 'workflow_dispatch'
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ steps.draft.outputs.sha }}
       - id: resume
         if: github.event_name == 'workflow_dispatch'
         env:
