@@ -58,8 +58,8 @@ jobs:
           read -r draft target < <(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,targetCommitish --jq '"\(.isDraft) \(.targetCommitish)"')
           [[ "$draft" == true ]] || { echo "Retry only an existing draft release" >&2; exit 1; }
           sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$target" --jq .sha)
-          tagged=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq .object.sha 2>/dev/null || true)
-          if [[ -n "$tagged" && "$tagged" != "$sha" ]]; then
+          # `gh api` prints the error body on a missing ref, so trust only a successful call.
+          if tagged=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq .object.sha 2>/dev/null) && [[ "$tagged" != "$sha" ]]; then
             echo "Tag $RELEASE_TAG points to $tagged but the draft targets $sha" >&2
             exit 1
           fi
