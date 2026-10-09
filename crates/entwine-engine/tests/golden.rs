@@ -6,6 +6,7 @@ fn static_projections_and_context_match_reviewed_goldens() {
     let c = entwine_engine::compile(&root.join("fixtures/projection-golden")).unwrap();
     assert!(!c.has_errors(), "{:?}", c.diagnostics);
     let mut outputs = entwine_engine::render(&c)
+        .unwrap()
         .into_iter()
         .filter(|f| {
             matches!(

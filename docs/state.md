@@ -7,18 +7,17 @@ interactive graph, and a public showcase built from its own output.
 
 ## Release status
 
-Verified on 7 October 2026:
+Verified on 9 October 2026 from GitHub Releases and npm:
 
 | Version | GitHub Releases | npm `@entwine/cli` |
 | --- | --- | --- |
-| 0.1.0 | Public pre-release | Published |
-| 0.2.0 | Public pre-release, four native archives and `SHA256SUMS` | Published, with all four platform packages |
-| 0.2.1 | **Draft**, not public | Published and `latest`, with all four platform packages |
+| 0.5.0 | Public pre-release | Published |
+| 0.5.1 | **Draft**, not public | Published and `latest` |
+| 0.6.0 | Not published | Not published |
 
-Everything described below as agent knowledge, the interactive graph, optional
-configuration, and context schema 0.4 is in the source on this branch and is
-**not** in any released version. The branch was cut before the 0.2.1 release
-commit. Released context output is schema 0.3.
+GitHub's latest public Entwine release is `v0.5.0`; `v0.5.1` is still a draft.
+The repository `main` is at `v0.6.0`, which has not been released. npm's latest
+`@entwine/cli` is `0.5.1`.
 
 ## Implemented commands
 
@@ -73,6 +72,14 @@ they reach the generated site. Discovered files are always present in
 `entwine context` and reported by `entwine check`; they are public only when
 publication is explicitly enabled. Unknown keys are errors. See
 [agent knowledge](specs/agent-knowledge.md).
+
+The optional `[site] renderer = "flowview"` setting selects the experimental
+Flowview page-shell renderer. Omission selects the built-in renderer. Graph,
+Knowledge, and Agents pages keep their existing Rust renderers. Flowview is
+currently pinned to an immutable Git revision while a crates.io release is
+verified; generated sites still contain only Entwine's static HTML, CSS, and
+Graph script. See the [experiment record](decisions/flowview-renderer-experiment.md)
+for the parity criteria and current evidence.
 
 Each document has a role (what it means) and an artifact kind (`documentation`,
 `agent_instructions`, `skill`). Instruction files carry a structural scope (the
@@ -163,7 +170,7 @@ Read the [architecture](architecture.md) and [future roadmap](roadmap.md).
 | Bitbucket Cloud | Yes | No | No |
 
 Entwine’s own GitHub CI, release workflow, and Cloudflare showcase deployment
-were verified successful on the v0.1.0 main commit; they were not re-verified for
+were last verified on the v0.1.0 main commit; they have not been re-verified for
 the changes on this branch. Those are different from a
 consumer’s generated GitHub Pages workflow. No dedicated hosted provider test
 repository or GitLab/Bitbucket credentials were used. See

@@ -9,6 +9,7 @@ rust-version.workspace = true
 entwine-core = { path = "../entwine-core" }
 serde.workspace = true
 serde_json.workspace = true
+flowview-compiler.workspace = true
 pulldown-cmark = "0.13"
 serde_yaml = { package = "yaml_serde", version = "0.10" }
 walkdir = "2"

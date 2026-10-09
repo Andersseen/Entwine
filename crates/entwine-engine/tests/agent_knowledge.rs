@@ -59,6 +59,7 @@ fn config(instructions: bool, skills: bool, publish: bool) -> Config {
         },
         site: SiteConfig {
             include_agent_knowledge: publish,
+            ..Default::default()
         },
     }
 }
@@ -77,6 +78,7 @@ fn paths(c: &Compilation, kind: ArtifactKind) -> Vec<String> {
 }
 fn page(c: &Compilation, path: &str) -> Option<String> {
     render(c)
+        .unwrap()
         .into_iter()
         .find(|f| f.path == path)
         .map(|f| String::from_utf8(f.contents).unwrap())
@@ -271,7 +273,7 @@ fn discovery_without_publication_keeps_agents_out_of_the_site_but_in_context() {
         .edges
         .iter()
         .all(|e| !e.source.0.starts_with("repo:") && !e.target.0.starts_with("repo:")));
-    let files = render(&c);
+    let files = render(&c).unwrap();
     assert!(files
         .iter()
         .all(|f| !f.path.starts_with("__entwine/agents")));
@@ -348,8 +350,8 @@ fn explicit_publication_adds_agent_pages_graph_nodes_and_links() {
 fn graph_output_is_stable_and_ships_its_script() {
     let temp = repository();
     let c = compile_with(temp.path(), &config(true, true, true));
-    let first = render(&c);
-    let second = render(&compile_with(temp.path(), &config(true, true, true)));
+    let first = render(&c).unwrap();
+    let second = render(&compile_with(temp.path(), &config(true, true, true))).unwrap();
     assert_eq!(first, second);
     let script = first
         .iter()

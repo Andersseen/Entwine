@@ -9,7 +9,7 @@ fn main() {
     let graph = entwine_engine::render_graph(&c.graph);
     let graph_ms = started.elapsed().as_secs_f64() * 1000.0;
     let started = Instant::now();
-    let files = entwine_engine::render(&c);
+    let files = entwine_engine::render(&c).expect("configured renderer succeeds");
     let render_ms = started.elapsed().as_secs_f64() * 1000.0;
     println!("{}", serde_json::to_string_pretty(&serde_json::json!({
         "documents": c.knowledge.documents.len(),

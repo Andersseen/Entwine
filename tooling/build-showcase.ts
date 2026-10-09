@@ -1,5 +1,6 @@
 /** Build exactly what Cloudflare Pages receives: `pnpm build:showcase`. */
 import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { root } from "./paths.ts";
 
@@ -16,11 +17,47 @@ function run(label: string, command: string, args: string[]): void {
   });
 }
 
+function withRenderer<T>(project: string, action: () => T): T {
+  const renderer = process.env.ENTWINE_RENDERER;
+  if (!renderer) return action();
+  if (renderer !== "builtin" && renderer !== "flowview") {
+    throw new Error(`Unknown ENTWINE_RENDERER: ${renderer}`);
+  }
+  const config = join(project, "entwine.toml");
+  const existed = existsSync(config);
+  const previous = existed ? readFileSync(config) : undefined;
+  let contents = previous?.toString() ?? "";
+  if (/^renderer\s*=.*$/m.test(contents)) {
+    contents = contents.replace(
+      /^renderer\s*=.*$/m,
+      `renderer = "${renderer}"`,
+    );
+  } else if (/^\[site\]\s*$/m.test(contents)) {
+    contents = `${contents.trimEnd()}\nrenderer = "${renderer}"\n`;
+  } else {
+    contents = `${contents.trimEnd()}\n\n[site]\nrenderer = "${renderer}"\n`;
+  }
+  writeFileSync(config, contents);
+  try {
+    return action();
+  } finally {
+    if (previous) writeFileSync(config, previous);
+    else unlinkSync(config);
+  }
+}
+
 run("Build Entwine", "cargo", ["build", "--locked", "-p", "entwine-cli"]);
 run("Validate Entwine docs", entwine, ["check", "."]);
-run("Build Entwine docs → /docs/", entwine, ["build", "."]);
+withRenderer(root, () =>
+  run("Build Entwine docs → /docs/", entwine, ["build", "."]),
+);
 run("Validate kitchen-sink", entwine, ["check", "examples/kitchen-sink"]);
-run("Build kitchen-sink → /demo/", entwine, ["build", "examples/kitchen-sink"]);
+withRenderer(join(root, "examples/kitchen-sink"), () =>
+  run("Build kitchen-sink → /demo/", entwine, [
+    "build",
+    "examples/kitchen-sink",
+  ]),
+);
 run("Build Astro website → /", pnpm, ["--filter", "@entwine/www", "build"]);
 run("Compose artifact", "node", ["tooling/compose-showcase.ts"]);
 run("Verify subpath hosting", "node", ["tooling/verify-showcase.ts"]);

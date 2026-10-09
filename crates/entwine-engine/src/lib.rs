@@ -1,6 +1,7 @@
 //! Scan and parse each document once, resolve a canonical model, then project it.
 mod agents_page;
 mod discovery;
+mod flowview_renderer;
 mod graph_layout;
 mod graph_page;
 mod markdown;
@@ -104,9 +105,38 @@ pub fn parse_config(text: &str) -> io::Result<Config> {
     })
 }
 
-/// Every file of a complete static site: pages, graph, knowledge overview, agents, and assets.
-pub fn render(compilation: &Compilation) -> Vec<StaticFile> {
-    let mut files = render_site(&compilation.site);
+/// Every file of a complete static site using the selected page renderer and
+/// Entwine's existing Graph, Knowledge, Agents, and asset renderers.
+pub fn render(compilation: &Compilation) -> std::io::Result<Vec<StaticFile>> {
+    render_selected(compilation)
+}
+
+/// Complete static site rendered through the built-in page renderer, for
+/// parity comparisons and rollback.
+pub fn render_builtin(compilation: &Compilation) -> Vec<StaticFile> {
+    render_views(compilation, render_site(&compilation.site))
+}
+
+/// Render the configured page shell and the existing Entwine-owned views.
+/// Internal template failures are returned as renderer errors before publication.
+pub fn render_selected(compilation: &Compilation) -> std::io::Result<Vec<StaticFile>> {
+    let pages = render_site_with_renderer(&compilation.site, compilation.config.site.renderer)?;
+    Ok(render_views(compilation, pages))
+}
+
+/// Render documentation pages with an explicit renderer, useful for controlled
+/// comparisons while the Flowview option remains experimental.
+pub fn render_site_with_renderer(
+    site: &SiteModel,
+    renderer: RendererKind,
+) -> std::io::Result<Vec<StaticFile>> {
+    match renderer {
+        RendererKind::Builtin => Ok(render_site(site)),
+        RendererKind::Flowview => flowview_renderer::render_site(site),
+    }
+}
+
+fn render_views(compilation: &Compilation, mut files: Vec<StaticFile>) -> Vec<StaticFile> {
     files.push(render_graph(&compilation.graph));
     files.push(render_graph_script());
     files.push(render_knowledge(&compilation.site));

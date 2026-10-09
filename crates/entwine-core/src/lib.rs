@@ -202,6 +202,26 @@ pub struct DiscoveryConfig {
 pub struct SiteConfig {
     /// Include discovered agent-facing artifacts in the generated site and its graph.
     pub include_agent_knowledge: bool,
+    /// Select the experimental static HTML renderer. Defaults to the built-in renderer.
+    pub renderer: RendererKind,
+}
+
+/// A page-shell renderer. Flowview remains opt-in until its parity experiment is complete.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RendererKind {
+    #[default]
+    Builtin,
+    Flowview,
+}
+
+impl RendererKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Builtin => "builtin",
+            Self::Flowview => "flowview",
+        }
+    }
 }
 impl Config {
     pub fn discovers_agent_knowledge(&self) -> bool {

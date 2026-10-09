@@ -77,6 +77,44 @@ fn real_cli_build_check_graph_and_context_work() {
 }
 
 #[test]
+fn flowview_is_opt_in_and_keeps_entwine_generated_views() {
+    let temp = fixture();
+    let config = temp.path().join("entwine.toml");
+    let original = fs::read_to_string(&config).unwrap();
+    fs::write(&config, format!("{original}\nrenderer = \"flowview\"\n")).unwrap();
+
+    let result = cli("build", temp.path(), &[]);
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    for file in [
+        "index.html",
+        "architecture/index.html",
+        "specs/authentication/index.html",
+        "__entwine/graph/index.html",
+        "__entwine/knowledge/index.html",
+        "__entwine/agents/index.html",
+    ] {
+        assert!(temp.path().join("dist").join(file).is_file(), "{file}");
+    }
+    let html =
+        fs::read_to_string(temp.path().join("dist/specs/authentication/index.html")).unwrap();
+    for fragment in [
+        "<main id=\"main\" tabindex=\"-1\">",
+        "aria-label=\"Mobile documentation\"",
+        "aria-current=\"page\"",
+        "References",
+        "Referenced by",
+        "Source:",
+        "?focus=specs%2Fauthentication.md",
+    ] {
+        assert!(html.contains(fragment), "missing {fragment}");
+    }
+}
+
+#[test]
 fn failing_validation_preserves_last_output_and_sets_exit_code() {
     let temp = fixture();
     assert!(cli("build", temp.path(), &[]).status.success());

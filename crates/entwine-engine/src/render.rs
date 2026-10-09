@@ -23,7 +23,7 @@ pub(crate) fn frame(title: &str, route: &str, content: &str) -> String {
 pub(crate) fn frame_with(title: &str, route: &str, content: &str, head: &str) -> String {
     format!("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta name=\"generator\" content=\"Entwine {}\"><title>{}</title><link rel=\"stylesheet\" href=\"{}\">{head}</head><body><a class=\"skip\" href=\"#main\">Skip to content</a>{content}</body></html>", env!("CARGO_PKG_VERSION"), escape(title), escape(&relative_url(route, "/__entwine/style.css")))
 }
-fn nav(items: &[Navigation], current: &Route) -> String {
+pub(crate) fn nav(items: &[Navigation], current: &Route) -> String {
     let mut html = String::from("<ul>");
     let abbreviated = items.len() > 30;
     for (index, item) in items.iter().enumerate() {
