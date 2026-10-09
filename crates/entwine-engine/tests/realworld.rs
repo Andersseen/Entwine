@@ -19,7 +19,7 @@ fn repo(path: &str) -> PathBuf {
         .join(path)
 }
 fn site_files(compilation: &Compilation) -> Vec<StaticFile> {
-    entwine_engine::render(compilation)
+    entwine_engine::render(compilation).unwrap()
 }
 
 /// Extract the values of every `attr="..."` in an HTML document.

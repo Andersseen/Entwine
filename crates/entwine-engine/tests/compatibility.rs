@@ -132,7 +132,10 @@ fn repository_references_retain_source_and_never_become_document_relations() {
         c.site.pages[0].source_url.as_deref(),
         Some("https://github.com/org/repo/blob/abc/docs/index.md")
     );
-    assert!(!render(&c).iter().any(|f| f.path.contains("a b.json")));
+    assert!(!render(&c)
+        .unwrap()
+        .iter()
+        .any(|f| f.path.contains("a b.json")));
 }
 
 #[test]
@@ -298,7 +301,7 @@ fn long_navigation_stays_bounded_but_current_page_and_full_index_are_reachable()
         );
     }
     let c = compile(temp.path()).unwrap();
-    let files = render(&c);
+    let files = render(&c).unwrap();
     let page = files
         .iter()
         .find(|f| f.path == "page-099/index.html")
@@ -362,6 +365,7 @@ fn authored_uppercase_route_wins_over_case_equivalent_generated_directory() {
         .html
         .contains("href=\"ROADMAP/\""));
     let home = render(&c)
+        .unwrap()
         .into_iter()
         .find(|f| f.path == "index.html")
         .unwrap();

@@ -37,6 +37,14 @@ function stage(name: "full" | "private"): string {
 
 /** A Git checkout with an origin lets Entwine emit "Source" links, like a real project. */
 function build(directory: string): void {
+  if (process.env.ENTWINE_RENDERER === "flowview") {
+    const config = join(directory, "entwine.toml");
+    const text = readFileSync(config, "utf8");
+    if (!text.includes("[site]")) {
+      throw new Error("The E2E fixture no longer has a [site] configuration");
+    }
+    writeFileSync(config, `${text.trimEnd()}\nrenderer = "flowview"\n`);
+  }
   const git = (...args: string[]) =>
     execFileSync(
       "git",

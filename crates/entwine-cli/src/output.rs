@@ -22,7 +22,7 @@ pub(crate) fn publish(project: &Path, compilation: &Compilation) -> io::Result<(
     let stage = tempfile::Builder::new()
         .prefix(".entwine-stage-")
         .tempdir_in(project)?;
-    for file in render(compilation) {
+    for file in render(compilation)? {
         let path = stage.path().join(&file.path);
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
