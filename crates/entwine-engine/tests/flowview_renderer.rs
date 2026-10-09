@@ -15,6 +15,12 @@ fn fixture(root: &Path, renderer: Option<&str>) {
         "---\ntitle: \'\"><script>alert(1)</script>\'\ntype: architecture\nstatus: \'<img src=x onerror=alert(1)>\'\n---\n# Deep page\n\n## Details\n\nA **trusted** body.\n",
     )
     .unwrap();
+    fs::write(
+        root.join("docs/custom.md"),
+        "---\ntitle: 'Café <script>alert(1)</script>'\ntype: custom\nstatus: draft\n---\n\nPárrafo Unicode sin H1.\n",
+    )
+    .unwrap();
+    fs::write(root.join("docs/empty.md"), "---\ntitle: Empty page\n---\n").unwrap();
     if let Some(renderer) = renderer {
         fs::write(
             root.join("entwine.toml"),
@@ -162,6 +168,53 @@ fn both_renderers_keep_page_routes_and_link_targets_in_sync() {
     let source = String::from_utf8_lossy(&flowview[1].contents);
     assert!(source.contains("Source:"));
     assert!(source.contains("?a=1&amp;b=2"));
+}
+
+#[test]
+fn both_renderers_preserve_custom_metadata_unicode_and_empty_pages() {
+    let temp = tempdir().unwrap();
+    fixture(temp.path(), None);
+    let compilation = compile(temp.path()).unwrap();
+    let builtin = render_site_with_renderer(&compilation.site, RendererKind::Builtin).unwrap();
+    let flowview = render_site_with_renderer(&compilation.site, RendererKind::Flowview).unwrap();
+
+    for path in ["custom/index.html", "empty/index.html"] {
+        let builtin = String::from_utf8(
+            builtin
+                .iter()
+                .find(|file| file.path == path)
+                .unwrap()
+                .contents
+                .clone(),
+        )
+        .unwrap();
+        let flowview = String::from_utf8(
+            flowview
+                .iter()
+                .find(|file| file.path == path)
+                .unwrap()
+                .contents
+                .clone(),
+        )
+        .unwrap();
+        assert_eq!(href_targets(&builtin), href_targets(&flowview), "{path}");
+        assert!(flowview.contains("<main id=\"main\""), "{path}");
+        if path.starts_with("custom/") {
+            for text in [
+                "Café &lt;script&gt;alert(1)&lt;/script&gt;",
+                "custom",
+                "draft",
+                "Párrafo Unicode sin H1.",
+                "<h1>Café &lt;script&gt;alert(1)&lt;/script&gt;</h1>",
+            ] {
+                assert!(flowview.contains(text), "missing {text:?} in {flowview}");
+            }
+            assert!(!flowview.contains("<script>alert(1)</script>"));
+        } else {
+            assert!(flowview.contains("<article>"));
+            assert!(!flowview.contains("Empty body marker"));
+        }
+    }
 }
 
 fn href_targets(html: &str) -> Vec<String> {
