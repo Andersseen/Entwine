@@ -39,12 +39,12 @@
     },
     {
       "kind": "skill",
-      "path": ".agents/skills/cargo-workspace-verification/SKILL.md",
-      "skill": "cargo-workspace-verification",
+      "path": ".agents/skills/cargo-project-verification/SKILL.md",
+      "skill": "cargo-project-verification",
       "targets": [
         "codex"
       ],
-      "hash": "619016c6745be64279765d4e514b23af6f4769a4a0b3e08a1721b0db9c7b8e55"
+      "hash": "0251d73d77306c6b50d8a1ecb02a10bdf70a874033abda50fc697a1b5d9b819b"
     },
     {
       "kind": "skill",
@@ -192,12 +192,12 @@
     },
     {
       "kind": "skill",
-      "path": ".agents/skills/rust-cli-filesystem-safety/SKILL.md",
-      "skill": "rust-cli-filesystem-safety",
+      "path": ".agents/skills/rust-filesystem-safety/SKILL.md",
+      "skill": "rust-filesystem-safety",
       "targets": [
         "codex"
       ],
-      "hash": "0204845351b8caadcd9cb6ccd348d119fdebc20df4a4cea477f519f96425aad5"
+      "hash": "72d9a8525b0e486c35cd298e5248e1f9306c9ad595ab680c59321accdd430cf1"
     },
     {
       "kind": "skill",
@@ -206,7 +206,7 @@
       "targets": [
         "codex"
       ],
-      "hash": "8dc4ae7762ff1b9d5fdfd0863b8974c68153764cb1e3b2a0e72f296972af915a"
+      "hash": "c09be2191cc2f48ae2e1e7e5c41acbe1e2246994134dd009d91abf1b38b21828"
     },
     {
       "kind": "skill",
@@ -215,7 +215,7 @@
       "targets": [
         "codex"
       ],
-      "hash": "11c0032f31e5649ec14a6854be8b92af601fbd70b27062d212af6ba1d828ac05"
+      "hash": "bd5ef2ee0ff1b1ccad9a0acd1b5c78e833175c76bbdcde62f54b462d764fb798"
     },
     {
       "kind": "skill",
@@ -321,12 +321,12 @@
     },
     {
       "kind": "skill",
-      "path": ".claude/skills/cargo-workspace-verification/SKILL.md",
-      "skill": "cargo-workspace-verification",
+      "path": ".claude/skills/cargo-project-verification/SKILL.md",
+      "skill": "cargo-project-verification",
       "targets": [
         "claude"
       ],
-      "hash": "619016c6745be64279765d4e514b23af6f4769a4a0b3e08a1721b0db9c7b8e55"
+      "hash": "0251d73d77306c6b50d8a1ecb02a10bdf70a874033abda50fc697a1b5d9b819b"
     },
     {
       "kind": "skill",
@@ -474,12 +474,12 @@
     },
     {
       "kind": "skill",
-      "path": ".claude/skills/rust-cli-filesystem-safety/SKILL.md",
-      "skill": "rust-cli-filesystem-safety",
+      "path": ".claude/skills/rust-filesystem-safety/SKILL.md",
+      "skill": "rust-filesystem-safety",
       "targets": [
         "claude"
       ],
-      "hash": "0204845351b8caadcd9cb6ccd348d119fdebc20df4a4cea477f519f96425aad5"
+      "hash": "72d9a8525b0e486c35cd298e5248e1f9306c9ad595ab680c59321accdd430cf1"
     },
     {
       "kind": "skill",
@@ -488,7 +488,7 @@
       "targets": [
         "claude"
       ],
-      "hash": "8dc4ae7762ff1b9d5fdfd0863b8974c68153764cb1e3b2a0e72f296972af915a"
+      "hash": "c09be2191cc2f48ae2e1e7e5c41acbe1e2246994134dd009d91abf1b38b21828"
     },
     {
       "kind": "skill",
@@ -497,7 +497,7 @@
       "targets": [
         "claude"
       ],
-      "hash": "11c0032f31e5649ec14a6854be8b92af601fbd70b27062d212af6ba1d828ac05"
+      "hash": "bd5ef2ee0ff1b1ccad9a0acd1b5c78e833175c76bbdcde62f54b462d764fb798"
     },
     {
       "kind": "skill",

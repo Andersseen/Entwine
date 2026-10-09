@@ -1,36 +1,41 @@
 ---
 name: rust-testing-portability
-description: Write deterministic, portable Rust tests that cover regressions and user-visible diagnostics.
+description: Write deterministic, portable Rust tests that cover regressions and user-visible behavior. Use when adding or fixing Rust tests, fixing a bug, or touching code that must run on Linux, macOS and Windows.
 ---
 
 # Rust testing and portability
 
-Use when adding tests for Rust code, fixing a bug, or touching code that runs on Linux, macOS and Windows.
+## Level
 
-## Choose the level
-
-- Unit tests (`#[cfg(test)] mod tests`) for pure logic and edge cases in one module.
-- Integration tests (`crates/*/tests/*.rs`) for behavior through the public API or the real CLI binary (`env!("CARGO_BIN_EXE_<name>")` / `assert_cmd`-style), including exit codes and stderr/stdout text users see.
-- A fixed bug always gets a regression test that fails without the fix. Name it for the behavior, not the issue number.
+- Unit tests (`#[cfg(test)]`) for pure logic and edge cases inside one module.
+- Integration tests (`tests/*.rs`) for the public API or the real binary, including exit codes and
+  the stdout/stderr text users see.
+- Every fixed bug gets a regression test that fails without the fix. Name it for the behavior, not
+  the issue number.
 
 ## Deterministic
 
-- Use `tempfile::tempdir()`; never write into the source tree or rely on the current directory. Build fixtures in code or small checked-in directories, not by copying the repository.
-- No wall-clock sleeps. Wait on a condition with a bounded retry (poll a port/file) or make the code injectable. Never assume a fixed port; bind port 0.
-- Sort before comparing anything that comes from a directory walk or a hash map.
-- Do not depend on environment: set the variables the test needs on the `Command`, clear the ones it must not inherit.
+- Use `tempfile` for filesystem fixtures; never write into the source tree or depend on the current
+  directory. Build fixtures in code or from small checked-in directories.
+- Do not sleep for arbitrary durations. Poll a condition with a bounded timeout, or inject the clock
+  or dependency. Bind port `0` instead of assuming a free port.
+- Sort anything from directory walks or hash maps before comparing.
+- Isolate the environment: set the variables a child process needs and clear those it must not
+  inherit.
+- To diagnose flakiness, repeat the single test (a shell loop around `cargo test <name>`) before
+  claiming it is stable.
 
 ## Portable
 
-- Build paths with `join`; compare normalized `/` strings only where the code under test promises them.
-- Gate Unix-only behavior with `#[cfg(unix)]` (symlinks, permissions) and Windows-only with `#[cfg(windows)]`; add a Windows-separator case (`a\\b.md`) for any route/ID normalization.
-- Don't assume the executable name: `entwine.exe` on Windows. Don't assume `\n` in files written by tools; normalize `\r\n` before snapshot comparison.
-- Case-insensitive filesystems: do not create two fixtures differing only by case in one test directory.
+- Build paths with `join`; compare `/`-normalized strings only where the code promises them. Add a
+  Windows-separator case for any path or ID normalization.
+- Gate platform behavior with `#[cfg(unix)]` (symlinks, permissions) and `#[cfg(windows)]`. Do not
+  assume executable names or `.exe` suffixes; use `env!("CARGO_BIN_EXE_<name>")`.
+- Normalize `\r\n` before comparing generated text.
+- Do not create two fixtures differing only by case in one directory; case-insensitive filesystems
+  will merge them.
 
 ## Snapshots
 
-Keep golden files intentional: small, reviewed, refreshed only through the project's documented command, and free of paths, timestamps, versions and absolute directories.
-
-## Verify
-
-`cargo test --workspace --locked`. For flakiness, re-run the one test in a loop (`for i in $(seq 20); do cargo test -p <crate> <name> || break; done`) before claiming it is stable.
+Keep goldens small, reviewed and regenerated only through the project's documented command. Strip
+absolute paths, timestamps and versions so they pass on every platform.
