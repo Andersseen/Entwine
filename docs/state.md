@@ -9,29 +9,40 @@ interactive graph, and a public showcase built from its own output.
 
 Verified on 9 October 2026 from GitHub Releases and npm:
 
-| Version | GitHub Releases | npm `@entwine/cli` |
-| --- | --- | --- |
-| 0.5.0 | Public pre-release | Published |
-| 0.5.1 | **Draft**, not public | Published and `latest` |
-| 0.6.0 | Not published | Not published |
+| Version | GitHub Releases       | npm `@entwine/cli`     |
+| ------- | --------------------- | ---------------------- |
+| 0.5.0   | Public                | Published              |
+| 0.5.1   | **Draft**, not public | Published and `latest` |
+| 0.6.0   | Not published         | Not published          |
 
 GitHub's latest public Entwine release is `v0.5.0`; `v0.5.1` is still a draft.
 The repository `main` is at `v0.6.0`, which has not been released. npm's latest
 `@entwine/cli` is `0.5.1`.
 
+The `v0.5.1` draft targets commit `898ebd7`. Its release run passed Linux,
+macOS, and Windows builds, uploaded all four native archives and `SHA256SUMS`,
+and published the launcher plus four platform npm packages. The final public
+registry smoke failed while `@entwine/cli-linux-x64@0.5.1` was still returning
+HTTP 404 during propagation; the registry index now lists that version. The
+draft remains unpublished and there is no `v0.5.1` tag. A later `main` push
+passed the release guard, which skipped release-please and all release jobs
+while the draft remained pending. Resume `v0.5.1` through the current release
+workflow and require its fresh registry smoke to pass before exposing the
+release.
+
 ## Implemented commands
 
-| Command | Result |
-| --- | --- |
-| `entwine init [project]` | Scaffolds missing recommended knowledge files; never overwrites |
-| `entwine check [project]` | Diagnostics, knowledge coverage, discovered agent knowledge when configured, non-zero exit on errors |
-| `entwine check --strict-knowledge` | Also fails when a recommended area is missing |
-| `entwine build [project]` | Static docs, copied assets, graph, Knowledge overview in `dist/` |
-| `entwine graph [project]` | Identical to `build`; reports the graph page location |
-| `entwine context [project]` | Complete deterministic Markdown context |
-| `entwine context [project] --json` | Versioned structured JSON context (schema 0.4), including discovered agent artifacts |
-| `entwine dev [project] --port 4173` | Watched build and loopback HTTP server |
-| `entwine setup [project]` | Generates GitHub, GitLab, or Bitbucket validation and publishing config |
+| Command                             | Result                                                                                               |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `entwine init [project]`            | Scaffolds missing recommended knowledge files; never overwrites                                      |
+| `entwine check [project]`           | Diagnostics, knowledge coverage, discovered agent knowledge when configured, non-zero exit on errors |
+| `entwine check --strict-knowledge`  | Also fails when a recommended area is missing                                                        |
+| `entwine build [project]`           | Static docs, copied assets, graph, Knowledge overview in `dist/`                                     |
+| `entwine graph [project]`           | Identical to `build`; reports the graph page location                                                |
+| `entwine context [project]`         | Complete deterministic Markdown context                                                              |
+| `entwine context [project] --json`  | Versioned structured JSON context (schema 0.4), including discovered agent artifacts                 |
+| `entwine dev [project] --port 4173` | Watched build and loopback HTTP server                                                               |
+| `entwine setup [project]`           | Generates GitHub, GitLab, or Bitbucket validation and publishing config                              |
 
 ## Supported content
 
@@ -163,11 +174,11 @@ Read the [architecture](architecture.md) and [future roadmap](roadmap.md).
 
 ## Provider evidence
 
-| Provider | Generated + YAML/contract tests | Real generated CI | Real native publishing |
-| --- | --- | --- | --- |
-| GitHub | Yes | No | No |
-| GitLab | Yes | No | No |
-| Bitbucket Cloud | Yes | No | No |
+| Provider        | Generated + YAML/contract tests | Real generated CI | Real native publishing |
+| --------------- | ------------------------------- | ----------------- | ---------------------- |
+| GitHub          | Yes                             | No                | No                     |
+| GitLab          | Yes                             | No                | No                     |
+| Bitbucket Cloud | Yes                             | No                | No                     |
 
 Entwine’s own GitHub CI, release workflow, and Cloudflare showcase deployment
 were last verified on the v0.1.0 main commit; they have not been re-verified for
