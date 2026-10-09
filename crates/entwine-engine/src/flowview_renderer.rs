@@ -6,12 +6,14 @@
 //! escaped by ordinary interpolation.
 
 use crate::{
-    render::{nav, StaticFile},
+    render::{
+        nav, page_headings, page_links, page_metadata, page_shows_title, page_views, StaticFile,
+    },
     resolve::relative_url,
 };
-use entwine_core::{KnowledgeRole, SiteModel};
+use entwine_core::SiteModel;
 use flowview_compiler::{compile_static, CompiledStaticTemplate, StaticCompileOptions};
-use serde_json::{json, Value};
+use serde_json::json;
 use std::io;
 
 const PAGE_TEMPLATE: &str = include_str!("templates/page.flow");
@@ -56,57 +58,49 @@ pub(crate) fn render_site(site: &SiteModel) -> io::Result<Vec<StaticFile>> {
             .navigation
             .first()
             .map_or("Documentation", |item| item.label.as_str());
-        let metadata = metadata_values(
-            page.role,
-            page.metadata.kind.as_deref(),
-            page.metadata.status.as_deref(),
-        );
-        let headings = page
-            .headings
+        let metadata = page_metadata(page)
+            .iter()
+            .map(|item| {
+                json!({
+                    "class": item.class,
+                    "label": item.label,
+                    "is_role": item.is_role,
+                })
+            })
+            .collect::<Vec<_>>();
+        let headings = page_headings(page)
             .iter()
             .map(|heading| {
                 json!({
                     "id": heading.id,
-                    "href": format!("#{}", heading.id),
+                    "href": heading.href,
                     "text": heading.text,
-                    "class": format!("level-{}", heading.level),
+                    "class": heading.class,
                 })
             })
             .collect::<Vec<_>>();
-        let backlinks = page
-            .backlinks
+        let backlinks = page_links(route, &page.backlinks)
             .iter()
             .map(|link| {
                 json!({
-                    "href": relative_url(route, link.route.as_str()),
-                    "label": link.title,
+                    "href": link.href,
+                    "label": link.label,
                 })
             })
             .collect::<Vec<_>>();
-        let references = page
-            .references
+        let references = page_links(route, &page.references)
             .iter()
             .map(|link| {
                 json!({
-                    "href": relative_url(route, link.route.as_str()),
-                    "label": link.title,
+                    "href": link.href,
+                    "label": link.label,
                 })
             })
             .collect::<Vec<_>>();
-        let focus = page
-            .graph_id
-            .as_ref()
-            .map(|id| format!("?focus={}", crate::resolve::encode_component(&id.0)))
-            .unwrap_or_default();
-        let mut views = vec![
-            json!({"href": relative_url(route, &site.knowledge_route), "label": "Knowledge"}),
-            json!({"href": format!("{}{focus}", relative_url(route, &site.graph_route)), "label": "Graph"}),
-        ];
-        if site.agents.is_some() {
-            views.push(
-                json!({"href": relative_url(route, "/__entwine/agents/"), "label": "Agents"}),
-            );
-        }
+        let views = page_views(site, route, page.graph_id.as_ref())
+            .iter()
+            .map(|view| json!({"href": view.href, "label": view.label}))
+            .collect::<Vec<_>>();
         let source = page.source_path.as_ref().map(|path| {
             json!({
                 "path": path,
@@ -125,7 +119,7 @@ pub(crate) fn render_site(site: &SiteModel) -> io::Result<Vec<StaticFile>> {
             "page": {
                 "title": page.title,
                 "body_html": page.html,
-                "show_title": !page.headings.first().is_some_and(|heading| heading.level == 1 && heading.text == page.title),
+                "show_title": page_shows_title(page),
                 "has_headings": !headings.is_empty(),
                 "metadata": metadata,
                 "headings": headings,
@@ -169,22 +163,4 @@ pub(crate) fn render_site(site: &SiteModel) -> io::Result<Vec<StaticFile>> {
         });
     }
     Ok(files)
-}
-
-fn metadata_values(role: KnowledgeRole, kind: Option<&str>, status: Option<&str>) -> Vec<Value> {
-    let mut values = Vec::new();
-    if role != KnowledgeRole::Other {
-        values.push(json!({
-            "class": format!("role role-{}", role.as_str()),
-            "label": role.label(),
-            "is_role": true,
-        }));
-    }
-    if let Some(kind) = kind.filter(|kind| !kind.eq_ignore_ascii_case(role.as_str())) {
-        values.push(json!({"class": "", "label": kind, "is_role": false}));
-    }
-    if let Some(status) = status {
-        values.push(json!({"class": "", "label": status, "is_role": false}));
-    }
-    values
 }
