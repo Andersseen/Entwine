@@ -42,18 +42,20 @@ started creating one release before GitHub denied the POST. This rules out a
 missing declared `contents: write` grant, but does not identify which GitHub
 policy denied the release endpoint. The only repository ruleset visible to the
 connected API is a disabled branch rule for `main`; no `v0.6.0` tag, draft, or
-public release exists, and there are no open PRs. Admin-only Actions settings
-and legacy tag protections were not available through the read-only GitHub
-connection. Do not add a credential workaround until those settings are
-checked.
+public release exists. There were no open PRs at diagnosis time; draft code-fix
+PR [#38](https://github.com/Andersseen/Entwine/pull/38) is now open. Admin-only
+Actions settings and legacy tag protections were not available through the
+read-only GitHub connection. Do not add a credential workaround until those
+settings are checked.
 
 Release recovery now downloads existing draft assets, preserves them, validates
 the complete `SHA256SUMS` set, and uploads only missing expected filenames. The
 upload no longer uses `--clobber`, so a retry cannot replace an attached asset.
 Resume also now fails closed if GitHub cannot verify a tag, resolves annotated
 tags, and rejects a tag that points to a different commit. These safeguards are
-covered by mocked release-tooling tests; they have not yet been exercised in
-GitHub Actions.
+covered by mocked release-tooling tests and passed the PR CI run
+[38073298676](https://github.com/Andersseen/Entwine/actions/runs/38073298676).
+They have not yet been exercised against a live release.
 
 ## Implemented commands
 
