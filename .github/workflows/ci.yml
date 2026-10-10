@@ -13,6 +13,15 @@ on:
 permissions:
   contents: read
 jobs:
+  msrv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.85.0
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --workspace --locked
+      - run: cargo test --workspace --locked
+
   check:
     runs-on: ubuntu-latest
     steps:
@@ -66,6 +75,16 @@ jobs:
           path: deployment
           if-no-files-found: error
           retention-days: 3
+
+  flowview-experimental:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test -p entwine-engine --features flowview-renderer --locked
+      - run: cargo test -p entwine-cli --features flowview-renderer --locked
+      - run: cargo build --release -p entwine-cli --features flowview-renderer --locked
 
   portability:
     strategy:

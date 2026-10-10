@@ -1,3 +1,5 @@
+#![cfg(feature = "flowview-renderer")]
+
 use entwine_core::{Navigation, PageReference, RendererKind, Route};
 use entwine_engine::{compile, parse_config, render, render_selected, render_site_with_renderer};
 use std::{fs, path::Path};
