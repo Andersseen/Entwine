@@ -9,6 +9,7 @@ import {
 } from "./registry.ts";
 import {
   assessPendingReleases,
+  assetsToUpload,
   describePending,
   expectedAssets,
   planResume,
@@ -82,6 +83,43 @@ test("resume reuses published packages and attached assets", () => {
   assert.equal(partial.needsBuild, true);
   assert.deepEqual(partial.missingPackages, ["@entwine/cli"]);
   assert.equal(partial.missingAssets.length, 1);
+});
+
+test("resume builds only for missing packages or assets", () => {
+  const tag = "v0.6.0";
+  const packages = releasePackages();
+  const assets = expectedAssets(tag);
+  assert.equal(
+    planResume({ published: packages, assets, tag }).needsBuild,
+    false,
+  );
+  assert.deepEqual(
+    planResume({ published: packages.slice(1), assets, tag }).missingPackages,
+    ["@entwine/cli"],
+  );
+  assert.deepEqual(
+    planResume({ published: packages, assets: assets.slice(1), tag })
+      .missingAssets,
+    [assets[0]],
+  );
+});
+
+test("resume uploads only absent draft assets and never replaces existing ones", () => {
+  const tag = "v0.6.0";
+  const assets = expectedAssets(tag);
+  assert.deepEqual(assetsToUpload(tag, assets), []);
+  assert.deepEqual(assetsToUpload(tag, assets.slice(1)), [assets[0]]);
+  assert.deepEqual(assetsToUpload(tag, []), assets);
+});
+
+test("public releases do not block the next release while drafts do", () => {
+  assert.deepEqual(assessPendingReleases([published("v0.6.0")]), {
+    status: "none",
+  });
+  assert.deepEqual(assessPendingReleases([draft("v0.6.0")]), {
+    status: "pending",
+    tag: "v0.6.0",
+  });
 });
 
 test("expected assets cover every platform plus checksums", () => {
