@@ -16,6 +16,11 @@ tiny_http = "0.12"
 notify = "8"
 percent-encoding = "2"
 tempfile = "3"
+
+[features]
+default = []
+flowview-renderer = ["entwine-engine/flowview-renderer"]
+
 [dev-dependencies]
 serde_json.workspace = true
 serde_yaml = { package = "yaml_serde", version = "0.10" }

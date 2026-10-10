@@ -1,6 +1,7 @@
 //! Scan and parse each document once, resolve a canonical model, then project it.
 mod agents_page;
 mod discovery;
+#[cfg(feature = "flowview-renderer")]
 mod flowview_renderer;
 mod graph_layout;
 mod graph_page;
@@ -132,7 +133,19 @@ pub fn render_site_with_renderer(
 ) -> std::io::Result<Vec<StaticFile>> {
     match renderer {
         RendererKind::Builtin => Ok(render_site(site)),
-        RendererKind::Flowview => flowview_renderer::render_site(site),
+        RendererKind::Flowview => {
+            #[cfg(feature = "flowview-renderer")]
+            {
+                flowview_renderer::render_site(site)
+            }
+            #[cfg(not(feature = "flowview-renderer"))]
+            {
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::Unsupported,
+                    "The Flowview renderer is experimental and was not included in this Entwine build. Rebuild with --features flowview-renderer.",
+                ))
+            }
+        }
     }
 }
 

@@ -63,14 +63,15 @@ The renderer is not the knowledge model. The built-in renderer consumes a
 consumer of product copy and does not render users' documentation.
 
 The page renderer can be selected with `[site] renderer = "flowview"` in
-`entwine.toml`. This remains an opt-in candidate; omitting it selects the
-built-in renderer. Flowview is a dependency of `entwine-engine` only and
-receives a narrow, host-prepared page view. Entwine retains route calculation,
-the current raw-HTML policy, CSS, and generated Graph, Knowledge, and Agents
-views. Its embedded template compiles once per site render. The pinned Flowview
-Git revision is temporary because no compatible public crate release is
-available and its current Oxc dependency tree exceeds Entwine's Rust 1.85 MSRV.
-See the [decision record](decisions/flowview-renderer-experiment.md).
+`entwine.toml`. This remains experimental; omitting it selects the built-in
+renderer. The default Entwine build supports Rust 1.85 and excludes Flowview's
+compiler dependency tree. To include it, build with
+`cargo build -p entwine-cli --features flowview-renderer`; experimental builds
+require a newer Rust compiler while Flowview's Oxc dependencies require Rust
+1.94. Flowview remains an optional dependency of `entwine-engine` only and
+receives a narrow, host-prepared page view. A build without the feature reports
+an actionable error when Flowview is explicitly selected. See the
+[decision record](decisions/flowview-renderer-experiment.md).
 
 ## Determinism and safety
 

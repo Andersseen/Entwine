@@ -7,6 +7,11 @@ import { root } from "./paths.ts";
 const exe = process.platform === "win32" ? ".exe" : "";
 const entwine = join(root, "target/debug", `entwine${exe}`);
 const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+const renderer = process.env.ENTWINE_RENDERER;
+
+if (renderer && renderer !== "builtin" && renderer !== "flowview") {
+  throw new Error(`Unknown ENTWINE_RENDERER: ${renderer}`);
+}
 
 function run(label: string, command: string, args: string[]): void {
   console.log(`\n▸ ${label}`);
@@ -18,11 +23,7 @@ function run(label: string, command: string, args: string[]): void {
 }
 
 function withRenderer<T>(project: string, action: () => T): T {
-  const renderer = process.env.ENTWINE_RENDERER;
   if (!renderer) return action();
-  if (renderer !== "builtin" && renderer !== "flowview") {
-    throw new Error(`Unknown ENTWINE_RENDERER: ${renderer}`);
-  }
   const config = join(project, "entwine.toml");
   const existed = existsSync(config);
   const previous = existed ? readFileSync(config) : undefined;
@@ -46,7 +47,13 @@ function withRenderer<T>(project: string, action: () => T): T {
   }
 }
 
-run("Build Entwine", "cargo", ["build", "--locked", "-p", "entwine-cli"]);
+run("Build Entwine", "cargo", [
+  "build",
+  "--locked",
+  "-p",
+  "entwine-cli",
+  ...(renderer === "flowview" ? ["--features", "flowview-renderer"] : []),
+]);
 run("Validate Entwine docs", entwine, ["check", "."]);
 withRenderer(root, () =>
   run("Build Entwine docs → /docs/", entwine, ["build", "."]),

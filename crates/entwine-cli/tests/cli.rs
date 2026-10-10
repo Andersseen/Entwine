@@ -77,6 +77,7 @@ fn real_cli_build_check_graph_and_context_work() {
 }
 
 #[test]
+#[cfg(feature = "flowview-renderer")]
 fn flowview_is_opt_in_and_keeps_entwine_generated_views() {
     let temp = fixture();
     let config = temp.path().join("entwine.toml");
@@ -112,6 +113,24 @@ fn flowview_is_opt_in_and_keeps_entwine_generated_views() {
     ] {
         assert!(html.contains(fragment), "missing {fragment}");
     }
+}
+
+#[test]
+#[cfg(not(feature = "flowview-renderer"))]
+fn explicitly_selecting_flowview_without_feature_returns_actionable_error() {
+    let temp = fixture();
+    let config = temp.path().join("entwine.toml");
+    let original = fs::read_to_string(&config).unwrap();
+    fs::write(&config, format!("{original}\nrenderer = \"flowview\"\n")).unwrap();
+
+    let result = cli("build", temp.path(), &[]);
+    assert!(!result.status.success());
+    let error = String::from_utf8_lossy(&result.stderr);
+    assert!(
+        error.contains("experimental and was not included"),
+        "{error}"
+    );
+    assert!(error.contains("--features flowview-renderer"), "{error}");
 }
 
 #[test]

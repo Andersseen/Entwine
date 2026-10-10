@@ -77,6 +77,7 @@ pub(crate) struct PreparedLink {
 
 /// Heading data shared by the inline and side table of contents.
 pub(crate) struct PreparedHeading {
+    #[cfg(feature = "flowview-renderer")]
     pub id: String,
     pub href: String,
     pub text: String,
@@ -125,6 +126,7 @@ pub(crate) fn page_headings(page: &SitePage) -> Vec<PreparedHeading> {
     page.headings
         .iter()
         .map(|heading| PreparedHeading {
+            #[cfg(feature = "flowview-renderer")]
             id: heading.id.clone(),
             href: format!("#{}", heading.id),
             text: heading.text.clone(),
