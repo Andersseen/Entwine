@@ -35,7 +35,7 @@ jobs:
   guard:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     outputs:
       pending: ${{ steps.guard.outputs.pending || 'none' }}
     steps:
@@ -89,11 +89,6 @@ jobs:
           read -r draft target < <(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,targetCommitish --jq '"\(.isDraft) \(.targetCommitish)"')
           [[ "$draft" == true ]] || { echo "Retry only an existing draft release" >&2; exit 1; }
           sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$target" --jq .sha)
-          # `gh api` prints the error body on a missing ref, so trust only a successful call.
-          if tagged=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq .object.sha 2>/dev/null) && [[ "$tagged" != "$sha" ]]; then
-            echo "Tag $RELEASE_TAG points to $tagged but the draft targets $sha" >&2
-            exit 1
-          fi
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         if: github.event_name == 'workflow_dispatch'
@@ -111,6 +106,17 @@ jobs:
             package.json
             tsconfig.base.json
           sparse-checkout-cone-mode: false
+      - name: Verify any existing release tag resolves to the draft target
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          EXPECTED_COMMIT: ${{ steps.draft.outputs.sha }}
+        run: |
+          node .release-tooling/tooling/release-state.ts verify-tag \
+            --repository "$GITHUB_REPOSITORY" \
+            --tag "$RELEASE_TAG" \
+            --expected "$EXPECTED_COMMIT"
       - uses: actions/setup-node@v7
         if: github.event_name == 'workflow_dispatch'
         with:
@@ -238,20 +244,61 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          path: .release-tooling
+          ref: ${{ github.sha }}
+          sparse-checkout: tooling
+          sparse-checkout-cone-mode: false
       - uses: actions/download-artifact@v4
         with:
           pattern: archive-*
-          path: release
+          path: release-built
           merge-multiple: true
-      - name: Checksums
-        working-directory: release
-        run: |
-          sha256sum entwine-*.tar.gz entwine-*.zip > SHA256SUMS
-          sha256sum --check SHA256SUMS
-      - name: Attach to the draft release
+      - name: Preserve and verify existing draft assets
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ needs.release-please.outputs.tag }}" release/* --repo "$GITHUB_REPOSITORY" --clobber
+          RELEASE_TAG: ${{ needs.release-please.outputs.tag }}
+        run: |
+          mkdir release release-existing
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '[.assets[].name]' > "$RUNNER_TEMP/existing-assets.json"
+          if [[ $(jq 'length' "$RUNNER_TEMP/existing-assets.json") -gt 0 ]]; then
+            gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --dir release-existing
+          fi
+          cp release-built/entwine-* release/
+          for asset in release/entwine-*; do
+            name=${asset#release/}
+            if [[ -f "release-existing/$name" ]]; then
+              cp "release-existing/$name" "$asset"
+            fi
+          done
+          if [[ -f release-existing/SHA256SUMS ]]; then
+            cp release-existing/SHA256SUMS release/SHA256SUMS
+          else
+            cd release
+            sha256sum entwine-*.tar.gz entwine-*.zip > SHA256SUMS
+            cd - > /dev/null
+          fi
+          (cd release && sha256sum --check SHA256SUMS)
+      - name: Attach only missing assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.release-please.outputs.tag }}
+        run: |
+          is_draft=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)
+          [[ "$is_draft" == true ]] || { echo "Refusing to modify non-draft release $RELEASE_TAG" >&2; exit 1; }
+          node .release-tooling/tooling/release-state.ts upload-plan \
+            --tag "$RELEASE_TAG" \
+            --assets "$RUNNER_TEMP/existing-assets.json" \
+            --output "$RUNNER_TEMP/upload-assets.txt"
+          mapfile -t names < "$RUNNER_TEMP/upload-assets.txt"
+          if ((${#names[@]})); then
+            files=()
+            for name in "${names[@]}"; do files+=("release/$name"); done
+            gh release upload "$RELEASE_TAG" "${files[@]}" --repo "$GITHUB_REPOSITORY"
+          else
+            echo "All expected release assets already exist; preserving them."
+          fi
 
   npm:
     needs: [release-please, build]
@@ -267,7 +314,6 @@ jobs:
       id-token: write # npm provenance
     env:
       VERSION: ${{ needs.release-please.outputs.version }}
-      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       BUILT: ${{ needs.release-please.outputs.needs_build }}
     steps:
       - uses: actions/checkout@v4
@@ -305,6 +351,8 @@ jobs:
       # Idempotent: a package whose exact version is already public is skipped.
       - name: Publish platform packages first, launcher last
         if: env.BUILT == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: node .release-tooling/tooling/publish-npm.ts npm-staged/npm-* npm-staged/main
       - name: Verify the public registry before exposing the release
         run: node .release-tooling/tooling/smoke-public.ts --version "$VERSION"

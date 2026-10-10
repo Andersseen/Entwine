@@ -8,9 +8,10 @@
  *   release-state.ts guard   --releases <json>            (push to main)
  *   release-state.ts plan    --tag vX.Y.Z --assets <json> (resume a draft)
  */
-import { appendFileSync, readFileSync } from "node:fs";
+import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+import { verifyReleaseTagTargetFromEnvironment } from "./github-release.ts";
 import { lookupVersion } from "./registry.ts";
 import { platformPackage, targets } from "./targets.ts";
 
@@ -76,6 +77,14 @@ export const expectedAssets = (tag: string): string[] => [
   "SHA256SUMS",
 ];
 
+/** Only upload names missing from the draft; existing release assets are immutable. */
+export function assetsToUpload(
+  tag: string,
+  existing: readonly string[],
+): string[] {
+  return expectedAssets(tag).filter((name) => !existing.includes(name));
+}
+
 export const releasePackages = (): string[] => [
   "@entwine/cli",
   ...targets.map(platformPackage),
@@ -133,6 +142,9 @@ async function main(): Promise<void> {
       releases: { type: "string" },
       assets: { type: "string" },
       tag: { type: "string" },
+      output: { type: "string" },
+      repository: { type: "string" },
+      expected: { type: "string" },
     },
   });
   if (command === "guard") {
@@ -182,8 +194,39 @@ async function main(): Promise<void> {
     });
     console.log(JSON.stringify(plan, null, 2));
     setOutput({ needs_build: String(plan.needsBuild) });
+  } else if (command === "upload-plan") {
+    const { tag } = values;
+    if (!tag || !releaseTag.test(tag) || !values.assets || !values.output) {
+      throw new Error(
+        "--tag vX.Y.Z, --assets <json names file>, and --output <file> are required",
+      );
+    }
+    const existing = JSON.parse(
+      readFileSync(values.assets, "utf8"),
+    ) as string[];
+    const missing = assetsToUpload(tag, existing);
+    writeFileSync(
+      values.output,
+      missing.length ? `${missing.join("\n")}\n` : "",
+    );
+  } else if (command === "verify-tag") {
+    if (!values.tag || !releaseTag.test(values.tag)) {
+      throw new Error("--tag vX.Y.Z is required");
+    }
+    if (!values.repository || !values.expected) {
+      throw new Error(
+        "--repository owner/name and --expected <commit SHA> are required",
+      );
+    }
+    await verifyReleaseTagTargetFromEnvironment(
+      values.repository,
+      values.tag,
+      values.expected,
+    );
   } else {
-    throw new Error("Usage: release-state.ts <guard|plan> ...");
+    throw new Error(
+      "Usage: release-state.ts <guard|plan|upload-plan|verify-tag> ...",
+    );
   }
 }
 

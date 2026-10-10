@@ -32,6 +32,29 @@ published, the release state is consistent again.
 The repository `main` is at source version `0.6.0`, which has not been
 published. npm's latest launcher remains `0.5.1`.
 
+The subsequent release-please run [38068919404](https://github.com/Andersseen/Entwine/actions/runs/38068919404)
+failed while creating the GitHub release with `Resource not accessible by
+integration` from `POST /repos/{owner}/{repo}/releases`. The workflow declares
+`contents: write`, and the failed job log confirms that the run's `GITHUB_TOKEN`
+reported `Actions: write`, `Contents: write`, and `PullRequests: write`. The
+`push` run successfully loaded release-please 17.3.0, found merged PR #34, and
+started creating one release before GitHub denied the POST. This rules out a
+missing declared `contents: write` grant, but does not identify which GitHub
+policy denied the release endpoint. The only repository ruleset visible to the
+connected API is a disabled branch rule for `main`; no `v0.6.0` tag, draft, or
+public release exists, and there are no open PRs. Admin-only Actions settings
+and legacy tag protections were not available through the read-only GitHub
+connection. Do not add a credential workaround until those settings are
+checked.
+
+Release recovery now downloads existing draft assets, preserves them, validates
+the complete `SHA256SUMS` set, and uploads only missing expected filenames. The
+upload no longer uses `--clobber`, so a retry cannot replace an attached asset.
+Resume also now fails closed if GitHub cannot verify a tag, resolves annotated
+tags, and rejects a tag that points to a different commit. These safeguards are
+covered by mocked release-tooling tests; they have not yet been exercised in
+GitHub Actions.
+
 ## Implemented commands
 
 | Command                             | Result                                                                                               |
