@@ -7,28 +7,30 @@ interactive graph, and a public showcase built from its own output.
 
 ## Release status
 
-Verified on 9 October 2026 from GitHub Releases and npm:
+Verified on 10 October 2026 from the public GitHub API, Actions runs, and npm:
 
-| Version | GitHub Releases       | npm `@entwine/cli`     |
-| ------- | --------------------- | ---------------------- |
-| 0.5.0   | Public                | Published              |
-| 0.5.1   | **Draft**, not public | Published and `latest` |
-| 0.6.0   | Not published         | Not published          |
+| Version | GitHub Releases                      | npm `@entwine/cli`     |
+| ------- | ------------------------------------ | ---------------------- |
+| 0.5.0   | Public                               | Published              |
+| 0.5.1   | Public prerelease; not marked latest | Published and `latest` |
+| 0.6.0   | Not published                        | Not published          |
 
-GitHub's latest public Entwine release is `v0.5.0`; `v0.5.1` is still a draft.
-The repository `main` is at `v0.6.0`, which has not been released. npm's latest
-`@entwine/cli` is `0.5.1`.
+The `v0.5.1` release targets commit `898ebd79`. Its four native archives and
+`SHA256SUMS` were already attached; I downloaded them and verified every archive
+against the checksum file. All five npm packages were already public, and the
+release recovery workflow reused them without rebuilding or republishing.
+Workflow run [38056438278](https://github.com/Andersseen/Entwine/actions/runs/38056438278)
+passed its public registry smoke and published the draft on 10 October 2026.
+The tag now points to the expected commit. The release is a prerelease and is
+not GitHub's `latest`; npm `@entwine/cli` and all four platform packages list
+`0.5.1` as `latest`. A fresh isolated consumer install and smoke also passed.
 
-The `v0.5.1` draft targets commit `898ebd7`. Its release run passed Linux,
-macOS, and Windows builds, uploaded all four native archives and `SHA256SUMS`,
-and published the launcher plus four platform npm packages. The final public
-registry smoke failed while `@entwine/cli-linux-x64@0.5.1` was still returning
-HTTP 404 during propagation; the registry index now lists that version. The
-draft remains unpublished and there is no `v0.5.1` tag. A later `main` push
-passed the release guard, which skipped release-please and all release jobs
-while the draft remained pending. Resume `v0.5.1` through the current release
-workflow and require its fresh registry smoke to pass before exposing the
-release.
+The release guard remains in place: while a draft is pending, a `main` push
+skips release-please and downstream release jobs. After `v0.5.1` was
+published, the release state is consistent again.
+
+The repository `main` is at source version `0.6.0`, which has not been
+published. npm's latest launcher remains `0.5.1`.
 
 ## Implemented commands
 
@@ -85,12 +87,13 @@ publication is explicitly enabled. Unknown keys are errors. See
 [agent knowledge](specs/agent-knowledge.md).
 
 The optional `[site] renderer = "flowview"` setting selects the experimental
-Flowview page-shell renderer. Omission selects the built-in renderer. Graph,
-Knowledge, and Agents pages keep their existing Rust renderers. Flowview is
-currently pinned to an immutable Git revision while a crates.io release is
-verified; generated sites still contain only Entwine's static HTML, CSS, and
-Graph script. See the [experiment record](decisions/flowview-renderer-experiment.md)
-for the parity criteria and current evidence.
+Flowview page-shell renderer. The default build excludes its compiler and
+supports Rust 1.85; Flowview builds use `--features flowview-renderer` and
+currently require Rust 1.94 or newer. Graph, Knowledge, and Agents pages keep
+their existing Rust renderers. The compiler remains pinned to an immutable Git
+revision because crates.io returned no `flowview-compiler` crate on 10 October
+2026. See the [experiment record](decisions/flowview-renderer-experiment.md)
+for parity criteria and current evidence.
 
 Each document has a role (what it means) and an artifact kind (`documentation`,
 `agent_instructions`, `skill`). Instruction files carry a structural scope (the

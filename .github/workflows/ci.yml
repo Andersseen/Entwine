@@ -81,10 +81,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test -p entwine-engine --features flowview-renderer --locked
-      - run: cargo test -p entwine-cli --features flowview-renderer --locked
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: cargo test --workspace --features flowview-renderer --locked
+      - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - run: cargo build -p entwine-cli --features flowview-renderer --locked
       - run: cargo build --release -p entwine-cli --features flowview-renderer --locked
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm build:showcase
+        env:
+          ENTWINE_RENDERER: flowview
+      - run: pnpm test:e2e
+        env:
+          ENTWINE_RENDERER: flowview
 
   portability:
     strategy:

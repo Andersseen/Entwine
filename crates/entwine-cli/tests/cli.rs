@@ -126,7 +126,10 @@ fn explicitly_selecting_flowview_without_feature_returns_actionable_error() {
     let result = cli("build", temp.path(), &[]);
     assert!(!result.status.success());
     let error = String::from_utf8_lossy(&result.stderr);
-    assert!(error.contains("experimental and was not included"), "{error}");
+    assert!(
+        error.contains("experimental and was not included"),
+        "{error}"
+    );
     assert!(error.contains("--features flowview-renderer"), "{error}");
 }
 

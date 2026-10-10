@@ -250,6 +250,11 @@ symlinks, and paths outside the repository remain errors.
 The renderer is not the knowledge model. See [architecture](docs/architecture.md),
 [current state](docs/state.md), and [roadmap](docs/roadmap.md).
 
+The normal Entwine build supports Rust 1.85 and does not compile the experimental
+Flowview renderer. To try it with Rust 1.94 or newer, build
+`entwine-cli` using `--features flowview-renderer`. See the
+[Flowview experiment record](docs/decisions/flowview-renderer-experiment.md).
+
 ## What it is not
 
 Entwine is not a CMS, Obsidian clone, task manager, hosted docs platform, AI agent,

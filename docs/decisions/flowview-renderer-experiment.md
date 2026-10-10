@@ -9,14 +9,19 @@ renderer-only comparison possible without changing Markdown parsing, the
 knowledge model, routing, or Graph generation.
 
 The current implementation uses the temporary immutable Git revision
-`35f8c3f211b1f70099462860d80dec944a27d501`. A public `flowview-compiler`
-crates.io release was not available in the verified registry state. The Git
-revision must not become a permanent default-renderer dependency.
+`35f8c3f211b1f70099462860d80dec944a27d501`. The crates.io API returned 404 for
+`flowview-compiler` on 10 October 2026, so the Git revision remains necessary.
+The Git revision must not become a permanent default-renderer dependency.
 
 ## Evidence
 
 - `entwine-core` has no Flowview dependency. Its renderer setting is a small
   configuration enum and defaults to `builtin`.
+- Flowview is an optional `entwine-engine` dependency behind
+  `flowview-renderer`; `entwine-cli` forwards the same feature. The default
+  workspace build and native release binaries omit Flowview. Explicitly
+  selecting it in a default build returns an actionable error instead of
+  falling back silently.
 - The embedded template compiles and renders a nested hostile-string fixture.
   Tests cover default selection, deep routes, escaped metadata, trusted
   Markdown body HTML, and deterministic output.
@@ -48,11 +53,16 @@ revision must not become a permanent default-renderer dependency.
   | 500 | 8.76 ms | 9.98 ms | +1.22 ms | 1,961,124 | 2,422,124 |
   | 1,000 | 13.47 ms | 19.37 ms | +5.90 ms | 3,907,124 | 4,829,124 |
 
-- Clean release binaries on this macOS arm64 host measured 3,604,456 bytes for
-  the built-in baseline and 4,843,432 bytes with Flowview: +1,238,976 bytes
-  (+34.4%). Clean release compilation took 8.5 seconds for the baseline and
-  24.6 seconds with Flowview and its 98 additional locked packages. These are
-  single-host measurements, not cross-platform CI timings.
+- On 10 October 2026, release binaries rebuilt from the current lockfile on
+  this macOS arm64 host measured 3,612,504 bytes for the default build and
+  4,843,800 bytes with `flowview-renderer` (+1,231,296 bytes, or 34.1%). The
+  local toolchain's `rust-objcopy` could not load `libLLVM.dylib` to strip debug
+  info, so applying macOS `strip -S` to copies measured 3,553,680 and 4,783,792
+  bytes respectively (+1,230,112 bytes, or 34.6%). The default dependency tree
+  and binary exclude Flowview; the experimental binary retains the additional
+  compiler cost. For comparison, the earlier combined build measured 3,604,456
+  and 4,843,432 bytes respectively. These are single-host measurements, not
+  cross-platform CI timings.
 - Flowview output is about 23.6% larger at 1,000 pages. The compiler preserves
   template whitespace by design; much of this is the readable indentation and
   line breaks of the embedded template. No whitespace-control syntax is
@@ -61,12 +71,16 @@ revision must not become a permanent default-renderer dependency.
 - The built-in page renderer is part of a 316-line module. The Flowview adapter
   is 190 lines plus a readable 115-line template. The template clarifies page
   structure, while its mapping adapter and dependency add complexity and cost.
-- The locked dependency tree includes Oxc 0.137.0 crates declaring Rust 1.94.0
-  as their minimum supported version. Entwine declares Rust 1.85, so the current
-  dependency does not meet Entwine's MSRV contract. Rust 1.85 was not installed
-  on the host for a direct compiler check.
-- CI runs the Flowview-inclusive Rust suite on Linux, macOS, and Windows. The
-  browser suite and `/docs/` / `/demo/` subpath verifier run on Linux.
+- The locked Flowview dependency tree includes Oxc 0.137.0 crates declaring
+  Rust 1.94.0 as their minimum. Entwine still declares Rust 1.85. A direct build
+  and test of the default workspace configuration passed with `rustc 1.85.0`
+  on 10 October 2026, and its normal dependency tree contains no Flowview/Oxc
+  packages. Flowview-enabled builds are intentionally outside that MSRV
+  promise.
+- CI checks the default build and tests on Rust 1.85, keeps stable Rust quality
+  checks, and runs the experimental Flowview parity tests on Linux stable.
+  macOS and Windows portability jobs test the default product. Browser E2E and
+  `/docs/` / `/demo/` showcase checks run on Linux.
 - Navigation stays host-rendered. The template has no recursive partial
   mechanism; structured navigation would require flattening or expanding the
   Flowview language, making the template less direct.
