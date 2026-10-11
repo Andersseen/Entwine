@@ -822,6 +822,8 @@ fn bitbucket_publish_script_publishes_a_subpath_site_to_the_workspace_repository
     assert!(String::from_utf8_lossy(&again.stdout).contains("No documentation changes to publish."));
 }
 
+// Windows cannot create a file named `what?.md`, so the fixture only exists on Unix.
+#[cfg(unix)]
 #[test]
 fn unsafe_names_fail_validation_with_actionable_errors_instead_of_broken_urls() {
     let temp = tempfile::tempdir().unwrap();
