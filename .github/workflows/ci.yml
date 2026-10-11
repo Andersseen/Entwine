@@ -57,6 +57,12 @@ jobs:
       - run: pnpm smoke:setup
       # Stage, pack, install, and run the npm distribution for this platform.
       - run: pnpm smoke:npm
+      # Real MCP client over stdio against the built server, protocol and safety tests.
+      - run: pnpm test:mcp
+      # Agent Skills reference validation, command accuracy and `skills` CLI installation.
+      - run: pnpm test:skills
+      # Pack @entwine/mcp + CLI, install outside the monorepo, drive it with a real MCP client.
+      - run: pnpm smoke:mcp
       # Browser E2E against real generated output (Linux Chromium only).
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
@@ -125,3 +131,6 @@ jobs:
       # commit's launcher and binary, and exercise init/setup for every provider.
       - run: pnpm smoke:npm
       - run: pnpm smoke:setup
+      - run: pnpm test:mcp
+      - run: pnpm test:skills
+      - run: pnpm smoke:mcp

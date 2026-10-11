@@ -338,7 +338,7 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
         if: env.BUILT == 'true'
-      - run: pnpm --filter @entwine/cli build
+      - run: pnpm --filter @entwine/cli --filter @entwine/mcp build
         if: env.BUILT == 'true'
       - uses: actions/download-artifact@v4
         if: env.BUILT == 'true'
@@ -348,12 +348,16 @@ jobs:
       - name: Stage the launcher package
         if: env.BUILT == 'true'
         run: node tooling/stage-npm.ts main --version "$VERSION" --out npm-staged/main
+      - name: Stage the MCP package
+        if: env.BUILT == 'true'
+        run: node tooling/stage-npm.ts mcp --version "$VERSION" --out npm-staged/mcp
       # Idempotent: a package whose exact version is already public is skipped.
-      - name: Publish platform packages first, launcher last
+      # Order matters: platform packages, then the launcher, then the MCP server that depends on it.
+      - name: Publish platform packages, launcher, then MCP server
         if: env.BUILT == 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: node .release-tooling/tooling/publish-npm.ts npm-staged/npm-* npm-staged/main
+        run: node .release-tooling/tooling/publish-npm.ts npm-staged/npm-* npm-staged/main npm-staged/mcp
       - name: Verify the public registry before exposing the release
         run: node .release-tooling/tooling/smoke-public.ts --version "$VERSION"
 

@@ -19,11 +19,15 @@
     "format:check": "cargo fmt --all --check && biome format . && prettier --plugin=prettier-plugin-astro --check 'apps/**/*.astro'",
     "agents:doctor": "agentyx doctor && agentyx install --dry-run | grep -q \"0 to create, 0 to update, 0 to remove\"",
     "test:tooling": "node --test tooling/*.test.ts",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:tooling && pnpm build:showcase && pnpm smoke:setup && pnpm smoke:npm",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:tooling && pnpm test:mcp && pnpm test:skills && pnpm build:showcase && pnpm smoke:setup && pnpm smoke:npm && pnpm smoke:mcp",
     "build:showcase": "node tooling/build-showcase.ts",
     "smoke:setup": "cargo build -q -p entwine-cli && node tooling/smoke-setup.ts --binary target/debug/entwine",
     "smoke:npm": "pnpm --filter @entwine/cli build && cargo build -q -p entwine-cli && node tooling/smoke-npm.ts --binary target/debug/entwine",
-    "test:e2e": "playwright test -c e2e/playwright.config.ts"
+    "test:e2e": "playwright test -c e2e/playwright.config.ts",
+    "build:mcp": "pnpm --filter @entwine/mcp build",
+    "test:mcp": "cargo build -q -p entwine-cli && pnpm --filter @entwine/mcp build && node --test packages/mcp/test/*.test.ts",
+    "test:skills": "cargo build -q -p entwine-cli && node tooling/validate-skills.ts --binary target/debug/entwine",
+    "smoke:mcp": "cargo build -q -p entwine-cli && pnpm --filter @entwine/cli --filter @entwine/mcp build && node tooling/smoke-mcp.ts --binary target/debug/entwine"
   },
   "devDependencies": {
     "@agentyx/cli": "0.9.0",
@@ -33,6 +37,8 @@
     "@types/node": "^22.12.0",
     "prettier": "3.9.9",
     "prettier-plugin-astro": "1.1.0",
+    "skills": "1.7.2",
+    "skills-ref": "0.1.5",
     "turbo": "^2.5.8",
     "typescript": "^5.9.3"
   }

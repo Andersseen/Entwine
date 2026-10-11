@@ -3,6 +3,7 @@
  *
  *   stage-npm.ts platform --target <triple> --binary <path> --version <v> --out <dir>
  *   stage-npm.ts main --version <v> --out <dir>
+ *   stage-npm.ts mcp --version <v> --out <dir>
  *
  * Platform packages carry one native binary. The main package (`@entwine/cli`)
  * is the compiled launcher plus exact-version optionalDependencies on all of them.
@@ -103,6 +104,34 @@ export function stageMain(version: string, out: string): void {
   );
 }
 
+/**
+ * `@entwine/mcp`: compiled server plus an exact-version dependency on the
+ * `@entwine/cli` it was built with, so a consumer never pairs mismatched halves.
+ */
+export function stageMcp(version: string, out: string): void {
+  const source = join(root, "packages/mcp");
+  if (!existsSync(join(source, "dist/cli.js"))) {
+    throw new Error(
+      "packages/mcp is not built. Run `pnpm --filter @entwine/mcp build` first.",
+    );
+  }
+  reset(out);
+  cpSync(join(source, "dist"), join(out, "dist"), { recursive: true });
+  copyFileSync(join(source, "README.md"), join(out, "README.md"));
+  copyFileSync(join(root, "LICENSE"), join(out, "LICENSE"));
+  const manifest = JSON.parse(
+    readFileSync(join(source, "package.json"), "utf8"),
+  ) as Manifest & { dependencies: Record<string, string> };
+  manifest.version = version;
+  delete manifest.scripts;
+  delete manifest.devDependencies;
+  manifest.dependencies["@entwine/cli"] = version;
+  writeFileSync(
+    join(out, "package.json"),
+    `${JSON.stringify(manifest, null, 2)}\n`,
+  );
+}
+
 function main(): void {
   const [command, ...rest] = process.argv.slice(2);
   const { values } = parseArgs({
@@ -128,8 +157,11 @@ function main(): void {
   } else if (command === "main") {
     stageMain(version, out);
     console.log(`✓ staged @entwine/cli@${version} in ${out}`);
+  } else if (command === "mcp") {
+    stageMcp(version, out);
+    console.log(`✓ staged @entwine/mcp@${version} in ${out}`);
   } else {
-    throw new Error("Usage: stage-npm.ts <platform|main> ...");
+    throw new Error("Usage: stage-npm.ts <platform|main|mcp> ...");
   }
 }
 

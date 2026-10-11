@@ -1,0 +1,60 @@
+{
+  "name": "@entwine/mcp",
+  "version": "0.6.0",
+  "description": "Entwine MCP server — read-only project knowledge, validation and dry-run previews for coding agents over stdio.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "entwine-mcp": "dist/cli.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Andersseen/Entwine.git",
+    "directory": "packages/mcp"
+  },
+  "homepage": "https://github.com/Andersseen/Entwine#readme",
+  "bugs": "https://github.com/Andersseen/Entwine/issues",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "documentation",
+    "knowledge-graph",
+    "agents",
+    "entwine"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json"
+  },
+  "dependencies": {
+    "@entwine/cli": "workspace:*",
+    "@modelcontextprotocol/server": "2.3.1",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "2.3.1",
+    "@types/node": "^22.12.0",
+    "typescript": "^5.9.3"
+  }
+}

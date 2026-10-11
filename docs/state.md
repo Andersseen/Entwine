@@ -5,6 +5,16 @@ The current source implements a zero-config compiler for `docs/**/*.md`, the
 setup, optional [agent knowledge](specs/agent-knowledge.md) discovery, an
 interactive graph, and a public showcase built from its own output.
 
+## Agent integration
+
+`skills/` ships three Agent Skills (`entwine-get-started`, `entwine-knowledge`,
+`entwine-deployment`), validated with the `skills-ref` reference validator and
+installable with the `skills` CLI. `packages/mcp` (`@entwine/mcp`) is a stdio MCP server
+built on `@modelcontextprotocol/server` v2 that wraps the CLI: seven read-only tools,
+a summary resource plus per-document resources, and three prompts. It supports context
+schema `0.4` only and is versioned in lockstep with `@entwine/cli`. Neither piece
+is in a published npm release yet. See [agent integration](agent-integration.md).
+
 ## Release status
 
 Verified on 10 October 2026 from the public GitHub API, Actions runs, and npm:
