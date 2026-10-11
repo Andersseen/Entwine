@@ -798,10 +798,11 @@ fn bitbucket_publish_script_publishes_a_subpath_site_to_the_workspace_repository
         "askpass helper must be removed"
     );
 
+    // `--no-local` avoids hardlink/copy clones, which fail on the macOS runner.
     let published = tempfile::tempdir().unwrap();
     git(
         published.path(),
-        &["clone", "-q", bare.to_str().unwrap(), "site"],
+        &["clone", "-q", "--no-local", bare.to_str().unwrap(), "site"],
     );
     let site = published.path().join("site");
     assert!(
