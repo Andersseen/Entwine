@@ -14,7 +14,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { probeMcp } from "./mcp-probe.ts";
-import { waitForVersions } from "./registry.ts";
+import { backoffDelay, waitForVersions } from "./registry.ts";
 import { releasePackages } from "./release-state.ts";
 
 const { values } = parseArgs({
@@ -34,6 +34,51 @@ if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
 
 const npm = process.platform === "win32" ? "npm.cmd" : "npm";
 const shell = process.platform === "win32";
+
+const installAttempts = 6;
+const installBackoff = { initialMs: 10_000, maxMs: 60_000, factor: 2 };
+
+/** Install both packages into a fresh prefix; returns that prefix. Exits when out of attempts. */
+async function installWithRetry(
+  parent: string,
+  version: string,
+): Promise<string> {
+  for (let attempt = 1; ; attempt++) {
+    const prefix = join(parent, `install-${attempt}`);
+    mkdirSync(prefix);
+    try {
+      execFileSync(
+        npm,
+        [
+          "install",
+          "--prefix",
+          prefix,
+          "--cache",
+          join(parent, "cache"),
+          "--prefer-online",
+          "--no-audit",
+          "--no-fund",
+          `@entwine/cli@${version}`,
+          `@entwine/mcp@${version}`,
+        ],
+        { stdio: "inherit", shell },
+      );
+      return prefix;
+    } catch {
+      if (attempt === installAttempts) {
+        console.error(
+          `@entwine/cli@${version} and @entwine/mcp@${version} are listed by the registry but could not be installed from a clean cache after ${attempt} attempts.`,
+        );
+        process.exit(3);
+      }
+      const delay = backoffDelay(attempt, installBackoff);
+      console.log(
+        `Install attempt ${attempt} failed; the registry index may still be propagating. Retrying in ${Math.round(delay / 1000)}s.`,
+      );
+      await new Promise<void>((resolve) => setTimeout(resolve, delay));
+    }
+  }
+}
 
 console.log(`Step 1/3: waiting for the registry to list ${version}`);
 const seen = await waitForVersions(releasePackages(), version, {
@@ -63,34 +108,15 @@ if (seen.visible.length !== releasePackages().length) {
 const temporary = mkdtempSync(join(tmpdir(), "entwine-registry-"));
 try {
   console.log("Step 2/3: fresh isolated install");
-  try {
-    execFileSync(
-      npm,
-      [
-        "install",
-        "--prefix",
-        temporary,
-        "--cache",
-        join(temporary, "cache"),
-        "--prefer-online",
-        "--no-audit",
-        "--no-fund",
-        `@entwine/cli@${version}`,
-        `@entwine/mcp@${version}`,
-      ],
-      { stdio: "inherit", shell },
-    );
-  } catch {
-    console.error(
-      `@entwine/cli@${version} is listed by the registry but could not be installed from a clean cache.`,
-    );
-    process.exit(3);
-  }
+  // The version endpoint can answer before the package index does, so a fresh
+  // install may 404 for a few minutes after step 1 passed. Each attempt gets its
+  // own prefix so a failed attempt cannot leave partial state behind.
+  const installed = await installWithRetry(temporary, version);
   console.log("Step 3/3: consumer smoke");
   const consumer = join(temporary, "consumer");
   mkdirSync(consumer);
   const launcher = join(
-    temporary,
+    installed,
     "node_modules/@entwine/cli/dist/launcher.js",
   );
   try {
@@ -117,7 +143,7 @@ try {
     const probe = await probeMcp(
       process.execPath,
       [
-        join(temporary, "node_modules/@entwine/mcp/dist/cli.js"),
+        join(installed, "node_modules/@entwine/mcp/dist/cli.js"),
         "--root",
         consumer,
       ],
