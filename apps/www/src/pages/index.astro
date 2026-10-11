@@ -64,6 +64,7 @@ const providers = [
         <a href="/docs/">Documentation</a>
         <a href="/demo/">Live example</a>
         <a href="#convention">Convention</a>
+        <a href="#integrate">For agents</a>
         <a href="#start">Start here</a>
         <a href={repository}>GitHub</a>
       </nav>
@@ -227,6 +228,48 @@ Docs + Graph + Context</code></pre>
           </p>
         </div>
       </section>
+      <section class="commands" id="integrate">
+        <h2>Plug Entwine into your coding agent.</h2>
+        <p class="lead">
+          Two optional pieces, both built on the same CLI and
+          <code>entwine context --json</code>. Neither adds a second parser, and
+          neither writes to your repository.
+        </p>
+        <dl>
+          <div>
+            <dt>Skills</dt>
+            <dd>
+              Instructions an agent loads on demand: get started, maintain
+              knowledge, and publish. They only need the
+              <code>entwine</code> CLI.
+            </dd>
+          </div>
+          <div>
+            <dt>MCP server</dt>
+            <dd>
+              <code>@entwine/mcp</code>: read-only tools, resources, and prompts
+              over your documents, relationships, and validation, via stdio.
+            </dd>
+          </div>
+        </dl>
+        <div class="terminal">
+          <pre><code># Install the skills (Codex and Claude Code)
+npx skills add https://github.com/Andersseen/Entwine/tree/main/skills \
+  --agent codex claude-code --copy -y
+
+# Register the MCP server for this repository
+claude mcp add entwine --scope project -- npx --yes @entwine/mcp --root .
+codex mcp add entwine -- npx --yes @entwine/mcp --root .</code></pre>
+        </div>
+        <p>
+          Then ask: “Use Entwine to give me a project overview.” The server
+          scopes itself to one repository, addresses documents only by ids
+          Entwine knows, and never takes a path. Applying <code>init</code> or
+          <code>setup</code> stays the agent running the CLI under your normal
+          approval.
+          <a href="/docs/agent-integration/">Integration guide</a>.
+        </p>
+      </section>
       <section class="workflow" id="start">
         <div>
           <h2>Start here.</h2>
@@ -340,6 +383,7 @@ entwine build</code></pre>
       <a href={repository}>GitHub</a>
       <a href="/docs/">Documentation</a>
       <a href="/demo/">Example</a>
+      <a href="/docs/agent-integration/">Agents</a>
       <span>MIT licensed</span>
     </footer>
   </body>
@@ -635,6 +679,9 @@ entwine build</code></pre>
   }
   .commands h2 {
     margin-bottom: 2rem;
+  }
+  .commands .terminal {
+    margin: 2rem 0 1.5rem;
   }
   dl > div {
     display: grid;
