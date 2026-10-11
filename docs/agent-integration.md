@@ -28,20 +28,21 @@ the agent running the CLI under its host's normal approval.
 ## Install the skills
 
 Uses the open [`skills`](https://www.npmjs.com/package/skills) installer. Verified
-with `skills` 1.7.2 against this repository's CI (`pnpm test:skills`, which installs
-into a clean repository and checks the files):
+with `skills` 1.7.2: `pnpm test:skills` installs from the local `skills/` directory into a
+clean repository and checks the files, and the GitHub `tree/<branch>/skills` URL form was
+installed from a pushed branch (the `main` URL works once this is merged):
 
 ```sh
 # list what is available (3 skills)
-npx skills add Andersseen/Entwine/skills --list
+npx skills add https://github.com/Andersseen/Entwine/tree/main/skills --list
 
 # install all three for Codex and Claude Code, as copies, without prompts
-npx skills add Andersseen/Entwine/skills \
+npx skills add https://github.com/Andersseen/Entwine/tree/main/skills \
   --skill entwine-get-started entwine-knowledge entwine-deployment \
   --agent codex claude-code --copy -y
 
 # or one skill
-npx skills add Andersseen/Entwine/skills --skill entwine-knowledge --agent codex --copy -y
+npx skills add https://github.com/Andersseen/Entwine/tree/main/skills --skill entwine-knowledge --agent codex --copy -y
 ```
 
 | Host | Installed to | Notes |
