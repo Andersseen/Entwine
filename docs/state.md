@@ -69,6 +69,15 @@ The cause is not visible to a read-only connection; an owner must inspect
 Settings → Actions and any organization policy. Nothing was published and no
 credential was introduced.
 
+### Release re-check, 11 October 2026 (later)
+
+`v0.6.0` is still not public: no GitHub release or tag, npm `latest` is `0.5.1`.
+The `Release` run for `3fc593e` failed in `release-please` with the same
+`Resource not accessible by integration`. The `CI` run for `3fc593e` also failed
+on `portability (macos-14)`: the Bitbucket publish test cloned a local bare
+repository with default hardlink/copy semantics, which fails on that runner. The
+test now clones with `--no-local`.
+
 ## Deployment validation
 
 Generated pipelines and portable output are verified locally; no live provider

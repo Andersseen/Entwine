@@ -99,9 +99,13 @@ pub fn load_config(project: &Path) -> io::Result<Config> {
 /// Parse `entwine.toml` text. Unknown keys are rejected so typos never silently publish or hide.
 pub fn parse_config(text: &str) -> io::Result<Config> {
     toml::from_str(text).map_err(|e| {
+        let location = e.span().map_or(String::new(), |span| {
+            let before = &text.as_bytes()[..span.start.min(text.len())];
+            format!("{}:", before.iter().filter(|b| **b == b'\n').count() + 1)
+        });
         io::Error::new(
             io::ErrorKind::InvalidInput,
-            format!("Invalid entwine.toml: {}", e.message().trim()),
+            format!("Invalid entwine.toml:{location} {}", e.message().trim()),
         )
     })
 }

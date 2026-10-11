@@ -6,6 +6,7 @@
       "!**/dist",
       "!**/deployment",
       "!**/target",
+      "!**/test-results",
       "!**/node_modules",
       "!**/.astro",
       "!**/.turbo",

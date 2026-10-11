@@ -99,6 +99,12 @@ entwine setup                     # automate validation + publishing with your G
 `init` scaffolds questions, never answers: no AI, no code inspection, and it
 never overwrites. `check` fails on errors and only reports recommended areas.
 
+`build` writes `dist/`; add `dist/` to `.gitignore` (the command reminds you when
+Git would track it). To preview built output, serve `dist/` over HTTP with any
+static server; `entwine dev` does this for you while you edit. A project path that
+does not exist or is not a directory is reported by name, and an invalid
+`entwine.toml` is reported with its line number.
+
 **Other commands:**
 
 ```sh
