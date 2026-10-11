@@ -94,6 +94,9 @@ fn bitbucket_rejects_hostile_provider_variables_before_any_external_operation() 
         "space name",
         "",
         "a\nb",
+        ".git",
+        "..",
+        ".hidden",
     ] {
         let temporary = tempfile::tempdir().unwrap();
         let output = std::process::Command::new("sh")

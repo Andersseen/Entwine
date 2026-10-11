@@ -57,6 +57,23 @@ covered by mocked release-tooling tests and passed the PR CI run
 [38073298676](https://github.com/Andersseen/Entwine/actions/runs/38073298676).
 They have not yet been exercised against a live release.
 
+### Release re-check, 11 October 2026
+
+Release run [38074664259](https://github.com/Andersseen/Entwine/actions/runs/38074664259)
+on `314bc95` (which contains the #38 hardening) passed its guard and then failed
+in `release-please` with the same `Resource not accessible by integration` from
+`POST /repos/{owner}/{repo}/releases`. Read-only API checks show: no `v0.6.0`
+release or tag, npm `latest` still `0.5.1`, default workflow permissions `read`,
+one repository ruleset (`Protect Main`) disabled, immutable releases disabled.
+The cause is not visible to a read-only connection; an owner must inspect
+Settings → Actions and any organization policy. Nothing was published and no
+credential was introduced.
+
+## Deployment validation
+
+Generated pipelines and portable output are verified locally; no live provider
+deployment has been run. See [deployment validation](deployment-validation.md).
+
 ## Implemented commands
 
 | Command                             | Result                                                                                               |

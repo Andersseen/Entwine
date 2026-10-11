@@ -19,7 +19,8 @@ entwine build   → portable dist/ for any other hosting
 After `setup`, the provider's CI owns publishing; Entwine has no `publish`
 command and stores no credentials. See
 [the decision](decisions/provider-owned-publishing.md) and the
-[generated CI contract](specs/generated-ci.md).
+[generated CI contract](specs/generated-ci.md). What is verified, and how, is
+in [deployment validation](deployment-validation.md).
 
 ## Portable output: `entwine build`
 

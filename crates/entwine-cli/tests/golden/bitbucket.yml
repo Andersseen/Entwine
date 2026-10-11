@@ -37,11 +37,11 @@ pipelines:
                 exit 1
               fi
               # Provider variables are data, never executable shell or path traversal.
-              for value in "$BITBUCKET_WORKSPACE" "$BITBUCKET_REPO_SLUG"; do
-                case "$value" in
-                  ""|*[!a-zA-Z0-9_-]*|-*) echo "Invalid Bitbucket workspace or repository slug" >&2; exit 1 ;;
-                esac
-              done
+              # Repository slugs may contain periods (my.docs); a leading period is refused so
+              # a slug can never name .git or a hidden path inside the site repository.
+              invalid() { echo "Invalid Bitbucket workspace or repository slug" >&2; exit 1; }
+              case "$BITBUCKET_WORKSPACE" in ""|*[!a-zA-Z0-9_-]*|-*) invalid ;; esac
+              case "$BITBUCKET_REPO_SLUG" in ""|*[!a-zA-Z0-9._-]*|-*|.*) invalid ;; esac
               DIST="$BITBUCKET_CLONE_DIR/dist"
               SITE="$HOME/entwine-site"
               ASKPASS="$HOME/entwine-askpass.sh"

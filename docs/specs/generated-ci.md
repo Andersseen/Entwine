@@ -10,7 +10,8 @@ See [deployment](../deployment.md) for the provider details.
 - A repository change on the default branch runs `entwine check`, then
   `entwine build`, then publishes the artifact that build produced, without
   rebuilding differently at deploy time.
-- Unrelated source changes do not trigger documentation builds.
+- Triggers cover the whole repository, because repository references may point
+  anywhere; there is no documentation-only path filter.
 - Pull and merge requests are never published.
 
 ## Safety
