@@ -23,7 +23,7 @@ Verified on 10 October 2026 from the public GitHub API, Actions runs, and npm:
 | ------- | ------------------------------------ | ---------------------- |
 | 0.5.0   | Public                               | Published              |
 | 0.5.1   | Public prerelease; not marked latest | Published and `latest` |
-| 0.6.0   | Not published                        | Not published          |
+| 0.6.0   | Skipped; never released              | Not published          |
 
 The `v0.5.1` release targets commit `898ebd79`. Its four native archives and
 `SHA256SUMS` were already attached; I downloaded them and verified every archive
@@ -41,6 +41,15 @@ published, the release state is consistent again.
 
 The repository `main` is at source version `0.6.0`, which has not been
 published. npm's latest launcher remains `0.5.1`.
+
+**Decision (11 October 2026):** `0.6.0` is skipped. Its release PR (#34) merged while
+`0.5.1` was still a draft, and GitHub refused to create the release afterwards, so every
+`main` push failed in `release-please`. PR #34 is relabelled `autorelease: tagged`, and
+`last-release-sha` in `release-please-config.json` anchors the next release PR (`0.7.0`,
+which carries the MCP server and skills) at the #34 merge commit, so it lists only commits
+after it. Remove `last-release-sha` once `v0.7.0` is published. The `0.7.0` release is the
+first real test of release creation; if it fails with the same error, check the
+admin-only Actions settings before adding any credential workaround.
 
 The subsequent release-please run [38068919404](https://github.com/Andersseen/Entwine/actions/runs/38068919404)
 failed while creating the GitHub release with `Resource not accessible by

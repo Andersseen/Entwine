@@ -7,6 +7,7 @@
   "bump-patch-for-minor-pre-major": false,
   "draft": true,
   "initial-version": "0.1.0",
+  "last-release-sha": "8b70db0fbbdcea53f908b8d7b230f94d46ef3c19",
   "changelog-sections": [
     {
       "type": "feat",

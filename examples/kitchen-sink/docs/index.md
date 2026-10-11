@@ -49,6 +49,24 @@ The [`entwine.toml`](../entwine.toml) in this example turns discovery on and
 publishes them, so the **Agents** view and the graph show how they connect to
 the documents above. Without that file Entwine would ignore them.
 
+## Connect an agent
+
+A coding agent can read this same knowledge without scraping the generated site.
+Entwine ships portable skills and a read-only MCP server that sit on top of
+`entwine context --json`:
+
+```sh
+# Teach the agent the workflow
+npx skills add https://github.com/Andersseen/Entwine/tree/main/skills --agent codex claude-code --copy -y
+
+# Give it structured, read-only access to Harbor's documents
+claude mcp add entwine --scope project -- npx --yes @entwine/mcp --root .
+```
+
+Through MCP the agent can ask for the [architecture](architecture.md) or the
+[current state](state.md), follow the relationships around a decision, and run the
+validation, without being able to write anything. Markdown stays the source of truth.
+
 ## Local workflow
 
 ```sh
