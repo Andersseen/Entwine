@@ -13,6 +13,7 @@ import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
+import { probeMcp } from "./mcp-probe.ts";
 import { waitForVersions } from "./registry.ts";
 import { releasePackages } from "./release-state.ts";
 
@@ -75,6 +76,7 @@ try {
         "--no-audit",
         "--no-fund",
         `@entwine/cli@${version}`,
+        `@entwine/mcp@${version}`,
       ],
       { stdio: "inherit", shell },
     );
@@ -111,7 +113,33 @@ try {
     );
     process.exit(4);
   }
-  console.log(`✓ public @entwine/cli@${version} consumer smoke passed`);
+  try {
+    const probe = await probeMcp(
+      process.execPath,
+      [
+        join(temporary, "node_modules/@entwine/mcp/dist/cli.js"),
+        "--root",
+        consumer,
+      ],
+      consumer,
+      { ...process.env, ENTWINE_BIN: launcher },
+    );
+    if (
+      probe.serverName !== "entwine" ||
+      probe.tools.length < 7 ||
+      probe.stray.length
+    ) {
+      throw new Error(JSON.stringify(probe));
+    }
+  } catch (error) {
+    console.error(
+      `@entwine/mcp@${version} installs but does not complete an MCP handshake: ${error instanceof Error ? error.message : error}`,
+    );
+    process.exit(5);
+  }
+  console.log(
+    `✓ public @entwine/cli@${version} and @entwine/mcp@${version} consumer smoke passed`,
+  );
 } finally {
   rmSync(temporary, { recursive: true, force: true });
 }

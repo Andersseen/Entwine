@@ -12,6 +12,7 @@ for (const path of [
   "package.json",
   "apps/www/package.json",
   "packages/cli/package.json",
+  "packages/mcp/package.json",
 ]) {
   const manifest = JSON.parse(readFileSync(join(root, path), "utf8")) as {
     version: string;
@@ -27,8 +28,43 @@ for (const name of ["entwine-core", "entwine-engine", "entwine-cli"]) {
   if (locked !== version)
     throw new Error(`Cargo.lock ${name}: ${locked} != ${version}`);
 }
+
+// @entwine/mcp ships with exactly the CLI it was built against and only
+// interprets the context schema version that CLI emits.
+const mcpManifest = JSON.parse(
+  readFileSync(join(root, "packages/mcp/package.json"), "utf8"),
+) as { dependencies?: Record<string, string> };
+const cliDependency = mcpManifest.dependencies?.["@entwine/cli"];
+if (cliDependency !== "workspace:*" && cliDependency !== version) {
+  throw new Error(
+    `packages/mcp must depend on @entwine/cli as workspace:* or exactly ${version}, got ${cliDependency}`,
+  );
+}
+const projections = readFileSync(
+  join(root, "crates/entwine-engine/src/projections.rs"),
+  "utf8",
+);
+const schema = projections.match(
+  /CONTEXT_SCHEMA_VERSION: &str = "([^"]+)"/,
+)?.[1];
+if (!schema) throw new Error("No CONTEXT_SCHEMA_VERSION in the engine");
+const mcpVersions = readFileSync(
+  join(root, "packages/mcp/src/version.ts"),
+  "utf8",
+);
+const supported = mcpVersions.match(
+  /SUPPORTED_SCHEMA_VERSIONS: readonly string\[\] = \[([^\]]*)\]/,
+)?.[1];
+if (!supported?.includes(`"${schema}"`)) {
+  throw new Error(
+    `@entwine/mcp does not support the engine context schema ${schema} (supports ${supported})`,
+  );
+}
+
 const expected = process.argv[2];
 if (expected && expected !== version) {
   throw new Error(`Release ${expected} != workspace ${version}`);
 }
-console.log(`✓ all package and lock versions agree: ${version}`);
+console.log(
+  `✓ all package and lock versions agree: ${version} (context schema ${schema})`,
+);

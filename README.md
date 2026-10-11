@@ -35,6 +35,10 @@ context is a third.
 
 > **Experimental / pre-1.0.** APIs and the context schema may change.
 
+## Use it from an agent
+
+Three Agent Skills (`skills/`) and a read-only MCP server (`packages/mcp`) let agents in other repositories adopt, query and validate Entwine knowledge. See [docs/agent-integration.md](docs/agent-integration.md). `@entwine/mcp` is not yet on npm.
+
 ## See it live
 
 Entwine's own showcase is published to Cloudflare Pages. (That is this project's choice; see [provider-native publishing](#publishing-with-your-git-provider) for what your repository gets.)

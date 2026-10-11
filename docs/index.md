@@ -40,3 +40,5 @@ parsed knowledge. Markdown remains the source of truth.
 
 This documentation is itself compiled by Entwine and follows its own
 convention. Entwine is experimental and pre-stable.
+
+- [Agent integration](agent-integration.md): skills and the MCP server for agents in other repositories.

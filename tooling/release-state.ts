@@ -88,6 +88,7 @@ export function assetsToUpload(
 export const releasePackages = (): string[] => [
   "@entwine/cli",
   ...targets.map(platformPackage),
+  "@entwine/mcp",
 ];
 
 export interface ResumeFacts {
