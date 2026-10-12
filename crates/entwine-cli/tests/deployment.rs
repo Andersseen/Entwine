@@ -894,3 +894,89 @@ fn the_host_simulator_detects_the_defects_it_exists_to_catch() {
         ("a b.PNG", "x")
     ]));
 }
+
+/// Selective publication, verified on the complete generated tree of a real build:
+/// every file and file name is scanned for private canaries, and the public skill
+/// pages stay reachable at the root and under a Pages subpath.
+#[test]
+fn selective_agent_publication_leaves_no_private_byte_in_dist() {
+    const PUBLIC: &str = ".agents/skills/public-skill/SKILL.md";
+    let canaries = [
+        "PRIVATE-CANARY-a41f",
+        "PRIVATE-RULES-c7d2",
+        "PRIVATE-NESTED-9e08",
+    ];
+    let temp = tempfile::tempdir().unwrap();
+    let project = temp.path().join("project");
+    write(&project, "entwine.toml", &format!("[discovery]\nagent_instructions = true\nskills = true\n\n[site]\npublic_agent_paths = [\"{PUBLIC}\"]\n"));
+    write(&project, "docs/index.md", "# Home\n\nSkill: [public](../.agents/skills/public-skill/SKILL.md). Rules: [rules](../AGENTS.md). Hidden: [hidden](../.agents/skills/hidden-skill/SKILL.md).\n");
+    write(&project, PUBLIC, "---\nname: public-skill\ndescription: Visible.\n---\n# Public skill\n\n[hidden](../hidden-skill/SKILL.md) [rules](../../../AGENTS.md) [docs](../../../docs/index.md)\n");
+    write(
+        &project,
+        ".agents/skills/hidden-skill/SKILL.md",
+        &format!(
+            "---\nname: hidden-skill\ndescription: {}\n---\n# Zeta Heading Unique\n",
+            canaries[0]
+        ),
+    );
+    write(
+        &project,
+        "AGENTS.md",
+        &format!("# Rules\n\n{}\n", canaries[1]),
+    );
+    write(
+        &project,
+        "services/api/CLAUDE.md",
+        &format!("# API\n\n{}\n", canaries[2]),
+    );
+    let p = project.to_str().unwrap();
+    ok(entwine(&["check", p], temp.path()));
+    ok(entwine(&["build", p], temp.path()));
+    let dist = project.join("dist");
+    fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
+        for entry in fs::read_dir(dir).unwrap().flatten() {
+            if entry.path().is_dir() {
+                walk(&entry.path(), out);
+            } else {
+                out.push(entry.path());
+            }
+        }
+    }
+    let mut files = Vec::new();
+    walk(&dist, &mut files);
+    for file in &files {
+        let name = file.to_string_lossy();
+        let bytes = fs::read(file).unwrap();
+        let text = String::from_utf8_lossy(&bytes);
+        for marker in canaries.iter().copied().chain([
+            "dot-agents/skills/hidden-skill",
+            "Zeta Heading Unique",
+            "services/api",
+            "instructions/AGENTS",
+        ]) {
+            assert!(!text.contains(marker), "{name} leaks {marker}");
+            assert!(
+                !name.contains(&marker.replace(' ', "")),
+                "{name} is private"
+            );
+        }
+    }
+    assert!(!dist
+        .join("__entwine/agents/skills/dot-agents/skills/hidden-skill")
+        .exists());
+    assert!(dist
+        .join("__entwine/agents/skills/dot-agents/skills/public-skill/index.html")
+        .is_file());
+    for prefix in ["/", "/widgets/"] {
+        let result = crawl(&dist, prefix);
+        assert!(
+            result.pages.iter().any(|p| p.contains("public-skill/")),
+            "{prefix}: public skill is unreachable"
+        );
+    }
+    // The private data still exists locally, unchanged.
+    let context = ok(entwine(&["context", "--json", p], temp.path()));
+    for canary in canaries {
+        assert!(context.contains(canary), "context lost {canary}");
+    }
+}

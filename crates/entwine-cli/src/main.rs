@@ -5,6 +5,7 @@ mod init;
 mod knowledge;
 mod output;
 mod provider;
+mod readme;
 mod server;
 mod setup;
 mod templates;
@@ -80,6 +81,13 @@ enum Command {
         /// Override provider detection, for example for self-hosted GitLab.
         #[arg(long, value_enum)]
         provider: Option<setup::ProviderChoice>,
+        /// Add or update a managed documentation link in the repository README.md.
+        #[arg(long)]
+        readme_link: bool,
+        /// Documentation site URL for --readme-link (HTTPS, no credentials). Needed unless
+        /// a GitHub Pages URL can be derived unambiguously.
+        #[arg(long, value_name = "URL", requires = "readme_link")]
+        site_url: Option<String>,
     },
     /// Write deterministic project context to stdout.
     Context {
@@ -230,9 +238,16 @@ fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             project,
             dry_run,
             provider,
+            readme_link,
+            site_url,
         } => setup::run(
             &resolve_project(&project)?,
-            &setup::Options { dry_run, provider },
+            &setup::Options {
+                dry_run,
+                provider,
+                readme_link,
+                site_url,
+            },
         ),
         Command::Context { project, json } => {
             let compilation = checked(&resolve_project(&project)?)?;

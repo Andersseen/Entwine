@@ -3,6 +3,7 @@ use crate::{
     ci::{self, Layout},
     fsafe::{create_new, Written},
     provider::{self, Provider, Repository},
+    readme,
 };
 use std::{
     fs,
@@ -12,6 +13,8 @@ use std::{
 pub(crate) struct Options {
     pub dry_run: bool,
     pub provider: Option<ProviderChoice>,
+    pub readme_link: bool,
+    pub site_url: Option<String>,
 }
 #[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
 pub(crate) enum ProviderChoice {
@@ -268,13 +271,43 @@ fn describe(change: &Change, dry_run: bool) -> String {
 }
 
 pub(crate) fn run(project: &Path, options: &Options) -> Result<(), Box<dyn std::error::Error>> {
-    let version = env!("CARGO_PKG_VERSION");
+    // Validate the URL before anything is written, so a typo never half-applies setup.
+    if let Some(url) = &options.site_url {
+        readme::parse_site_url(url)?;
+    }
     let repository: Repository = provider::inspect(project);
     println!("Entwine setup\n");
+    let planned = ci_setup(project, options, &repository)?;
+    if options.readme_link {
+        match repository.root.as_ref().map(|r| r.canonicalize()) {
+            Some(root) => readme::run(&readme::Request {
+                root: &root?,
+                repository: &repository,
+                site_url: options.site_url.as_deref(),
+                dry_run: options.dry_run,
+            })?,
+            None => {
+                println!("\n⚠ --readme-link needs a Git repository; README.md was not changed.")
+            }
+        }
+    }
+    if options.dry_run && (planned || options.readme_link) {
+        println!("\nNo files changed.");
+    }
+    Ok(())
+}
+
+/// The CI half of setup. Returns whether a dry-run plan was printed.
+fn ci_setup(
+    project: &Path,
+    options: &Options,
+    repository: &Repository,
+) -> Result<bool, Box<dyn std::error::Error>> {
+    let version = env!("CARGO_PKG_VERSION");
     let Some(root) = repository.root.clone() else {
         println!("⚠ No Git repository detected.\n");
         fallback();
-        return Ok(());
+        return Ok(false);
     };
     let root = root.canonicalize()?;
     println!("✓ Git repository detected");
@@ -307,7 +340,7 @@ pub(crate) fn run(project: &Path, options: &Options) -> Result<(), Box<dyn std::
         }
         println!();
         fallback();
-        return Ok(());
+        return Ok(false);
     }
     println!("✓ Provider: {}\n", provider.name());
     let layout = layout(&root, project).map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
@@ -320,8 +353,7 @@ pub(crate) fn run(project: &Path, options: &Options) -> Result<(), Box<dyn std::
             println!("{}", describe(change, true));
         }
         print_triggers(&plan);
-        println!("\nNo files changed.");
-        return Ok(());
+        return Ok(true);
     }
     let mut all_configured = true;
     for change in &plan.changes {
@@ -332,7 +364,7 @@ pub(crate) fn run(project: &Path, options: &Options) -> Result<(), Box<dyn std::
     }
     if all_configured {
         println!("\n✓ already configured");
-        return Ok(());
+        return Ok(false);
     }
     print_triggers(&plan);
     println!("\nNext (one-time):");
@@ -343,7 +375,7 @@ pub(crate) fn run(project: &Path, options: &Options) -> Result<(), Box<dyn std::
     println!(
         "To remove this setup, delete the generated files. `entwine build` still produces dist/."
     );
-    Ok(())
+    Ok(false)
 }
 
 fn print_triggers(plan: &Plan) {

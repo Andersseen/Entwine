@@ -92,6 +92,8 @@ pub(crate) struct Repository {
     pub remote_name: Option<String>,
     pub remote: Option<Remote>,
     pub provider: Provider,
+    /// Every parseable remote, so callers can detect ambiguity (forks, mirrors).
+    pub remotes: Vec<Remote>,
     /// Remote default branch when known locally, else the current branch.
     pub default_branch: Option<String>,
 }
@@ -140,6 +142,7 @@ pub(crate) fn inspect(project: &Path) -> Repository {
         remote_name: None,
         remote: None,
         provider: Provider::Unknown,
+        remotes: Vec::new(),
         default_branch: None,
     };
     let Some(root) = root else { return repository };
@@ -158,6 +161,7 @@ pub(crate) fn inspect(project: &Path) -> Repository {
         })
         .unwrap_or_default();
     let mut first = None;
+    let mut known = false;
     for name in order_remotes(names, branch_remote.as_deref()) {
         let Some(url) = git(&root, &["remote", "get-url", &name]) else {
             continue;
@@ -166,12 +170,13 @@ pub(crate) fn inspect(project: &Path) -> Repository {
             continue;
         };
         let provider = classify(&remote.host);
+        repository.remotes.push(remote.clone());
         if first.is_none() {
             first = Some((name.clone(), remote.clone(), provider));
-        }
-        if provider != Provider::Unknown {
+            known = provider != Provider::Unknown;
+        } else if !known && provider != Provider::Unknown {
             first = Some((name, remote, provider));
-            break;
+            known = true;
         }
     }
     if let Some((name, remote, provider)) = first {
