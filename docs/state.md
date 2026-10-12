@@ -12,8 +12,11 @@ interactive graph, and a public showcase built from its own output.
 installable with the `skills` CLI. `packages/mcp` (`@entwine/mcp`) is a stdio MCP server
 built on `@modelcontextprotocol/server` v2 that wraps the CLI: seven read-only tools,
 a summary resource plus per-document resources, and three prompts. It supports context
-schema `0.4` only and is versioned in lockstep with `@entwine/cli`. Neither piece
-is in a published npm release yet. See [agent integration](agent-integration.md).
+schema `0.4` only and is versioned in lockstep with `@entwine/cli`. `@entwine/mcp`
+and `@entwine/cli` are published on npm at `0.7.0` (verified 12 October 2026, see
+[release status](#release-status)); the skills are installed from GitHub with the
+`skills` CLI, and no `@entwine/skills` package exists. See
+[agent integration](agent-integration.md).
 
 ## Release status
 
@@ -24,6 +27,13 @@ Verified on 10 October 2026 from the public GitHub API, Actions runs, and npm:
 | 0.5.0   | Public                               | Published              |
 | 0.5.1   | Public prerelease; not marked latest | Published and `latest` |
 | 0.6.0   | Skipped; never released              | Not published          |
+| 0.7.0   | Released                             | Published and `latest` |
+
+On 12 October 2026 the registry listed `@entwine/cli`, `@entwine/mcp` and the four
+platform packages (`-darwin-arm64`, `-darwin-x64`, `-linux-x64`, `-win32-x64`) all at
+`0.7.0`; `@entwine/mcp@0.7.0` depends on `@entwine/cli@0.7.0` exactly. `node
+tooling/smoke-public.ts --version 0.7.0` (fresh install, CLI run, MCP handshake)
+passed against the real registry. Release PR #44 (`0.8.0`) is untouched.
 
 The `v0.5.1` release targets commit `898ebd79`. Its four native archives and
 `SHA256SUMS` were already attached; I downloaded them and verified every archive
@@ -39,8 +49,7 @@ The release guard remains in place: while a draft is pending, a `main` push
 skips release-please and downstream release jobs. After `v0.5.1` was
 published, the release state is consistent again.
 
-The repository `main` is at source version `0.6.0`, which has not been
-published. npm's latest launcher remains `0.5.1`.
+Superseded: `0.7.0` has since been released and published (see the table above).
 
 **Decision (11 October 2026):** `0.6.0` is skipped. Its release PR (#34) merged while
 `0.5.1` was still a draft, and GitHub refused to create the release afterwards, so every
@@ -153,7 +162,10 @@ agent-facing is discovered or published. With it, `[discovery]` turns on
 (`SKILL.md`), and `[site] include_agent_knowledge` separately decides whether
 they reach the generated site. Discovered files are always present in
 `entwine context` and reported by `entwine check`; they are public only when
-publication is explicitly enabled. Unknown keys are errors. See
+publication is explicitly enabled. `[site] public_agent_paths` (source-only, after
+0.7.0) publishes an exact list of discovered artifacts instead of all of them; the
+filter is applied at the projection boundary, so context, `check` and the MCP server
+still see everything. Unknown keys are errors. See
 [agent knowledge](specs/agent-knowledge.md).
 
 The optional `[site] renderer = "flowview"` setting selects the experimental
@@ -212,6 +224,45 @@ x86_64, and Windows x86_64 on GitHub Releases, with SHA-256 checksums, and the
 same binaries to npm as `@entwine/cli` plus one `@entwine/cli-<platform>` package
 per target. See [release status](#release-status). Generated CI pins
 `@entwine/cli` at the CLI's own version; see [deployment](deployment.md).
+
+## Official website and the Andersseen UI packages
+
+`apps/www` (the Astro site at the root of the Cloudflare Pages deployment) uses the
+author's framework-agnostic UI packages, pinned exactly: `@andersseen/layout@0.0.1`
+(`and-layout` / `and-text` attributes, CSS only), `@andersseen/icon@0.2.0` (selective
+CSS-only icons, nine rules, no runtime), `@andersseen/motion@0.2.0` (`fade-in-up` on
+three cards and one transcript; honours `prefers-reduced-motion`; content is never
+hidden before JavaScript runs) and `@andersseen/web-components@0.5.1` (`and-tabs` for
+Codex / Claude Code, `and-badge` for the version). Only five custom elements are bundled
+and they are loaded as lazy chunks when the agent section nears the viewport; without
+JavaScript every command is visible and the copy buttons stay hidden. The generated
+Entwine documentation depends on none of this: it is built by the Rust renderer and has
+no Astro, Stencil or CDN dependency.
+
+Measured on `pnpm --filter @entwine/www build` (gzip): before, HTML 4.3 KB, CSS 1.9 KB,
+no JavaScript; after, HTML 6.1 KB, CSS 26.3 KB (layout 9, motion 4, components 8, site 5),
+2.8 KB eager JavaScript and about 31 KB of lazy component chunks.
+
+Upstream findings, not worked around by editing those repositories:
+
+- `@andersseen/astro@0.0.2` was published without its `dist/` directory (the tarball
+  holds only `package.json`, `README.md`, `LICENSE`), so it cannot be imported.
+  `0.0.1` has `dist/`, but it injects an eager page script for all components and
+  every icon, which conflicts with lazy loading. Entwine therefore registers its five
+  elements itself, with the per-component entry points the integration would use.
+- `@andersseen/web-components@0.5.1` ships its stylesheet with the full Tailwind
+  preflight (global `body`, `p`, `a`, heading and list resets) and `:host-context()`
+  rules that make CSS minifiers warn. `astro.config.ts` strips both by marker and
+  fails the build if the marker moves.
+- When defined after the page is parsed, `and-tabs` leaves every panel hidden until its
+  value is re-assigned (`selectInitialTab` in `src/scripts/site.ts`), and `and-accordion`
+  intermittently leaves triggers without `aria-expanded` (about 1 in 25 loads). The
+  troubleshooting disclosure therefore uses native `<details>`.
+
+The "words glued to code" defect (`andentwine`, `theentwine CLI`, `approval.Integration
+guide`) was Astro's default `compressHTML`, which drops a newline-leading space before
+an inline tag. `compressHTML: false` fixes it at the source, and `e2e/www.spec.ts`
+checks every inline `code` and link for glued neighbours.
 
 ## Provider-native publishing
 

@@ -192,7 +192,7 @@ pub(crate) fn links(
     repository: &Path,
     source: Option<&RepositorySource>,
     artifacts: &Artifacts,
-    publish_artifacts: bool,
+    publication: &Publication,
     dependencies: &mut Vec<String>,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
@@ -222,7 +222,7 @@ pub(crate) fn links(
                         // A discovered agent artifact is knowledge, not a plain repository file.
                         if let Some((id, route)) = artifacts.get(&path) {
                             link.target = Some(id.clone());
-                            if publish_artifacts {
+                            if publication.allows(&path) {
                                 link.href =
                                     relative_url(parsed.document.route.as_str(), route.as_str());
                                 if let Some((_, fragment)) = link.destination.split_once('#') {
@@ -397,6 +397,7 @@ pub(crate) fn source_url(source: &RepositorySource, path: &str, destination: &st
 
 /// Everything an agent artifact's links can resolve to, keyed by repository path.
 pub(crate) struct ArtifactContext<'a> {
+    pub publication: &'a Publication,
     pub documents: &'a BTreeMap<String, (DocumentId, Route)>,
     pub artifacts: &'a Artifacts,
     pub repository: &'a Path,
@@ -416,6 +417,7 @@ pub(crate) fn artifact_links(
     for (link, index) in parsed.document.links.iter_mut().zip(&parsed.link_events) {
         let destination = link.destination.clone();
         let mut href = destination.clone();
+        let mut private_target = false;
         let lowered = destination.to_ascii_lowercase();
         let external = destination.starts_with("//")
             || ["http:", "https:", "mailto:", "tel:"]
@@ -474,6 +476,16 @@ pub(crate) fn artifact_links(
                             href.push('#');
                             href.push_str(anchor);
                         }
+                        // The model keeps the route; the rendered page never reveals a
+                        // private artifact's generated route.
+                        if context
+                            .artifacts
+                            .get(&target)
+                            .is_some_and(|artifact| artifact.0 == *id)
+                            && !context.publication.allows(&target)
+                        {
+                            private_target = true;
+                        }
                     } else {
                         let mut file_path = context.repository.to_path_buf();
                         let mut crosses_symlink = false;
@@ -520,7 +532,21 @@ pub(crate) fn artifact_links(
             }
         }
         link.href = href;
-        if let Some(Event::Start(Tag::Link { dest_url, .. })) = parsed.events.get_mut(*index) {
+        if private_target {
+            // Keep the authored link text, drop the anchor: the rendered page must not
+            // reveal that a private artifact exists or where it would live.
+            parsed.events[*index] = Event::Html(CowStr::from("<span class=\"private-reference\">"));
+            if let Some(end) = parsed
+                .events
+                .iter()
+                .enumerate()
+                .skip(index + 1)
+                .find_map(|(i, e)| matches!(e, Event::End(TagEnd::Link)).then_some(i))
+            {
+                parsed.events[end] = Event::Html(CowStr::from("</span>"));
+            }
+        } else if let Some(Event::Start(Tag::Link { dest_url, .. })) = parsed.events.get_mut(*index)
+        {
             *dest_url = CowStr::from(link.href.clone());
         }
     }
@@ -535,4 +561,32 @@ pub(crate) fn artifact_links(
 /// Percent-encode one URL query or path component.
 pub(crate) fn encode_component(value: &str) -> String {
     utf8_percent_encode(value, URL_SEGMENT).to_string()
+}
+
+/// Which discovered agent artifacts reach the generated site. Discovery never implies
+/// publication: the default is [`Publication::None`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum Publication {
+    None,
+    All,
+    Selected(BTreeSet<String>),
+}
+impl Publication {
+    pub(crate) fn from_config(config: &Config) -> Self {
+        if config.site.include_agent_knowledge {
+            Self::All
+        } else if config.site.public_agent_paths.is_empty() {
+            Self::None
+        } else {
+            Self::Selected(config.site.public_agent_paths.iter().cloned().collect())
+        }
+    }
+    /// Whether the artifact at this repository-relative path is public.
+    pub(crate) fn allows(&self, path: &str) -> bool {
+        match self {
+            Self::None => false,
+            Self::All => true,
+            Self::Selected(paths) => paths.contains(path),
+        }
+    }
 }

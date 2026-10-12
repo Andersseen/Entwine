@@ -27,7 +27,8 @@ include_agent_knowledge = false
 | --- | --- | --- |
 | `discovery.agent_instructions` | `false` | Discover `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` |
 | `discovery.skills` | `false` | Discover `SKILL.md` manifests and their folders |
-| `site.include_agent_knowledge` | `false` | Publish discovered files in the generated site and graph |
+| `site.include_agent_knowledge` | `false` | Publish **every** discovered file in the generated site and graph |
+| `site.public_agent_paths` | `[]` | Publish **only** these discovered files (source-only until the next release; see below) |
 
 Unknown sections or keys, and values of the wrong type, are errors
 (`Invalid entwine.toml: ...`). The file must not be a symbolic link.
@@ -77,12 +78,50 @@ references.
 1. **Discovery** (`[discovery]`): files enter the knowledge model.
 2. **Projection**: `entwine context`, `entwine check`, and the structured model
    always include discovered files.
-3. **Publication** (`site.include_agent_knowledge`): only when `true` do the
-   generated site, its graph, and the `/__entwine/agents/` views include them.
+3. **Publication** (`site.include_agent_knowledge` or `site.public_agent_paths`): only
+   what is explicitly published reaches the generated site, its graph, and the
+   `/__entwine/agents/` views.
 
 With publication off, a documentation link to `AGENTS.md` renders as a labeled
 repository path, exactly as it does without any configuration, and no output file
 mentions the agent files. Publish only files you are happy to expose.
+
+### Selective publication
+
+`site.public_agent_paths` publishes a named subset, for example public skills while
+internal `AGENTS.md` files stay private:
+
+```toml
+[discovery]
+agent_instructions = true
+skills = true
+
+[site]
+public_agent_paths = [
+  ".agents/skills/entwine-get-started/SKILL.md",
+  ".agents/skills/entwine-knowledge/SKILL.md",
+]
+```
+
+Rules, all enforced as errors rather than silently widened:
+
+- Entries are exact, `/`-separated, repository-relative paths of discovered artifacts
+  (the `agent.path` in `entwine context --json`). No globs, directories, absolute
+  paths, `.`/`..` segments, backslashes or duplicates.
+- The file name must be `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` or `SKILL.md`, its
+  discovery switch must be on, and the file must actually have been discovered (so a
+  missing file, a symlink escape, `docs/` and skipped directories are all rejected).
+- It contradicts `include_agent_knowledge = true`; set one or the other.
+- An empty list (the default) publishes nothing. Discovery alone never publishes.
+
+The filter is applied at the projection boundary. The full model, `entwine context`
+and `check` are unchanged, and the MCP server still sees every discovered artifact
+locally. Pages, navigation, the graph (nodes, edges, files), backlinks, references,
+source links, rendered HTML and embedded graph data contain only the selected
+artifacts. A selected skill that links a private file keeps its link text, but the
+anchor is removed so no private route is revealed; documentation that links a private
+artifact renders it as an ordinary repository path, as with publication off. With no
+selected artifact there are no `/__entwine/agents/` content pages.
 
 ## Generated views
 

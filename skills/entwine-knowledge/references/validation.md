@@ -8,7 +8,7 @@
 | `No incoming document relationships` (warning) | orphan page | link to it from a related page, e.g. index |
 | type/path disagreement (warning) | frontmatter `type` differs from canonical path | keep the explicit type or move the file |
 | missing recommended area (warning) | convention coverage | add the document only if you can state real facts |
-| `Invalid entwine.toml: ...` | config typo | allowed: `[discovery] agent_instructions, skills`; `[site] include_agent_knowledge` |
+| `Invalid entwine.toml: ...` | config typo | allowed: `[discovery] agent_instructions, skills`; `[site] include_agent_knowledge, public_agent_paths` (invalid, contradictory or undiscovered `public_agent_paths` entries are errors; never widen them silently) |
 | agent file link to missing file (warning) | stale link in AGENTS.md/SKILL.md | fix link; warning only |
 
 Rules: errors fail `check`; warnings do not (except coverage with `--strict-knowledge`).

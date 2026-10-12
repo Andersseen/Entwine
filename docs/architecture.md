@@ -44,7 +44,7 @@ only reads files and feeds the same parser. **Publication is a projection-time
 decision:** the canonical `KnowledgeBase` and `ContextModel` always contain
 discovered artifacts, while `project()` builds the `SiteModel`, `GraphModel`,
 and agent views from a documentation-only subset unless
-`include_agent_knowledge` is set. The unpublished HTML for a documentation link
+`include_agent_knowledge` is set or the artifact is listed in `public_agent_paths`. The unpublished HTML for a documentation link
 to an agent file is rendered as a repository reference at resolution time, so no
 output file mentions it.
 

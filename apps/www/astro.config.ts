@@ -68,4 +68,43 @@ const showcase: AstroIntegration = {
   },
 };
 
-export default defineConfig({ output: "static", integrations: [showcase] });
+// Whitespace between inline elements is meaningful ("the <code>entwine</code> CLI").
+// Astro's default HTML compression drops a newline-leading space before an inline tag
+// and glues words to code and links, so it stays off.
+// @andersseen/web-components@0.5.1 ships its stylesheet with the full Tailwind
+// preflight (global resets for body, p, a, headings, lists, buttons…). The components
+// put their utility classes on the host elements, so only the utilities are needed.
+// Dropping the reset keeps Entwine's own typography untouched. The slice is located by
+// marker and the build fails if a package upgrade moves it.
+const andersseenStyles = {
+  name: "entwine-andersseen-styles",
+  enforce: "pre" as const,
+  transform(code: string, id: string) {
+    if (!id.split("?")[0]?.endsWith("/web-components/web-components.css"))
+      return;
+    const start = code.indexOf("/*! tailwindcss v");
+    const end = code.indexOf(".sr-only{", start);
+    if (start === -1 || end === -1) {
+      throw new Error(
+        "Cannot locate the Tailwind preflight in @andersseen/web-components; review the pinned version.",
+      );
+    }
+    const trimmed =
+      code.slice(0, start) +
+      '[hidden]:where(:not([hidden="until-found"])){display:none}' +
+      code.slice(end);
+    return {
+      // :host-context() theme switches are meaningless in a document stylesheet and
+      // only make the CSS minifier warn.
+      code: trimmed.replace(/[^{}]*:host-context\([^{}]*\{[^{}]*\}/g, ""),
+      map: null,
+    };
+  },
+};
+
+export default defineConfig({
+  output: "static",
+  compressHTML: false,
+  integrations: [showcase],
+  vite: { plugins: [andersseenStyles] },
+});

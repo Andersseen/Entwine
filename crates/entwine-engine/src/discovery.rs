@@ -153,6 +153,29 @@ fn skill_resources(directory: &Path) -> Vec<String> {
     resources
 }
 
+/// Why a configured exact path is not a safe repository-relative selection, if it is not.
+pub(crate) fn unsafe_selection(path: &str) -> Option<&'static str> {
+    if path.is_empty() {
+        return Some("is empty");
+    }
+    if path.contains('\\') || path.contains('\0') || path.chars().any(char::is_control) {
+        return Some("must use `/` separators and no control characters");
+    }
+    if path.starts_with('/') || path.as_bytes().get(1) == Some(&b':') {
+        return Some("must be repository-relative, not absolute");
+    }
+    if path.ends_with('/') {
+        return Some("must name a file, not a directory");
+    }
+    if path.split('/').any(|part| matches!(part, "" | "." | "..")) {
+        return Some("must be a normalized path without `.`, `..`, or empty segments");
+    }
+    if path.chars().any(|c| "*?[]{}".contains(c)) {
+        return Some("must be an exact path; globs are not supported");
+    }
+    None
+}
+
 pub(crate) fn join(prefix: &str, relative: &str) -> String {
     if prefix.is_empty() {
         relative.into()

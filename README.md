@@ -37,7 +37,15 @@ context is a third.
 
 ## Use it from an agent
 
-Three Agent Skills (`skills/`) and a read-only MCP server (`packages/mcp`) let agents in other repositories adopt, query and validate Entwine knowledge. See [docs/agent-integration.md](docs/agent-integration.md). `@entwine/mcp` is not yet on npm.
+Three Agent Skills (`skills/`) and a read-only MCP server (`packages/mcp`) let agents in other repositories adopt, query and validate Entwine knowledge. See [docs/agent-integration.md](docs/agent-integration.md).
+
+| Piece | What it is | Install |
+| --- | --- | --- |
+| **CLI** (`@entwine/cli`) | Compiler and documentation workflow | `npm install --global @entwine/cli` |
+| **Skills** | Agent instructions, installed with the `skills` CLI from this repository | `npx skills add https://github.com/Andersseen/Entwine/tree/main/skills --agent codex claude-code --copy -y` |
+| **MCP** (`@entwine/mcp`) | Read-only project knowledge server (stdio) | `codex mcp add entwine -- npx --yes @entwine/mcp --root .` or `claude mcp add entwine --scope project -- npx --yes @entwine/mcp --root .` |
+
+`@entwine/mcp` depends on the exact same version of `@entwine/cli`. Both are published at 0.7.0 together with the four platform packages (`@entwine/cli-darwin-arm64`, `-darwin-x64`, `-linux-x64`, `-win32-x64`). There is no `@entwine/skills` package: skills are installed from GitHub with the published [`skills`](https://www.npmjs.com/package/skills) installer.
 
 ## See it live
 
@@ -176,12 +184,24 @@ skills = true               # SKILL.md manifests (folder resources are listed, n
 include_agent_knowledge = false   # default; true publishes them in the generated site
 ```
 
+To publish only some of them (for example public skills while internal `AGENTS.md`
+files stay private), name them instead. *Source-only: this ships with the release after
+0.7.0.*
+
+```toml
+[site]
+public_agent_paths = [".agents/skills/entwine-get-started/SKILL.md"]
+```
+
+Entries are exact repository-relative paths; unknown, absolute, traversing, symlinked
+or contradictory entries (together with `include_agent_knowledge = true`) are errors.
+
 | What | Default | With `entwine.toml` |
 | --- | --- | --- |
 | `docs/` compiled to `dist/` | on | on |
 | Agent instructions and skills **discovered** | off | per `[discovery]` |
 | In `entwine context` and `check` | no | yes, when discovered |
-| In the **public site** and graph | no | only if `include_agent_knowledge = true` |
+| In the **public site** and graph | no | only if `include_agent_knowledge = true`, or the file is listed in `public_agent_paths` |
 
 Discovery and publication are separate on purpose: instructions can be internal,
 so a file can be in your context without ever reaching a public site. Unknown
@@ -211,6 +231,27 @@ builds, and publishes the same artifact. `entwine setup --dry-run` changes
 nothing, repeated runs are idempotent, and existing CI is never overwritten.
 Details and constraints: [docs/deployment.md](docs/deployment.md). Generated
 pipelines install `@entwine/cli` pinned to the CLI's version, available from npm since v0.1.0.
+
+### Optional README link
+
+*Source-only: ships with the release after 0.7.0.* Setup never touches `README.md` unless
+you ask:
+
+```sh
+entwine setup --dry-run --readme-link                     # show the exact change
+entwine setup --readme-link                               # derive a GitHub Pages URL
+entwine setup --readme-link --site-url https://docs.example.com/
+```
+
+It writes one managed block (between `<!-- entwine:docs-link:start -->` and
+`<!-- entwine:docs-link:end -->`) after the first title and updates only that block on
+later runs; everything outside is preserved byte for byte. A GitHub project Pages URL is
+derived only when every GitHub remote names the same repository, and it is reported as
+unverified until the first deployment has run. GitLab, Bitbucket and other hosts need
+`--site-url` (HTTPS, no credentials). An existing link to the same site is recognized and
+nothing is added; a different documentation link is reported, never overwritten.
+Malformed or duplicated markers and a symlinked README are refused. Nothing is committed
+or pushed, and CI workflows never edit the README. Remove the block to undo it.
 
 ## Markdown and routing
 
@@ -255,7 +296,10 @@ symlinks, and paths outside the repository remain errors.
 - **entwine-cli:** Clap commands, diagnostics, staged filesystem output, HTTP,
   file watching, `init` scaffolding, Git provider detection, CI templates, and exit codes.
 - **apps/www:** the separate static Astro product website, strict TypeScript,
-  no frontend framework. It is not the renderer for consumer documentation.
+  no frontend framework runtime. It uses the framework-agnostic Andersseen UI packages
+  (`@andersseen/layout`, `@andersseen/icon`, `@andersseen/motion` and a lazily loaded
+  subset of `@andersseen/web-components`). It is not the renderer for consumer
+  documentation, which never depends on any of them.
 
 The renderer is not the knowledge model. See [architecture](docs/architecture.md),
 [current state](docs/state.md), and [roadmap](docs/roadmap.md).

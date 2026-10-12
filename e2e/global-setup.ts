@@ -26,7 +26,7 @@ const binary =
     process.platform === "win32" ? "entwine.exe" : "entwine",
   );
 
-function stage(name: "full" | "private"): string {
+function stage(name: "full" | "private" | "selective"): string {
   const directory = fixtureRoot(name);
   cpSync(join(repository, "examples/kitchen-sink"), directory, {
     recursive: true,
@@ -91,7 +91,39 @@ export default async function setup(): Promise<() => Promise<void>> {
   }
   build(hidden);
 
+  // Selective publication: one public skill, everything else private with canaries.
+  const selective = stage("selective");
+  const selectiveConfig = join(selective, "entwine.toml");
+  const selectiveText = readFileSync(selectiveConfig, "utf8");
+  writeFileSync(
+    selectiveConfig,
+    selectiveText.replace(
+      "include_agent_knowledge = true",
+      'public_agent_paths = [".agents/skills/export-catalogue/SKILL.md"]',
+    ),
+  );
+  for (const file of [
+    "AGENTS.md",
+    "CLAUDE.md",
+    "services/catalogue-api/AGENTS.md",
+    "services/web/GEMINI.md",
+    ".claude/skills/triage-dataset-report/SKILL.md",
+    ".claude/skills/triage-dataset-report/references/checklist.md",
+  ]) {
+    appendFileSync(join(selective, file), `\n${canary}\n`);
+  }
+  build(selective);
+
+  // Entwine's own Astro website, built exactly as in production.
+  execFileSync("pnpm", ["--filter", "@entwine/www", "build"], {
+    cwd: repository,
+    stdio: "pipe",
+    shell: process.platform === "win32",
+  });
+
   const servers: Server[] = [
+    await serve(join(selective, "dist"), ports.selective),
+    await serve(join(repository, "apps/www/dist"), ports.www),
     await serve(join(fixtureRoot("full"), "dist"), ports.full),
     await serve(join(hidden, "dist"), ports.private),
   ];

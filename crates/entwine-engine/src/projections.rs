@@ -1,4 +1,7 @@
-use crate::{render::escape, resolve::relative_url};
+use crate::{
+    render::escape,
+    resolve::{relative_url, Publication},
+};
 use entwine_core::*;
 use std::collections::BTreeMap;
 
@@ -66,11 +69,11 @@ fn reference(document: &Document) -> PageReference {
 }
 
 /// Project the canonical model. `full` holds every discovered artifact (context is always
-/// complete); the site, navigation, and graph see agent-facing artifacts only when
-/// `publish_agents` is set, so discovery never implies publication.
+/// complete); the site, navigation, and graph see only the agent-facing artifacts the
+/// `publication` policy allows, so discovery never implies publication.
 pub(crate) fn project(
     full: &KnowledgeBase,
-    publish_agents: bool,
+    publication: &Publication,
     docs_prefix: &str,
 ) -> (SiteModel, GraphModel, ContextModel) {
     let is_doc = |d: &Document| d.artifact == ArtifactKind::Documentation;
@@ -94,7 +97,30 @@ pub(crate) fn project(
             .cloned()
             .collect(),
     };
-    let public = if publish_agents { full } else { &documentation };
+    let is_public = |d: &Document| {
+        is_doc(d)
+            || d.agent
+                .as_ref()
+                .is_some_and(|agent| publication.allows(&agent.path))
+    };
+    let public = &KnowledgeBase {
+        documents: full
+            .documents
+            .iter()
+            .filter(|d| is_public(d))
+            .cloned()
+            .collect(),
+        relations: full
+            .relations
+            .iter()
+            .filter(|r| {
+                [&r.source, &r.target]
+                    .iter()
+                    .all(|id| full.documents.iter().any(|d| &d.id == *id && is_public(d)))
+            })
+            .cloned()
+            .collect(),
+    };
     let knowledge = &documentation;
     let mut tree = Tree::default();
     let mut home = None;
@@ -290,9 +316,12 @@ pub(crate) fn project(
             .collect(),
         relationships: full.relations.clone(),
     };
-    let agents =
-        (publish_agents && full.documents.iter().any(|d| !is_doc(d))).then(|| AgentsModel {
-            entries: full
+    let agents = public
+        .documents
+        .iter()
+        .any(|d| !is_doc(d))
+        .then(|| AgentsModel {
+            entries: public
                 .documents
                 .iter()
                 .filter(|d| !is_doc(d))
@@ -307,13 +336,13 @@ pub(crate) fn project(
                             .relations
                             .iter()
                             .filter(|r| r.source == d.id)
-                            .filter_map(|r| full.documents.iter().find(|x| x.id == r.target))
+                            .filter_map(|r| public.documents.iter().find(|x| x.id == r.target))
                             .map(reference)
                             .collect(),
                         backlinks: full
                             .backlinks(&d.id)
                             .iter()
-                            .filter_map(|id| full.documents.iter().find(|x| &x.id == id))
+                            .filter_map(|id| public.documents.iter().find(|x| &x.id == id))
                             .map(reference)
                             .collect(),
                         html: d.html.clone(),
@@ -547,7 +576,7 @@ mod portable_directories {
             documents,
             relations: Vec::new(),
         };
-        let site = project(&knowledge, false, "docs").0;
+        let site = project(&knowledge, &Publication::None, "docs").0;
         assert!(site.pages.iter().any(|p| p.route.as_str() == "/A/"));
         assert!(site.pages.iter().any(|p| p.route.as_str() == "/a/"));
     }

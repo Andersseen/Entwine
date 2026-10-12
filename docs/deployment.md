@@ -70,6 +70,16 @@ use a different installation path, such as a release binary, change that line.
 Generated setup pins the CLI version for reproducible builds. See
 [current state](state.md#release-status) for which versions are published.
 
+### Documentation link in the README (optional)
+
+`entwine setup --readme-link` (source-only, after 0.7.0) adds or updates a managed block
+in the repository-root `README.md`. It is never run by a generated workflow and never
+commits. The URL is derived only for a GitHub remote that is unambiguous
+(`https://<owner>.github.io/<repository>/`, repository casing preserved, reported as
+unverified until the first Pages deployment); GitLab, Bitbucket and self-hosted sites
+need `--site-url https://…`. `--dry-run` prints the exact insertion or replacement.
+An existing link to the same site is recognized and left alone.
+
 ### GitHub Pages
 
 Writes `.github/workflows/entwine.yml`. It uses the official Pages actions

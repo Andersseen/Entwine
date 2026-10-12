@@ -9,6 +9,10 @@
     "typecheck": "astro check && tsc --noEmit"
   },
   "dependencies": {
+    "@andersseen/icon": "0.2.0",
+    "@andersseen/layout": "0.0.1",
+    "@andersseen/motion": "0.2.0",
+    "@andersseen/web-components": "0.5.1",
     "astro": "^7.3.5"
   },
   "devDependencies": {

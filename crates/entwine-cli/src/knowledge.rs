@@ -110,13 +110,26 @@ pub(crate) fn agent_summary(compilation: &Compilation) {
             "s"
         },
     );
-    eprintln!(
-        "  agent knowledge is {} in the generated site (site.include_agent_knowledge = {})",
-        if config.site.include_agent_knowledge {
-            "published"
-        } else {
-            "not published; context only"
-        },
-        config.site.include_agent_knowledge
-    );
+    if config.site.public_agent_paths.is_empty() {
+        eprintln!(
+            "  agent knowledge is {} in the generated site (site.include_agent_knowledge = {})",
+            if config.site.include_agent_knowledge {
+                "published"
+            } else {
+                "not published; context only"
+            },
+            config.site.include_agent_knowledge
+        );
+    } else {
+        eprintln!(
+            "  {} of {} agent artifact{} published (site.public_agent_paths); the rest are context only",
+            config.site.public_agent_paths.len(),
+            count(ArtifactKind::AgentInstructions) + count(ArtifactKind::Skill),
+            if count(ArtifactKind::AgentInstructions) + count(ArtifactKind::Skill) == 1 {
+                ""
+            } else {
+                "s"
+            }
+        );
+    }
 }

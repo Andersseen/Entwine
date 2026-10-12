@@ -202,6 +202,9 @@ pub struct DiscoveryConfig {
 pub struct SiteConfig {
     /// Include discovered agent-facing artifacts in the generated site and its graph.
     pub include_agent_knowledge: bool,
+    /// Publish only these discovered artifacts (exact repository-relative paths such as
+    /// `.agents/skills/x/SKILL.md`). Mutually exclusive with `include_agent_knowledge`.
+    pub public_agent_paths: Vec<String>,
     /// Select the experimental static HTML renderer. Defaults to the built-in renderer.
     pub renderer: RendererKind,
 }
