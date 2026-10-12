@@ -1,5 +1,6 @@
 ---
 import packageJson from "../../package.json";
+import "../styles/andersseen.css";
 
 const version = packageJson.version;
 const repository = "https://github.com/Andersseen/Entwine";
@@ -24,7 +25,7 @@ const providers = [
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" and-mode="light" data-mode="light">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -55,7 +56,10 @@ const providers = [
     <a class="skip" href="#main">
       Skip to content
     </a>
-    <header class="masthead">
+    <header
+      class="masthead"
+      and-layout="horizontal align:center justify:between wrap:wrap gap:md"
+    >
       <a class="wordmark" href="#">
         <img src="/logo.png" alt="" width="36" height="36" />
         entwine
@@ -228,47 +232,221 @@ Docs + Graph + Context</code></pre>
           </p>
         </div>
       </section>
-      <section class="commands" id="integrate">
+      <section class="integrate" id="integrate">
         <h2>Plug Entwine into your coding agent.</h2>
         <p class="lead">
-          Two optional pieces, both built on the same CLI and
-          <code>entwine context --json</code>. Neither adds a second parser, and
-          neither writes to your repository.
+          Coding agents guess which file to open. Entwine gives them the
+          structure instead: roles, relationships, validation, and the documents
+          themselves, all read from the Markdown you already maintain. Three
+          pieces, each optional, each published on npm or installed from this
+          repository.
         </p>
-        <dl>
-          <div>
-            <dt>Skills</dt>
-            <dd>
+        <ul class="pieces" and-layout="grid cols:1 cols@md:3 gap:lg">
+          <li class="piece" and-motion="fade-in-up" and-motion-duration="420ms">
+            <span and-icon="terminal" aria-hidden="true"></span>
+            <h3>CLI</h3>
+            <p and-text="p-sm">
+              The compiler and documentation workflow: <code>init</code>,
+              <code>check</code>, <code>build</code>, <code>setup</code>, and
+              <code>context --json</code>.
+            </p>
+            <a
+              class="pkg"
+              href="https://www.npmjs.com/package/@entwine/cli"
+              rel="noopener"
+            >
+              <code>@entwine/cli</code>
+              <span and-icon="external-link" aria-hidden="true"></span>
+              <span class="sr-only">on npm</span>
+            </a>
+          </li>
+          <li
+            class="piece"
+            and-motion="fade-in-up"
+            and-motion-duration="420ms"
+            and-motion-delay="80ms"
+          >
+            <span and-icon="book-open" aria-hidden="true"></span>
+            <h3>Skills</h3>
+            <p and-text="p-sm">
               Instructions an agent loads on demand: get started, maintain
-              knowledge, and publish. They only need the
-              <code>entwine</code> CLI.
-            </dd>
-          </div>
-          <div>
-            <dt>MCP server</dt>
-            <dd>
-              <code>@entwine/mcp</code>: read-only tools, resources, and prompts
-              over your documents, relationships, and validation, via stdio.
-            </dd>
-          </div>
-        </dl>
-        <div class="terminal">
-          <pre><code># Install the skills (Codex and Claude Code)
-npx skills add https://github.com/Andersseen/Entwine/tree/main/skills \
-  --agent codex claude-code --copy -y
+              knowledge, publish. Installed with the <code>skills</code> CLI,
+              from this repository.
+            </p>
+            <a
+              class="pkg"
+              href="https://www.npmjs.com/package/skills"
+              rel="noopener"
+            >
+              <code>skills</code>
+              <span and-icon="external-link" aria-hidden="true"></span>
+              <span class="sr-only">installer on npm</span>
+            </a>
+          </li>
+          <li
+            class="piece"
+            and-motion="fade-in-up"
+            and-motion-duration="420ms"
+            and-motion-delay="160ms"
+          >
+            <span and-icon="layers" aria-hidden="true"></span>
+            <h3>MCP server</h3>
+            <p and-text="p-sm">
+              A read-only project knowledge server over stdio. Documents,
+              relationships and validation, addressed by ids, never by path.
+            </p>
+            <a
+              class="pkg"
+              href="https://www.npmjs.com/package/@entwine/mcp"
+              rel="noopener"
+            >
+              <code>@entwine/mcp</code>
+              <span and-icon="external-link" aria-hidden="true"></span>
+              <span class="sr-only">on npm</span>
+            </a>
+          </li>
+        </ul>
+        <p class="compat">
+          <and-badge>{version}</and-badge>
+          <span>
+            <code>@entwine/mcp</code> depends on the exact same version of
+            <code>@entwine/cli</code>, so the pair cannot drift apart.
+          </span>
+        </p>
 
-# Register the MCP server for this repository
-claude mcp add entwine --scope project -- npx --yes @entwine/mcp --root .
-codex mcp add entwine -- npx --yes @entwine/mcp --root .</code></pre>
+        <h3 class="step-title">
+          <span>1</span> Install the skills
+        </h3>
+        <div class="snippet">
+          <pre tabindex="0"><code id="cmd-skills">npx skills add https://github.com/Andersseen/Entwine/tree/main/skills --agent codex claude-code --copy -y</code></pre>
+          <button
+            type="button"
+            class="copy"
+            data-copy-target="cmd-skills"
+            data-copy-name="skills install command"
+            hidden
+          >
+            <span and-icon="copy" aria-hidden="true"></span>
+            <span class="copy-label">Copy</span>
+            <span class="sr-only">skills install command</span>
+          </button>
+        </div>
+
+        <h3 class="step-title">
+          <span>2</span> Register the MCP server
+        </h3>
+        <and-tabs default-value="codex" class="tabs">
+          <and-tabs-list>
+            <and-tabs-trigger value="codex">Codex</and-tabs-trigger>
+            <and-tabs-trigger value="claude">Claude Code</and-tabs-trigger>
+          </and-tabs-list>
+          <and-tabs-content value="codex" data-label="Codex">
+            <div class="snippet">
+              <pre tabindex="0"><code id="cmd-codex">codex mcp add entwine -- npx --yes @entwine/mcp --root .</code></pre>
+              <button
+                type="button"
+                class="copy"
+                data-copy-target="cmd-codex"
+                data-copy-name="Codex command"
+                hidden
+              >
+                <span and-icon="copy" aria-hidden="true"></span>
+                <span class="copy-label">Copy</span>
+                <span class="sr-only">Codex command</span>
+              </button>
+            </div>
+          </and-tabs-content>
+          <and-tabs-content value="claude" data-label="Claude Code">
+            <div class="snippet">
+              <pre tabindex="0"><code id="cmd-claude">claude mcp add entwine --scope project -- npx --yes @entwine/mcp --root .</code></pre>
+              <button
+                type="button"
+                class="copy"
+                data-copy-target="cmd-claude"
+                data-copy-name="Claude Code command"
+                hidden
+              >
+                <span and-icon="copy" aria-hidden="true"></span>
+                <span class="copy-label">Copy</span>
+                <span class="sr-only">Claude Code command</span>
+              </button>
+            </div>
+          </and-tabs-content>
+        </and-tabs>
+        <p class="hint">
+          The CLI is bundled with the MCP package, so there is nothing else to
+          install. Use <code>npm install --global @entwine/cli</code> to run
+          <code>entwine</code> yourself.
+        </p>
+
+        <h3 class="step-title">
+          <span>3</span> Ask
+        </h3>
+        <figure
+          class="transcript"
+          and-motion="fade-in-up"
+          and-motion-duration="420ms"
+        >
+          <figcaption>Illustrative session</figcaption>
+          <p class="you">
+            <strong>You</strong>
+            <span>Use Entwine to give me a project overview.</span>
+          </p>
+          <p class="agent">
+            <strong>Agent</strong>
+            <span>
+              Calls <code>entwine_project_overview</code>, then
+              <code>entwine_read_document</code> for <code>state.md</code> and
+              <code>architecture.md</code>, and answers from those documents. It
+              never receives a file path, and nothing is written.
+            </span>
+          </p>
+        </figure>
+
+        <div class="more">
+          <details>
+            <summary>
+              The server does not start{" "}
+              <span and-icon="chevron-down" aria-hidden="true"></span>
+            </summary>
+            <div class="detail">
+              <p>
+                <code>@entwine/mcp</code> needs Node 20 or newer. Run
+                <code>npx --yes @entwine/mcp --version</code>: it prints its
+                version and the context schema it supports. To reproduce a setup
+                exactly, pin the version:
+                <code>npx --yes @entwine/mcp@{version} --root .</code>.
+              </p>
+            </div>
+          </details>
+          <details>
+            <summary>
+              Which agent files become public?{" "}
+              <span and-icon="chevron-down" aria-hidden="true"></span>
+            </summary>
+            <div class="detail">
+              <p>
+                None by default. Discovery only feeds local context and the MCP
+                server. To publish a few skills, name them in
+                <code>site.public_agent_paths</code>; internal
+                <code>AGENTS.md</code> files stay private. This option is in the
+                source tree and ships with the next CLI release.
+              </p>
+            </div>
+          </details>
         </div>
         <p>
-          Then ask: “Use Entwine to give me a project overview.” The server
-          scopes itself to one repository, addresses documents only by ids
-          Entwine knows, and never takes a path. Applying <code>init</code> or
-          <code>setup</code> stays the agent running the CLI under your normal
-          approval.
-          <a href="/docs/agent-integration/">Integration guide</a>.
+          Applying <code>init</code> or <code>setup</code> stays the agent
+          running the CLI under your normal approval.
+          <a href="/docs/agent-integration/">Read the integration guide</a>
+          for Windows paths, config files, and verification.
         </p>
+        <p
+          id="copy-status"
+          class="sr-only"
+          role="status"
+          aria-live="polite"
+        ></p>
       </section>
       <section class="workflow" id="start">
         <div>
@@ -386,6 +564,9 @@ entwine build</code></pre>
       <a href="/docs/agent-integration/">Agents</a>
       <span>MIT licensed</span>
     </footer>
+    <script>
+      import "../scripts/site.ts";
+    </script>
   </body>
 </html>
 
@@ -732,6 +913,230 @@ entwine build</code></pre>
   }
   .skip:focus {
     top: 0;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .integrate {
+    padding: 3rem 0 4rem;
+  }
+  .integrate h2 {
+    margin-bottom: 1.5rem;
+  }
+  .integrate .lead {
+    max-width: 44rem;
+  }
+  .pieces {
+    margin: 2rem 0 1rem;
+    padding: 0;
+    list-style: none;
+  }
+  .piece {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #fafafa;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    min-width: 0;
+    transition: border-color 0.15s ease;
+  }
+  .piece:hover,
+  .piece:focus-within {
+    border-color: var(--connector);
+  }
+  .piece [and-icon] {
+    font-size: 1.5rem;
+    color: var(--accent);
+  }
+  .piece h3 {
+    margin: 0;
+  }
+  .piece p {
+    margin: 0;
+    line-height: 1.55;
+    color: #404040;
+  }
+  .pkg {
+    margin-top: auto;
+    padding-top: 0.4rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    text-decoration: none;
+    overflow-wrap: anywhere;
+  }
+  .pkg:hover code {
+    text-decoration: underline;
+  }
+  .compat {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    font-size: 0.9rem;
+    color: #404040;
+  }
+  .step-title {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 2.5rem 0 0.8rem;
+  }
+  .step-title span {
+    display: inline-grid;
+    place-items: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
+    background: var(--ink);
+    color: #fafafa;
+    font-size: 0.85rem;
+  }
+  .snippet {
+    position: relative;
+    background: var(--mist);
+    border-radius: 8px;
+    min-width: 0;
+  }
+  .snippet pre {
+    margin: 0;
+    padding: 1rem 5.5rem 1rem 1.25rem;
+    overflow: auto;
+    font-size: 0.85rem;
+    line-height: 1.7;
+  }
+  .copy {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font: inherit;
+    font-size: 0.8rem;
+    color: var(--ink);
+    background: #fafafa;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 0.35rem 0.6rem;
+    cursor: pointer;
+  }
+  .copy[hidden] {
+    display: none;
+  }
+  .copy:hover {
+    border-color: var(--connector);
+  }
+  .copy:focus-visible {
+    outline: 3px solid var(--connector);
+    outline-offset: 2px;
+  }
+  .tabs {
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+  /* Before the components load (or without JavaScript) every panel is visible,
+     labelled by its own heading, and the empty tab strip is hidden. */
+  and-tabs:not(:defined) and-tabs-list {
+    display: none;
+  }
+  and-tabs-content:not(:defined) {
+    display: block;
+    margin-bottom: 0.8rem;
+  }
+  and-tabs-content:not(:defined)::before {
+    content: attr(data-label);
+    display: block;
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin-bottom: 0.4rem;
+  }
+  and-tabs-content > .snippet {
+    margin-top: 0.75rem;
+  }
+  .hint {
+    font-size: 0.9rem;
+    color: #404040;
+  }
+  .transcript {
+    margin: 0 0 2rem;
+    border-left: 4px solid var(--connector);
+    background: var(--mist);
+    padding: 1rem 1.5rem;
+    border-radius: 0 8px 8px 0;
+  }
+  .transcript figcaption {
+    font-size: 0.75rem;
+    color: #525252;
+  }
+  .transcript p {
+    margin: 0.5rem 0 0;
+    display: grid;
+    grid-template-columns: 4.5rem 1fr;
+    gap: 0.75rem;
+    line-height: 1.6;
+  }
+  .more {
+    display: block;
+    margin: 0 0 1.5rem;
+    border-top: 1px solid var(--line);
+  }
+  .more details {
+    border-bottom: 1px solid var(--line);
+  }
+  .more summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 0;
+    font-weight: 600;
+    cursor: pointer;
+    list-style: none;
+  }
+  .more summary::-webkit-details-marker {
+    display: none;
+  }
+  .more summary [and-icon] {
+    flex-shrink: 0;
+    transition: transform 0.15s ease;
+  }
+  .more details[open] summary [and-icon] {
+    transform: rotate(180deg);
+  }
+  .more summary:focus-visible {
+    outline: 3px solid var(--connector);
+    outline-offset: 2px;
+  }
+  .more .detail p {
+    margin: 0 0 1rem;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .more summary [and-icon] {
+      transition: none;
+    }
+  }
+  code {
+    overflow-wrap: anywhere;
+  }
+  pre code {
+    overflow-wrap: normal;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .piece {
+      transition: none;
+    }
   }
   @media (max-width: 900px) {
     .hero {

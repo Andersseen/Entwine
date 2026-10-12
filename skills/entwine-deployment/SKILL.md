@@ -52,7 +52,13 @@ a subpath). Choosing this and skipping `setup` is valid.
   no `include`, `stages` or `workflow`.)
 - Add tokens to files, or claim a deployment you did not observe.
 - Publish agent instructions: `[site] include_agent_knowledge` stays `false` unless
-  the user explicitly wants them public.
+  the user explicitly wants them public. To publish only some files, prefer
+  `[site] public_agent_paths = ["<exact repo-relative path>"]` (newer CLIs; check
+  `entwine setup --help`) and never list an `AGENTS.md` the user calls internal.
+- Edit the README on your own. `entwine setup --readme-link` (newer CLIs only) is opt-in:
+  run it with `--dry-run`, show the user the exact change, and never commit or push it.
+  It derives a GitHub Pages URL only for an unambiguous GitHub remote and calls it
+  unverified; for any other host ask for `--site-url`.
 
 ## Good and bad
 

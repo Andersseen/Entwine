@@ -1,0 +1,57 @@
+/*
+ * Entwine's own website uses the Andersseen UI ecosystem. This file is the single
+ * place those packages are wired in; the generated Entwine documentation never
+ * loads any of it.
+ */
+@import "@andersseen/layout/dist/layout.min.css";
+
+/* Icons: CSS only, one rule per icon actually used. No runtime, no catalog. */
+@import "@andersseen/icon/base.css";
+@import "@andersseen/icon/icons/terminal.css";
+@import "@andersseen/icon/icons/book-open.css";
+@import "@andersseen/icon/icons/layers.css";
+@import "@andersseen/icon/icons/copy.css";
+@import "@andersseen/icon/icons/check.css";
+@import "@andersseen/icon/icons/external-link.css";
+@import "@andersseen/icon/icons/github.css";
+@import "@andersseen/icon/icons/arrow-right.css";
+@import "@andersseen/icon/icons/chevron-down.css";
+
+/* Motion keyframes; initMotion() only wires elements marked with [and-motion]. */
+@import "@andersseen/motion/style.css";
+
+/* Web Components tokens (tabs, badge). Their stylesheet is imported by the page script. */
+@import "@andersseen/web-components/tokens.css";
+
+/*
+ * The site is light and neutral. Pin the components to the light palette and map the
+ * semantic tokens onto Entwine's own greys so nothing looks like a stock theme.
+ */
+:root {
+  --primary: 0 0% 25%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 0 0% 90%;
+  --secondary-foreground: 0 0% 15%;
+  --background: 0 0% 98%;
+  --foreground: 0 0% 9%;
+  --card: 0 0% 98%;
+  --card-foreground: 0 0% 9%;
+  --muted: 0 0% 90%;
+  --muted-foreground: 0 0% 32%;
+  --accent: 0 0% 90%;
+  --accent-foreground: 0 0% 9%;
+  --border: 0 0% 83%;
+  --input: 0 0% 83%;
+  --ring: 0 0% 45%;
+  --radius: 6px;
+}
+
+/* What the removed preflight gave every box: borders need a style to draw. */
+and-tabs,
+and-tabs-list,
+and-tabs-trigger,
+and-tabs-content,
+and-badge {
+  box-sizing: border-box;
+  border: 0 solid hsl(var(--border));
+}

@@ -52,8 +52,9 @@ files need no renames: add `type: architecture` instead.
 `docs/` holds durable knowledge. Entwine only discovers the first two kinds when
 `entwine.toml` sets `[discovery] agent_instructions = true` / `skills = true`.
 Discovered files are always in `entwine context` but are published in the site only
-if `[site] include_agent_knowledge = true` (default `false`). Never enable
-publication, or copy agent instructions into `docs/`, without the user's explicit
+if `[site] include_agent_knowledge = true` (default `false`) or when listed in
+`[site] public_agent_paths` (exact repository-relative paths, newer CLIs only; it
+contradicts `include_agent_knowledge = true`). Never enable publication, or copy agent instructions into `docs/`, without the user's explicit
 approval; they may contain private operating rules.
 
 ## Diagnose

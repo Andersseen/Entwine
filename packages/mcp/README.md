@@ -8,8 +8,9 @@ It is a thin adapter over the Entwine CLI: every answer comes from
 `entwine context --json`, `entwine check` or a `--dry-run` command. It has no
 Markdown parser, graph engine, network access or write path of its own.
 
-> Pre-1.0 and experimental. Check `npm view @entwine/mcp versions` before relying
-> on a version; an unpublished version cannot be installed from npm.
+> Pre-1.0 and experimental. Published on npm alongside `@entwine/cli`; the two share
+> one version, and this package depends on that exact CLI version. Pin it
+> (`npx --yes @entwine/mcp@<version>`) when you need a reproducible setup.
 
 ## Run
 

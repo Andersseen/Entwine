@@ -30,7 +30,8 @@ the agent running the CLI under its host's normal approval.
 Uses the open [`skills`](https://www.npmjs.com/package/skills) installer. Verified
 with `skills` 1.7.2: `pnpm test:skills` installs from the local `skills/` directory into a
 clean repository and checks the files, and the GitHub `tree/<branch>/skills` URL form was
-installed from a pushed branch (the `main` URL works once this is merged):
+installed from a pushed branch. The `main` URL form below was re-run on 12 October 2026
+and installed all three skills into `.agents/skills/` and `.claude/skills/`:
 
 ```sh
 # list what is available (3 skills)
@@ -55,6 +56,7 @@ Behaviour to know: the installer adds `skills-lock.json`; it leaves other skills
 same name**, so do not hand-edit installed `entwine-*` skills. Do not point it at the
 repository root: that also lists Entwine's own development skills. Always use the
 `skills` subdirectory. Entwine's own tooling (Agentyx) is not needed by consumers.
+There is no `@entwine/skills` npm package.
 
 ## Register the MCP server
 
@@ -78,9 +80,11 @@ each vendor's documentation; they were not executed in this repository's CI, whi
 server with a real MCP client over stdio instead. Relative `--root .` depends on the host
 launching from the repository; use an absolute path if unsure.
 
-> **Availability.** `@entwine/mcp` is released together with `@entwine/cli` at the same version.
-> Until a release containing it is on npm (`npm view @entwine/mcp versions`), `npx` fails with a 404.
-> See [state](state.md#release-status). To use it from a source checkout, run
+> **Availability.** `@entwine/mcp` and `@entwine/cli` are published on npm at `0.7.0`
+> (verified against the registry on 12 October 2026, including a fresh `npx` install and
+> an MCP handshake). `@entwine/mcp` depends on the exact same `@entwine/cli` version, so
+> the pair cannot mismatch. To reproduce a setup exactly, pin the version:
+> `npx --yes @entwine/mcp@0.7.0 --root .`. To use it from a source checkout, run
 > `pnpm install && pnpm build:mcp` and register `node /path/to/Entwine/packages/mcp/dist/cli.js --root .`
 > with `ENTWINE_BIN` pointing at a locally built `entwine`.
 
@@ -97,7 +101,7 @@ Documents are addressed only by ids Entwine knows; no tool takes a path.
 
 ```sh
 npx --yes @entwine/cli --version
-npx --yes @entwine/mcp --version     # prints the version and supported context schema
+npx --yes @entwine/mcp --version     # e.g. "0.7.0 (context schema 0.4)"
 claude mcp list                      # or `codex mcp list`; or /mcp inside the session
 ls .agents/skills .claude/skills     # the three entwine-* directories
 ```
@@ -111,6 +115,24 @@ Then ask the agent: "Use Entwine to give me a project overview." It should call
 - *Validate:* "Run the Entwine check and explain each error without changing content."
 - *Generate:* "Adopt Entwine here: preview `entwine init`, ask me, then fill the files only with facts you can verify in the repository." The agent writes Markdown; Entwine does not generate documentation from code.
 - *Maintain:* use the `entwine_maintain_knowledge` prompt after a change.
+
+## Publish skills without publishing internal instructions
+
+Discovery feeds your local context and the MCP server; it never publishes. To put some
+skills on the public site while internal `AGENTS.md` files stay private, list them
+(source-only, ships after 0.7.0; see [agent knowledge](specs/agent-knowledge.md)):
+
+```toml
+[discovery]
+agent_instructions = true
+skills = true
+
+[site]
+public_agent_paths = [".agents/skills/entwine-get-started/SKILL.md"]
+```
+
+`entwine setup --readme-link` can then add a managed documentation link to the README
+(also source-only; `--dry-run` shows the exact change first).
 
 ## Publish with GitHub Pages, safely
 
