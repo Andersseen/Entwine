@@ -230,11 +230,14 @@ fn output_is_deterministic() {
 fn contradictory_unsafe_and_unknown_selections_are_rejected() {
     let temp = repository();
     let root = temp.path();
+    // Symbolic links need privileges on Windows; the escape check is exercised on Unix.
+    let linked = cfg!(unix);
+    #[cfg(unix)]
     std::os::unix::fs::symlink(
         root.join(".agents/skills/private-skill"),
         root.join(".agents/skills/linked"),
     )
-    .ok();
+    .unwrap();
     let check = |config: &Config, expected: &str| {
         let error = compile_with_config(root, root, None, config)
             .unwrap_err()
@@ -258,9 +261,14 @@ fn contradictory_unsafe_and_unknown_selections_are_rejected() {
         (".agents/skills/", "file"),
         ("docs/index.md", "not an agent artifact"),
         (".agents/skills/missing/SKILL.md", "not discovered"),
-        (".agents/skills/linked/SKILL.md", "symbolic link"),
     ] {
         check(&config(&[bad]), expected);
+    }
+    if linked {
+        check(
+            &config(&[".agents/skills/linked/SKILL.md"]),
+            "symbolic link",
+        );
     }
     check(&config(&[PUBLIC_SKILL, PUBLIC_SKILL]), "more than once");
     let mut skills_off = config(&[PRIVATE_RULES]);
