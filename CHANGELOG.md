@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.8.0](https://github.com/Andersseen/Entwine/compare/v0.7.0...v0.8.0) (2026-10-11)
+
+
+### Features
+
+* add Entwine MCP server and portable agent skills kit ([#41](https://github.com/Andersseen/Entwine/issues/41)) ([f3b98d3](https://github.com/Andersseen/Entwine/commit/f3b98d3a5b0ee4f373633f7ed9368d9a63ff3869))
+* add opt-in Flowview renderer experiment ([#35](https://github.com/Andersseen/Entwine/issues/35)) ([962484b](https://github.com/Andersseen/Entwine/commit/962484b0b16c34ff6cb00fe1d50f295e9916266d))
+
+
+### Bug fixes
+
+* harden release workflow recovery ([#38](https://github.com/Andersseen/Entwine/issues/38)) ([314bc95](https://github.com/Andersseen/Entwine/commit/314bc95c0fc9ceb6b882ef5bf8351d19c15eca1f))
+* name unusable project paths and config lines, document first-use output handling ([#40](https://github.com/Andersseen/Entwine/issues/40)) ([637cc31](https://github.com/Andersseen/Entwine/commit/637cc319ce23eeaaa9bf304b7276e952a9749345))
+* restore Rust 1.85 and isolate experimental Flowview ([#37](https://github.com/Andersseen/Entwine/issues/37)) ([bff12ed](https://github.com/Andersseen/Entwine/commit/bff12eddf4527c19edb9ff81bc073f5715e30c87))
+* unblock release-please and show MCP and skills on the site ([#42](https://github.com/Andersseen/Entwine/issues/42)) ([8fdd420](https://github.com/Andersseen/Entwine/commit/8fdd420626a5d8fd275432196e0a765fccf8b6f4))
+* validate deployment contracts and allow dotted Bitbucket slugs ([#39](https://github.com/Andersseen/Entwine/issues/39)) ([3fc593e](https://github.com/Andersseen/Entwine/commit/3fc593e02deebd5332c07ae8c711ae6e62170213))
+
 ## [0.7.0](https://github.com/Andersseen/Entwine/compare/v0.6.0...v0.7.0) (2026-10-11)
 
 
