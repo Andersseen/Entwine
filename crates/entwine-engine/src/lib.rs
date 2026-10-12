@@ -77,6 +77,68 @@ fn case_collision(
     (previous_route != route.as_str()).then_some(previous)
 }
 
+/// Reject selections that are unsafe, contradictory, or do not name a discovered artifact.
+/// Publication never widens: every problem is an error, never a silent fallback.
+fn validate_public_agent_paths(
+    config: &Config,
+    repository: &Path,
+    discovered: &[discovery::Found],
+) -> io::Result<()> {
+    let fail = |message: String| Err(io::Error::new(io::ErrorKind::InvalidInput, message));
+    let paths = &config.site.public_agent_paths;
+    if paths.is_empty() {
+        return Ok(());
+    }
+    if config.site.include_agent_knowledge {
+        return fail("site.include_agent_knowledge = true publishes every discovered artifact and contradicts site.public_agent_paths; remove one of them".into());
+    }
+    if !config.discovers_agent_knowledge() {
+        return fail("site.public_agent_paths requires [discovery] agent_instructions or skills to be enabled".into());
+    }
+    for path in paths {
+        if let Some(problem) = discovery::unsafe_selection(path) {
+            return fail(format!("site.public_agent_paths entry {path:?}: {problem}"));
+        }
+        let name = path.rsplit('/').next().unwrap_or(path);
+        let Some(convention) = AgentConvention::from_file_name(name) else {
+            return fail(format!(
+                "site.public_agent_paths entry {path:?} is not an agent artifact (expected AGENTS.md, CLAUDE.md, GEMINI.md, or SKILL.md)"
+            ));
+        };
+        let enabled = match convention.kind() {
+            ArtifactKind::Skill => config.discovery.skills,
+            _ => config.discovery.agent_instructions,
+        };
+        if !enabled {
+            return fail(format!(
+                "site.public_agent_paths entry {path:?} is a {} but its discovery switch is off",
+                convention.kind().label().to_lowercase()
+            ));
+        }
+        let mut current = repository.to_path_buf();
+        for part in path.split('/') {
+            current.push(part);
+            if fs::symlink_metadata(&current).is_ok_and(|m| m.file_type().is_symlink()) {
+                return fail(format!(
+                    "site.public_agent_paths entry {path:?} crosses a symbolic link"
+                ));
+            }
+        }
+        if !discovered.iter().any(|found| &found.path == path) {
+            return fail(format!(
+                "site.public_agent_paths entry {path:?} was not discovered; check the path, or that the file is not under docs/ or a skipped directory"
+            ));
+        }
+    }
+    let mut seen = BTreeSet::new();
+    if let Some(duplicate) = paths.iter().find(|p| !seen.insert(p.as_str())) {
+        return fail(format!(
+            "site.public_agent_paths lists {duplicate:?} more than once"
+        ));
+    }
+    Ok(())
+}
+
 /// Read the optional `entwine.toml` beside `docs/`. A missing file is the zero-config default;
 /// a malformed file or unknown key is an error naming the problem.
 pub fn load_config(project: &Path) -> io::Result<Config> {
@@ -406,10 +468,12 @@ pub fn compile_with_config(
         .unwrap_or(Path::new(""))
         .to_string_lossy()
         .replace('\\', "/");
-    let publish_agents = config.site.include_agent_knowledge;
+    let publication = resolve::Publication::from_config(config);
     let mut agent_parsed = Vec::new();
     let mut artifact_paths: resolve::Artifacts = BTreeMap::new();
-    for found in discovery::discover(&project, &project_prefix, config, &mut diagnostics) {
+    let discovered = discovery::discover(&project, &project_prefix, config, &mut diagnostics);
+    validate_public_agent_paths(config, &repository, &discovered)?;
+    for found in discovered {
         let id = format!("{REPOSITORY_ID_PREFIX}{}", found.path);
         let route = match discovery::route_for(found.convention, &found.path) {
             Ok(route) => route,
@@ -501,7 +565,7 @@ pub fn compile_with_config(
             &repository,
             source,
             &artifact_paths,
-            publish_agents,
+            &publication,
             &mut repository_dependencies,
             &mut diagnostics,
         );
@@ -526,6 +590,7 @@ pub fn compile_with_config(
             document,
             &path,
             &resolve::ArtifactContext {
+                publication: &publication,
                 documents: &doc_paths,
                 artifacts: &artifact_paths,
                 repository: &repository,
@@ -568,7 +633,7 @@ pub fn compile_with_config(
             });
         }
     }
-    let (mut site, graph, context) = projections::project(&knowledge, publish_agents, &docs_prefix);
+    let (mut site, graph, context) = projections::project(&knowledge, &publication, &docs_prefix);
     projections::source_links(&mut site, &knowledge, &root, &repository, source);
     let mut page_routes = BTreeMap::new();
     for page in &site.pages {
