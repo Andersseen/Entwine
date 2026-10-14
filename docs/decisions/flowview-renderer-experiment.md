@@ -319,7 +319,7 @@ behavior was not changed.
   passed all 76.
 - **Portability.** CI runs the Flowview tests and debug build on Linux, macOS
   and Windows with Rust 1.91. Release, clippy, showcase and browser checks run
-  on Linux only. CI_RESULT_PENDING
+  on Linux only. All eight checks of PR #58 passed: `msrv` (Rust 1.85, no Flowview), `check`, `portability` on macOS and Windows, and `flowview-experimental` on Ubuntu, macOS and Windows (Rust 1.91.0).
 
 ### Maintainability
 
