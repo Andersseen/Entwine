@@ -1,11 +1,15 @@
-#![cfg(feature = "flowview-renderer")]
+//! Contract tests for the Flowview page renderer. The files in `tests/baseline/` were
+//! captured from the removed built-in renderer and pin the behavior Flowview must keep.
 
-use entwine_core::{Navigation, PageReference, RendererKind, Route};
-use entwine_engine::{compile, parse_config, render, render_selected, render_site_with_renderer};
-use std::{fs, path::Path};
+use entwine_core::{Navigation, PageReference, Route};
+use entwine_engine::{
+    compile, compile_configured, compile_with_config, load_config, parse_config, render,
+    render_site,
+};
+use std::{collections::BTreeMap, fs, path::Path};
 use tempfile::tempdir;
 
-fn fixture(root: &Path, renderer: Option<&str>) {
+fn fixture(root: &Path) {
     fs::create_dir_all(root.join("docs/deep")).unwrap();
     fs::write(
         root.join("docs/index.md"),
@@ -23,113 +27,121 @@ fn fixture(root: &Path, renderer: Option<&str>) {
     )
     .unwrap();
     fs::write(root.join("docs/empty.md"), "---\ntitle: Empty page\n---\n").unwrap();
-    if let Some(renderer) = renderer {
-        fs::write(
-            root.join("entwine.toml"),
-            format!("[site]\nrenderer = \'{renderer}\'\n"),
-        )
-        .unwrap();
-    }
+}
+
+fn page(files: &[entwine_engine::StaticFile], path: &str) -> String {
+    let file = files.iter().find(|file| file.path == path).unwrap();
+    String::from_utf8(file.contents.clone()).unwrap()
 }
 
 #[test]
-fn renderer_config_defaults_to_builtin_and_rejects_unknown_values() {
-    assert_eq!(parse_config("").unwrap().site.renderer.as_str(), "builtin");
-    assert_eq!(
-        parse_config("[site]\nrenderer = 'flowview'\n")
-            .unwrap()
-            .site
-            .renderer
-            .as_str(),
-        "flowview"
-    );
-    let error = parse_config("[site]\nrenderer = 'unknown'\n").unwrap_err();
-    assert!(error.to_string().contains("unknown"));
-    assert!(error.to_string().contains("flowview"));
+fn renderer_setting_is_a_deprecated_alias_and_builtin_is_rejected() {
+    assert!(parse_config("").unwrap().site.renderer.is_none());
+    assert!(parse_config("[site]\nrenderer = 'flowview'\n")
+        .unwrap()
+        .site
+        .renderer
+        .is_some());
+
+    let builtin = parse_config("[site]\nrenderer = 'builtin'\n").unwrap_err();
+    let builtin = builtin.to_string();
+    assert!(builtin.contains("no longer supported"), "{builtin}");
+    assert!(builtin.contains("Delete the `renderer` key"), "{builtin}");
+
+    let unknown = parse_config("[site]\nrenderer = 'unknown'\n").unwrap_err();
+    assert!(unknown.to_string().contains("unknown"));
+    assert!(parse_config("[site]\nrender = 'flowview'\n").is_err());
 }
 
 #[test]
-fn flowview_uses_prepared_deep_routes_and_escapes_hostile_values() {
+fn legacy_flowview_setting_builds_with_a_deprecation_warning() {
     let temp = tempdir().unwrap();
-    fixture(temp.path(), Some("flowview"));
-    let compilation = compile(temp.path()).unwrap();
-    let files = render_selected(&compilation).unwrap();
-    let page = String::from_utf8(
-        files
-            .iter()
-            .find(|file| file.path == "deep/page/index.html")
-            .unwrap()
-            .contents
-            .clone(),
+    fixture(temp.path());
+    fs::write(
+        temp.path().join("entwine.toml"),
+        "[site]\nrenderer = 'flowview'\n",
     )
     .unwrap();
+    let compilation = compile_configured(temp.path()).unwrap();
+    assert!(!compilation.has_errors());
+    assert!(compilation
+        .diagnostics
+        .iter()
+        .any(|d| d.source == "entwine.toml" && d.message.contains("deprecated")));
+    assert!(render(&compilation).is_ok());
 
-    assert!(page.contains("<a class=\"skip\" href=\"#main\">Skip to content</a>"));
-    assert!(page.contains("<main id=\"main\" tabindex=\"-1\">"));
-    assert!(page.contains("href=\"../../__entwine/knowledge/\">Knowledge</a>"));
-    assert!(page.contains("href=\"../../__entwine/graph/?focus=deep%2Fpage.md\">Graph</a>"));
-    assert!(page.contains("class=\"level-2\"><a href=\"#details\">Details</a>"));
-    assert!(page.contains("Referenced by"));
-    assert!(page.contains("<strong>trusted</strong>"));
-    assert!(page.contains("&lt;script&gt;alert(1)&lt;/script&gt;"));
-    assert!(page.contains("&lt;img src=x onerror=alert(1)&gt;"));
-    assert!(!page.contains("<script>alert(1)</script>"));
-    assert!(!page.contains("<img src=x onerror=alert(1)>"));
+    fs::write(temp.path().join("entwine.toml"), "").unwrap();
+    let clean = compile_configured(temp.path()).unwrap();
+    assert!(!clean.diagnostics.iter().any(|d| d.source == "entwine.toml"));
+}
 
+#[test]
+fn deep_routes_use_prepared_links_and_escape_hostile_values() {
+    let temp = tempdir().unwrap();
+    fixture(temp.path());
+    let compilation = compile(temp.path()).unwrap();
+    let files = render(&compilation).unwrap();
+    let html = page(&files, "deep/page/index.html");
+
+    assert!(html.contains("<a class=\"skip\" href=\"#main\">Skip to content</a>"));
+    assert!(html.contains("<main id=\"main\" tabindex=\"-1\">"));
+    assert!(html.contains("href=\"../../__entwine/knowledge/\">Knowledge</a>"));
+    assert!(html.contains("href=\"../../__entwine/graph/?focus=deep%2Fpage.md\">Graph</a>"));
+    assert!(html.contains("class=\"level-2\"><a href=\"#details\">Details</a>"));
+    assert!(html.contains("Referenced by"));
+    assert!(html.contains("<strong>trusted</strong>"));
+    assert!(html.contains("&lt;script&gt;alert(1)&lt;/script&gt;"));
+    assert!(html.contains("&lt;img src=x onerror=alert(1)&gt;"));
+    assert!(!html.contains("<script>alert(1)</script>"));
+    assert!(!html.contains("<img src=x onerror=alert(1)>"));
+}
+
+#[test]
+fn every_host_string_is_escaped_in_text_and_attribute_positions() {
+    let temp = tempdir().unwrap();
+    fixture(temp.path());
+    let compilation = compile(temp.path()).unwrap();
     let hostile = "<img src=x onerror=alert(1)>";
+    let attribute = "\" onmouseover=\"alert(1)\" x=\"";
     let mut site = compilation.site.clone();
+    site.navigation[0].label = hostile.into();
     let page_model = site
         .pages
         .iter_mut()
         .find(|candidate| candidate.route.as_str() == "/deep/page/")
         .unwrap();
     page_model.source_path = Some(hostile.into());
+    page_model.source_url = Some(format!("https://example.invalid/{attribute}"));
+    page_model.metadata.kind = Some(attribute.into());
+    page_model.headings[0].text = hostile.into();
     page_model.backlinks[0].title = hostile.into();
     page_model.references.push(PageReference {
         title: hostile.into(),
         route: Route::from_source("index.md").unwrap(),
     });
-    let hostile_page = render_site_with_renderer(&site, RendererKind::Flowview).unwrap();
-    let hostile_page = String::from_utf8(
-        hostile_page
-            .iter()
-            .find(|file| file.path == "deep/page/index.html")
-            .unwrap()
-            .contents
-            .clone(),
-    )
-    .unwrap();
-    assert!(
-        hostile_page
-            .matches("&lt;img src=x onerror=alert(1)&gt;")
-            .count()
-            >= 3
-    );
-    assert!(!hostile_page.contains(hostile));
+    let html = page(&render_site(&site).unwrap(), "deep/page/index.html");
+
+    assert!(html.matches("&lt;img src=x onerror=alert(1)&gt;").count() >= 6);
+    assert!(!html.contains(hostile));
+    assert!(!html.contains("onmouseover=\"alert"), "{html}");
+    assert!(html.contains("&quot; onmouseover=&quot;alert(1)&quot;"));
+    assert!(!html.contains("@flowview/runtime"));
+    assert!(!html.contains("<script"));
 }
 
 #[test]
-fn default_selection_is_the_builtin_baseline_and_flowview_is_deterministic() {
+fn rendering_is_deterministic() {
     let temp = tempdir().unwrap();
-    fixture(temp.path(), None);
+    fixture(temp.path());
     let compilation = compile(temp.path()).unwrap();
-    assert_eq!(
-        render(&compilation).unwrap(),
-        render_selected(&compilation).unwrap()
-    );
-    let first = render_selected(&compilation).unwrap();
-    let second = render_selected(&compilation).unwrap();
-    assert_eq!(first, second);
+    assert_eq!(render(&compilation).unwrap(), render(&compilation).unwrap());
 }
 
 #[test]
-fn both_renderers_keep_page_routes_and_link_targets_in_sync() {
+fn optional_sections_and_large_lists_match_the_builtin_contract() {
     let project = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/kitchen-sink");
-    let compilation = compile(&project).unwrap();
-    let mut site = compilation.site.clone();
+    let mut site = compile(&project).unwrap().site;
     let current = site.pages[0].route.clone();
-
-    // Exercise the larger-list and optional-section paths on the same model.
     site.navigation.extend((0..40).map(|index| Navigation {
         label: format!("Extra page {index}"),
         route: Some(Route::from_source(&format!("extra/page-{index}.md")).unwrap()),
@@ -149,79 +161,132 @@ fn both_renderers_keep_page_routes_and_link_targets_in_sync() {
         })
         .collect();
 
-    let builtin = render_site_with_renderer(&site, RendererKind::Builtin).unwrap();
-    let flowview = render_site_with_renderer(&site, RendererKind::Flowview).unwrap();
-    assert_eq!(
-        builtin.iter().map(|file| &file.path).collect::<Vec<_>>(),
-        flowview.iter().map(|file| &file.path).collect::<Vec<_>>()
-    );
-    for (expected, actual) in builtin.iter().zip(&flowview) {
-        if !expected.path.ends_with("index.html") {
-            continue;
-        }
-        let expected = String::from_utf8_lossy(&expected.contents);
-        let actual = String::from_utf8_lossy(&actual.contents);
-        assert_eq!(href_targets(&expected), href_targets(&actual), "{}", actual);
+    let files = render_site(&site).unwrap();
+    let html = String::from_utf8_lossy(&files[1].contents);
+    assert!(html.contains("<details><summary>15 documents</summary>"));
+    assert_eq!(html.matches("<summary>15 documents</summary>").count(), 2);
+    assert!(html.contains("All documents in Knowledge"));
+    assert!(html.contains("Source:"));
+    assert!(html.contains("?a=1&amp;b=2"));
+    for page in files.iter().filter(|f| f.path.ends_with("index.html")) {
+        let html = String::from_utf8_lossy(&page.contents);
         for landmark in ["class=\"skip\"", "<main id=\"main\"", "aria-label=\""] {
-            assert!(actual.contains(landmark), "{} missing {landmark}", actual);
+            assert!(html.contains(landmark), "{} missing {landmark}", page.path);
         }
-        assert!(!actual.contains("@flowview/runtime"));
     }
-    let source = String::from_utf8_lossy(&flowview[1].contents);
-    assert!(source.contains("Source:"));
-    assert!(source.contains("?a=1&amp;b=2"));
 }
 
 #[test]
-fn both_renderers_preserve_custom_metadata_unicode_and_empty_pages() {
+fn custom_metadata_unicode_and_empty_pages_render() {
     let temp = tempdir().unwrap();
-    fixture(temp.path(), None);
+    fixture(temp.path());
     let compilation = compile(temp.path()).unwrap();
-    let builtin = render_site_with_renderer(&compilation.site, RendererKind::Builtin).unwrap();
-    let flowview = render_site_with_renderer(&compilation.site, RendererKind::Flowview).unwrap();
+    let files = render(&compilation).unwrap();
 
-    for path in ["custom/index.html", "empty/index.html"] {
-        let builtin = String::from_utf8(
-            builtin
-                .iter()
-                .find(|file| file.path == path)
-                .unwrap()
-                .contents
-                .clone(),
-        )
-        .unwrap();
-        let flowview = String::from_utf8(
-            flowview
-                .iter()
-                .find(|file| file.path == path)
-                .unwrap()
-                .contents
-                .clone(),
-        )
-        .unwrap();
-        assert_eq!(href_targets(&builtin), href_targets(&flowview), "{path}");
-        assert!(flowview.contains("<main id=\"main\""), "{path}");
-        if path.starts_with("custom/") {
-            for text in [
-                "Café &lt;script&gt;alert(1)&lt;/script&gt;",
-                "custom",
-                "draft",
-                "Párrafo Unicode sin H1.",
-                "<h1>Café &lt;script&gt;alert(1)&lt;/script&gt;</h1>",
-            ] {
-                assert!(flowview.contains(text), "missing {text:?} in {flowview}");
-            }
-            assert!(!flowview.contains("<script>alert(1)</script>"));
-        } else {
-            assert!(flowview.contains("<article>"));
-            assert!(!flowview.contains("Empty body marker"));
-        }
+    let custom = page(&files, "custom/index.html");
+    for text in [
+        "Café &lt;script&gt;alert(1)&lt;/script&gt;",
+        "custom",
+        "draft",
+        "Párrafo Unicode sin H1.",
+        "<h1>Café &lt;script&gt;alert(1)&lt;/script&gt;</h1>",
+    ] {
+        assert!(custom.contains(text), "missing {text:?} in {custom}");
+    }
+    assert!(!custom.contains("<script>alert(1)</script>"));
+
+    let empty = page(&files, "empty/index.html");
+    assert!(empty.contains("<main id=\"main\""));
+    assert!(empty.contains("<article>"));
+}
+
+/// Whitespace and void-element syntax are the only intended differences from the
+/// built-in renderer's output.
+fn normalize(html: &str) -> String {
+    let collapsed = html.split_whitespace().collect::<Vec<_>>().join(" ");
+    collapsed
+        .replace(" />", ">")
+        .replace("/>", ">")
+        .replace("> ", ">")
+        .replace(" <", "<")
+}
+
+#[test]
+fn projection_fixture_matches_the_builtin_baseline_pages() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests");
+    let compilation = compile(&root.join("fixtures/projection-golden")).unwrap();
+    let files = render(&compilation).unwrap();
+    for (path, baseline) in [
+        ("index.html", "builtin-index.html"),
+        ("specs/index.html", "builtin-specs__index.html"),
+    ] {
+        let expected = fs::read_to_string(root.join("baseline").join(baseline))
+            .unwrap()
+            .replace("PACKAGE_VERSION", env!("CARGO_PKG_VERSION"));
+        assert_eq!(
+            normalize(&page(&files, path)),
+            normalize(&expected),
+            "{path}"
+        );
     }
 }
 
-fn href_targets(html: &str) -> Vec<String> {
-    html.split("href=\"")
+#[test]
+fn kitchen_sink_links_and_landmarks_match_the_builtin_baseline() {
+    let project = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/kitchen-sink");
+    // The baseline was built with the repository root as the repository boundary.
+    let repository = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let config = load_config(&project).unwrap();
+    let compilation = compile_with_config(&project, &repository, None, &config).unwrap();
+    let files = render(&compilation).unwrap();
+    let snapshot: BTreeMap<String, serde_json::Value> = serde_json::from_str(
+        &fs::read_to_string(
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/baseline/kitchen-sink-builtin-pages.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+
+    let mut rendered: Vec<_> = files
+        .iter()
+        .filter(|f| f.path.ends_with("index.html") && !f.path.starts_with("__entwine"))
+        .map(|f| f.path.as_str())
+        .collect();
+    rendered.sort_unstable();
+    assert_eq!(
+        rendered,
+        snapshot.keys().map(String::as_str).collect::<Vec<_>>()
+    );
+    for (path, expected) in &snapshot {
+        let html = page(&files, path);
+        assert_eq!(
+            extract(&html, "href"),
+            strings(&expected["hrefs"]),
+            "{path}"
+        );
+        assert_eq!(
+            extract(&html, "aria-label"),
+            strings(&expected["aria_labels"]),
+            "{path}"
+        );
+    }
+}
+
+fn strings(value: &serde_json::Value) -> Vec<String> {
+    value
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap().to_owned())
+        .collect()
+}
+
+fn extract(html: &str, attribute: &str) -> Vec<String> {
+    let marker = format!(" {attribute}=\"");
+    html.split(marker.as_str())
         .skip(1)
-        .filter_map(|attribute| attribute.split_once('\"').map(|(href, _)| href.to_owned()))
+        .filter_map(|rest| rest.split_once('"').map(|(value, _)| value.to_owned()))
+        .filter(|value| !value.starts_with("https://github.com/Andersseen/Entwine/blob/"))
         .collect()
 }

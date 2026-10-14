@@ -13,11 +13,13 @@ on:
 permissions:
   contents: read
 jobs:
+  # Flowview's parser (Oxc) sets the floor: Entwine's declared rust-version must be exactly
+  # the oldest compiler that can build the whole workspace.
   msrv:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.85.0
+      - uses: dtolnay/rust-toolchain@1.94.0
       - uses: Swatinem/rust-cache@v2
       - run: cargo build --workspace --locked
       - run: cargo test --workspace --locked
@@ -81,32 +83,6 @@ jobs:
           path: deployment
           if-no-files-found: error
           retention-days: 3
-
-  flowview-experimental:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@v2
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: cargo test --workspace --features flowview-renderer --locked
-      - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
-      - run: cargo build -p entwine-cli --features flowview-renderer --locked
-      - run: cargo build --release -p entwine-cli --features flowview-renderer --locked
-      - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm build:showcase
-        env:
-          ENTWINE_RENDERER: flowview
-      - run: pnpm test:e2e
-        env:
-          ENTWINE_RENDERER: flowview
 
   portability:
     strategy:

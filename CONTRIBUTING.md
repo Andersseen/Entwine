@@ -6,7 +6,7 @@ output. Avoid unrelated refactoring or abstractions for hypothetical integration
 
 ## Setup and checks
 
-Install Rust stable, Node 22.18+ (repository tooling runs TypeScript directly), and pnpm 10. Run `pnpm install --frozen-lockfile`
+Install Rust 1.94 or newer, Node 22.18+ (repository tooling runs TypeScript directly), and pnpm 10. Run `pnpm install --frozen-lockfile`
 and `pnpm check`. `cargo build --workspace` and `cargo test --workspace` work
 independently of the Node toolchain. Use `pnpm format` before submitting.
 
