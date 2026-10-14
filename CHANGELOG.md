@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.0](https://github.com/Andersseen/Entwine/compare/v0.8.0...v0.9.0) (2026-10-14)
+
+
+### Features
+
+* render documentation pages with Flowview only ([#53](https://github.com/Andersseen/Entwine/issues/53)) ([d2bddcc](https://github.com/Andersseen/Entwine/commit/d2bddccdd1e9d2af4f90c1285ee9f46b4a953bab))
+* selective agent publication, README link, published MCP docs and Andersseen website ([#46](https://github.com/Andersseen/Entwine/issues/46)) ([d719b75](https://github.com/Andersseen/Entwine/commit/d719b75d1dae877ee964110e3ec584f43206d3d8))
+
 ## [0.8.0](https://github.com/Andersseen/Entwine/compare/v0.7.0...v0.8.0) (2026-10-11)
 
 
