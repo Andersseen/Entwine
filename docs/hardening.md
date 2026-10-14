@@ -234,7 +234,7 @@ they are reported explicitly instead of claiming verification that did not occur
 | 10. Updated public demonstration | Pending PR merge and public deployment |
 | 11. Independent of Etyma | Yes |
 | 12. Independent of Agentyx | Yes; validation input only |
-| 13. Independent of Flowview | Yes at this milestone (validation input only); Flowview later became the page-renderer dependency, see [decision](decisions/flowview-default-renderer.md) |
+| 13. Independent of Flowview | Yes; validation input only |
 | 14. No built-in AI/LLM dependency | Yes |
 
 ## Repository knowledge and graph milestone
