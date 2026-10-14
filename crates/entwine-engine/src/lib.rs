@@ -1,7 +1,6 @@
 //! Scan and parse each document once, resolve a canonical model, then project it.
 mod agents_page;
 mod discovery;
-#[cfg(feature = "flowview-renderer")]
 mod flowview_renderer;
 mod graph_layout;
 mod graph_page;
@@ -12,9 +11,10 @@ mod resolve;
 
 pub use agents_page::render_agents;
 use entwine_core::*;
+pub use flowview_renderer::render_site;
 pub use graph_page::{render_graph, render_graph_script};
 pub use projections::{context_json, context_markdown};
-pub use render::{render_knowledge, render_site, StaticFile};
+pub use render::{render_knowledge, StaticFile};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs, io,
@@ -172,47 +172,11 @@ pub fn parse_config(text: &str) -> io::Result<Config> {
     })
 }
 
-/// Every file of a complete static site using the selected page renderer and
-/// Entwine's existing Graph, Knowledge, Agents, and asset renderers.
-pub fn render(compilation: &Compilation) -> std::io::Result<Vec<StaticFile>> {
-    render_selected(compilation)
-}
-
-/// Complete static site rendered through the built-in page renderer, for
-/// parity comparisons and rollback.
-pub fn render_builtin(compilation: &Compilation) -> Vec<StaticFile> {
-    render_views(compilation, render_site(&compilation.site))
-}
-
-/// Render the configured page shell and the existing Entwine-owned views.
+/// Every file of a complete static site: Flowview-rendered documentation pages plus
+/// Entwine's own Graph, Knowledge, Agents, and asset output.
 /// Internal template failures are returned as renderer errors before publication.
-pub fn render_selected(compilation: &Compilation) -> std::io::Result<Vec<StaticFile>> {
-    let pages = render_site_with_renderer(&compilation.site, compilation.config.site.renderer)?;
-    Ok(render_views(compilation, pages))
-}
-
-/// Render documentation pages with an explicit renderer, useful for controlled
-/// comparisons while the Flowview option remains experimental.
-pub fn render_site_with_renderer(
-    site: &SiteModel,
-    renderer: RendererKind,
-) -> std::io::Result<Vec<StaticFile>> {
-    match renderer {
-        RendererKind::Builtin => Ok(render_site(site)),
-        RendererKind::Flowview => {
-            #[cfg(feature = "flowview-renderer")]
-            {
-                flowview_renderer::render_site(site)
-            }
-            #[cfg(not(feature = "flowview-renderer"))]
-            {
-                Err(std::io::Error::new(
-                    std::io::ErrorKind::Unsupported,
-                    "The Flowview renderer is experimental and was not included in this Entwine build. Rebuild with --features flowview-renderer.",
-                ))
-            }
-        }
-    }
+pub fn render(compilation: &Compilation) -> std::io::Result<Vec<StaticFile>> {
+    Ok(render_views(compilation, render_site(&compilation.site)?))
 }
 
 fn render_views(compilation: &Compilation, mut files: Vec<StaticFile>) -> Vec<StaticFile> {
@@ -330,6 +294,13 @@ pub fn compile_with_config(
         ));
     }
     let mut diagnostics = Vec::new();
+    if config.site.renderer.is_some() {
+        diagnostics.push(warning(
+            "entwine.toml",
+            None,
+            "site.renderer is deprecated and ignored: Flowview is the only page renderer. Delete the `renderer` key.",
+        ));
+    }
     let mut paths = Vec::new();
     let mut assets = Vec::new();
     for entry in WalkDir::new(&root).follow_links(false) {

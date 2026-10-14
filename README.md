@@ -9,7 +9,7 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/Andersseen/Entwine/ci.yml?branch=main&style=flat-square&label=ci)](https://github.com/Andersseen/Entwine/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/github/license/Andersseen/Entwine?style=flat-square)](LICENSE)
 [![npm version](https://img.shields.io/npm/v/@entwine/cli?style=flat-square)](https://www.npmjs.com/package/@entwine/cli)
-![Rust 1.85+](https://img.shields.io/badge/rust-1.85%2B-orange?style=flat-square)
+![Rust 1.94+](https://img.shields.io/badge/rust-1.94%2B-orange?style=flat-square)
 
 </div>
 
@@ -89,7 +89,7 @@ npm install --global @entwine/cli
 
 📦 **[View on npm](https://www.npmjs.com/package/@entwine/cli)** · Latest: [![npm version](https://img.shields.io/npm/v/@entwine/cli?style=flat-square&label=)](https://www.npmjs.com/package/@entwine/cli)
 
-**From source** (Rust stable required):
+**From source** (Rust 1.94 or newer):
 
 ```sh
 cargo install --path crates/entwine-cli
@@ -304,10 +304,11 @@ symlinks, and paths outside the repository remain errors.
 The renderer is not the knowledge model. See [architecture](docs/architecture.md),
 [current state](docs/state.md), and [roadmap](docs/roadmap.md).
 
-The normal Entwine build supports Rust 1.85 and does not compile the experimental
-Flowview renderer. To try it with Rust 1.94 or newer, build
-`entwine-cli` using `--features flowview-renderer`. See the
-[Flowview experiment record](docs/decisions/flowview-renderer-experiment.md).
+Documentation pages are rendered by [Flowview](https://github.com/Andersseen/flowview),
+compiled into the native binary; generated sites need no runtime. Building from
+source requires Rust 1.94 or newer (Flowview's parser sets that floor). Precompiled
+npm binaries are unaffected. See the
+[decision record](docs/decisions/flowview-default-renderer.md).
 
 ## What it is not
 

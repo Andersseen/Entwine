@@ -168,14 +168,15 @@ filter is applied at the projection boundary, so context, `check` and the MCP se
 still see everything. Unknown keys are errors. See
 [agent knowledge](specs/agent-knowledge.md).
 
-The optional `[site] renderer = "flowview"` setting selects the experimental
-Flowview page-shell renderer. The default build excludes its compiler and
-supports Rust 1.85; Flowview builds use `--features flowview-renderer` and
-currently require Rust 1.94 or newer. Graph, Knowledge, and Agents pages keep
-their existing Rust renderers. The compiler remains pinned to an immutable Git
-revision because crates.io returned no `flowview-compiler` crate on 10 October
-2026. See the [experiment record](decisions/flowview-renderer-experiment.md)
-for parity criteria and current evidence.
+Ordinary documentation pages are rendered by Flowview from `page.flow` (source-only
+until released); Graph, Knowledge and Agents pages keep their Entwine Rust
+renderers. The minimum Rust version is 1.94, set by Flowview's Oxc parser. The
+compiler is pinned to Flowview commit `fba1468f`, an immutable Git revision, because
+crates.io has no `flowview-compiler` crate (checked 14 October 2026). `[site]
+renderer = "flowview"` is accepted as a deprecated no-op with a warning;
+`"builtin"` is an error. See the
+[decision record](decisions/flowview-default-renderer.md) for evidence, size and
+performance measurements, and rollback.
 
 Each document has a role (what it means) and an artifact kind (`documentation`,
 `agent_instructions`, `skill`). Instruction files carry a structural scope (the

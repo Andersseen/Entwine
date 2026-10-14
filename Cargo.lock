@@ -287,7 +287,7 @@ checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
 [[package]]
 name = "flowview-compiler"
 version = "0.1.0"
-source = "git+https://github.com/Andersseen/flowview?rev=35f8c3f211b1f70099462860d80dec944a27d501#35f8c3f211b1f70099462860d80dec944a27d501"
+source = "git+https://github.com/Andersseen/flowview?rev=fba1468fe12bebc3e2f298d4550b9b01f991dbd9#fba1468fe12bebc3e2f298d4550b9b01f991dbd9"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
