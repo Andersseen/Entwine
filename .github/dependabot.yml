@@ -4,6 +4,10 @@ updates:
     directory: /
     schedule: { interval: weekly }
     commit-message: { prefix: "ci" }
+    ignore:
+      # The msrv job pins the exact minimum Rust version on purpose; a newer
+      # pin would stop it from checking the declared rust-version.
+      - dependency-name: "dtolnay/rust-toolchain"
   - package-ecosystem: cargo
     directory: /
     schedule: { interval: weekly }
