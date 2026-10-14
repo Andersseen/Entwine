@@ -1,4 +1,9 @@
-# Flowview page renderer
+# Flowview page renderer (experiment)
+
+> **Historical.** This records the experiment and why the built-in renderer stayed the
+> default at the time. The follow-up [Flowview as the only page renderer](flowview-default-renderer.md)
+> proposes making Flowview the single renderer; the decision below, the `flowview-renderer`
+> feature and the `renderer` setting it describes are superseded there.
 
 ## Context
 
