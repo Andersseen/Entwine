@@ -39,7 +39,7 @@ jobs:
     outputs:
       pending: ${{ steps.guard.outputs.pending || 'none' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: github.event_name == 'push'
       - uses: actions/setup-node@v7
         if: github.event_name == 'push'
@@ -90,13 +90,13 @@ jobs:
           [[ "$draft" == true ]] || { echo "Retry only an existing draft release" >&2; exit 1; }
           sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$target" --jq .sha)
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: github.event_name == 'workflow_dispatch'
         with:
           ref: ${{ steps.draft.outputs.sha }}
       # Release code comes from the draft's commit; release tooling always comes from
       # the workflow's own ref, so a repaired workflow can resume an older draft.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: github.event_name == 'workflow_dispatch'
         with:
           path: .release-tooling
@@ -144,7 +144,7 @@ jobs:
       # the lockfile in step with the bumped workspace version on the release PR.
       - name: Check out the release PR branch
         if: steps.rp.outputs.prs_created == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ fromJSON(steps.rp.outputs.prs || '[{}]')[0].headBranchName }}
       - name: Sync Cargo.lock and validate the final release PR SHA
@@ -192,7 +192,7 @@ jobs:
       TAG: ${{ needs.release-please.outputs.tag }}
       NAME: entwine-${{ needs.release-please.outputs.tag }}-${{ matrix.target }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.release-please.outputs.sha }}
       - uses: dtolnay/rust-toolchain@stable
@@ -244,7 +244,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           path: .release-tooling
           ref: ${{ github.sha }}
@@ -316,11 +316,11 @@ jobs:
       VERSION: ${{ needs.release-please.outputs.version }}
       BUILT: ${{ needs.release-please.outputs.needs_build }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: env.BUILT == 'true'
         with:
           ref: ${{ needs.release-please.outputs.sha }}
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           path: .release-tooling
           ref: ${{ github.sha }}
