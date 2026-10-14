@@ -58,20 +58,20 @@ the existing SVG. SVG was kept over canvas for accessibility, a no-script
 fallback, tiny output, and sufficient speed at 250 nodes (see
 [hardening](hardening.md#graph-performance)).
 
-The renderer is not the knowledge model. The built-in renderer consumes a
-`SiteModel`, never source files. The official Astro website is a separate
-consumer of product copy and does not render users' documentation.
+The renderer is not the knowledge model. Page rendering consumes a `SiteModel`,
+never source files. The official Astro website is a separate consumer of product
+copy and does not render users' documentation.
 
-The page renderer can be selected with `[site] renderer = "flowview"` in
-`entwine.toml`. This remains experimental; omitting it selects the built-in
-renderer. The default Entwine build supports Rust 1.85 and excludes Flowview's
-compiler dependency tree. To include it, build with
-`cargo build -p entwine-cli --features flowview-renderer`; experimental builds
-require a newer Rust compiler while Flowview's Oxc dependencies require Rust
-1.94. Flowview remains an optional dependency of `entwine-engine` only and
-receives a narrow, host-prepared page view. A build without the feature reports
-an actionable error when Flowview is explicitly selected. See the
-[decision record](decisions/flowview-renderer-experiment.md).
+Ordinary documentation pages are rendered by Flowview, a native Rust template
+compiler, from the canonical `templates/page.flow`. `flowview_renderer.rs` compiles
+the template once per site render and feeds it a small typed view model prepared from
+the `SiteModel`; output is plain static HTML with no Flowview runtime. Flowview owns
+nothing else: routing, Markdown, the knowledge model, Graph, Knowledge and Agents
+stay in Entwine. Only Markdown body HTML and the host-generated navigation fragment
+are inserted raw. The compiler is pinned to an immutable Git revision (it is not on
+crates.io) and raises the minimum Rust to 1.94. `[site] renderer = "flowview"` is a
+deprecated no-op alias; `"builtin"` is rejected. See the
+[decision record](decisions/flowview-default-renderer.md).
 
 ## Determinism and safety
 

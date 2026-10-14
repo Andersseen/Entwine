@@ -77,12 +77,8 @@ fn real_cli_build_check_graph_and_context_work() {
 }
 
 #[test]
-#[cfg(feature = "flowview-renderer")]
-fn flowview_is_opt_in_and_keeps_entwine_generated_views() {
+fn build_renders_pages_with_flowview_and_keeps_entwine_generated_views() {
     let temp = fixture();
-    let config = temp.path().join("entwine.toml");
-    let original = fs::read_to_string(&config).unwrap();
-    fs::write(&config, format!("{original}\nrenderer = \"flowview\"\n")).unwrap();
 
     let result = cli("build", temp.path(), &[]);
     assert!(
@@ -113,24 +109,41 @@ fn flowview_is_opt_in_and_keeps_entwine_generated_views() {
     ] {
         assert!(html.contains(fragment), "missing {fragment}");
     }
+    assert!(!html.contains("<script"), "pages must not need a runtime");
 }
 
 #[test]
-#[cfg(not(feature = "flowview-renderer"))]
-fn explicitly_selecting_flowview_without_feature_returns_actionable_error() {
+fn legacy_flowview_renderer_setting_warns_but_builds() {
     let temp = fixture();
     let config = temp.path().join("entwine.toml");
     let original = fs::read_to_string(&config).unwrap();
     fs::write(&config, format!("{original}\nrenderer = \"flowview\"\n")).unwrap();
 
     let result = cli("build", temp.path(), &[]);
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let output = String::from_utf8_lossy(&result.stdout).into_owned()
+        + &String::from_utf8_lossy(&result.stderr);
+    assert!(output.contains("site.renderer is deprecated"), "{output}");
+    assert!(temp.path().join("dist/index.html").is_file());
+}
+
+#[test]
+fn builtin_renderer_setting_is_rejected_with_a_migration_message() {
+    let temp = fixture();
+    let config = temp.path().join("entwine.toml");
+    let original = fs::read_to_string(&config).unwrap();
+    fs::write(&config, format!("{original}\nrenderer = \"builtin\"\n")).unwrap();
+
+    let result = cli("build", temp.path(), &[]);
     assert!(!result.status.success());
     let error = String::from_utf8_lossy(&result.stderr);
-    assert!(
-        error.contains("experimental and was not included"),
-        "{error}"
-    );
-    assert!(error.contains("--features flowview-renderer"), "{error}");
+    assert!(error.contains("Invalid entwine.toml"), "{error}");
+    assert!(error.contains("no longer supported"), "{error}");
+    assert!(error.contains("Delete the `renderer` key"), "{error}");
 }
 
 #[test]

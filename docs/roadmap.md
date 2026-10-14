@@ -23,6 +23,9 @@ Continue collecting evidence from real adopters of the standalone compiler.
 - Persist user-chosen graph layouts and extend filtering only if real use shows
   the need; the text index remains authoritative.
 
+- Remove the deprecated `[site] renderer` alias in a later release, and move the
+  Flowview dependency from a Git revision to a published crate once one exists.
+
 The [hardening evidence](hardening.md) records completed compatibility fixes,
 measurements, provider evidence, and remaining limits.
 
