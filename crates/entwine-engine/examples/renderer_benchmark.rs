@@ -1,5 +1,9 @@
 //! Compare page rendering only, using one already projected kitchen-sink SiteModel.
-//! Run with `cargo run --release -p entwine-engine --example renderer_benchmark`.
+//! Run with `cargo run --release -p entwine-engine --features flowview-renderer
+//! --example renderer_benchmark`.
+//!
+//! Flowview's one-off template compile is estimated by rendering a site with no
+//! pages; the per-page figure excludes it.
 
 use entwine_core::{PageReference, RendererKind, Route};
 use entwine_engine::{compile, render_site_with_renderer};
@@ -10,7 +14,16 @@ fn main() {
     let mut site = compile(&project).expect("kitchen-sink compiles").site;
     let prototype = site.pages[0].clone();
 
-    println!("Pages | Built-in ms | Flowview ms | Built-in bytes | Flowview bytes");
+    let mut empty = site.clone();
+    empty.pages.clear();
+    let compile = measure(&empty, RendererKind::Flowview).0;
+    println!(
+        "Flowview compile-once estimate: {:.3} ms",
+        compile.as_secs_f64() * 1000.0
+    );
+    println!(
+        "Pages | Built-in ms | Flowview ms | Flowview µs/page | Built-in bytes | Flowview bytes"
+    );
     for count in [10, 100, 500, 1000] {
         site.pages = (0..count)
             .map(|index| {
@@ -40,9 +53,10 @@ fn main() {
         let builtin = measure(&site, RendererKind::Builtin);
         let flowview = measure(&site, RendererKind::Flowview);
         println!(
-            "{count} | {:.2} | {:.2} | {} | {}",
+            "{count} | {:.2} | {:.2} | {:.1} | {} | {}",
             builtin.0.as_secs_f64() * 1000.0,
             flowview.0.as_secs_f64() * 1000.0,
+            flowview.0.saturating_sub(compile).as_secs_f64() * 1e6 / count as f64,
             builtin.1,
             flowview.1
         );
@@ -50,14 +64,14 @@ fn main() {
 }
 
 fn measure(site: &entwine_core::SiteModel, renderer: RendererKind) -> (std::time::Duration, usize) {
-    let mut samples = Vec::with_capacity(5);
+    let mut samples = Vec::with_capacity(7);
     let mut bytes = 0;
-    for _ in 0..5 {
+    for _ in 0..7 {
         let start = Instant::now();
         let files = render_site_with_renderer(site, renderer).expect("renderer succeeds");
         samples.push(start.elapsed());
         bytes = files.iter().map(|file| file.contents.len()).sum();
     }
     samples.sort_unstable();
-    (samples[2], bytes)
+    (samples[3], bytes)
 }

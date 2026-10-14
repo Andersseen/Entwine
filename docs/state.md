@@ -171,11 +171,12 @@ still see everything. Unknown keys are errors. See
 The optional `[site] renderer = "flowview"` setting selects the experimental
 Flowview page-shell renderer. The default build excludes its compiler and
 supports Rust 1.85; Flowview builds use `--features flowview-renderer` and
-currently require Rust 1.94 or newer. Graph, Knowledge, and Agents pages keep
-their existing Rust renderers. The compiler remains pinned to an immutable Git
-revision because crates.io returned no `flowview-compiler` crate on 10 October
-2026. See the [experiment record](decisions/flowview-renderer-experiment.md)
-for parity criteria and current evidence.
+require Rust 1.91 or newer. Graph, Knowledge, and Agents pages keep their
+existing Rust renderers. The compiler is the `flowview-compiler` 0.2.0 crate
+from crates.io. The renderer stays experimental and the built-in renderer stays
+the default until the adoption decision is made. See the
+[experiment record](decisions/flowview-renderer-experiment.md) for parity
+criteria and current evidence.
 
 Each document has a role (what it means) and an artifact kind (`documentation`,
 `agent_instructions`, `skill`). Instruction files carry a structural scope (the

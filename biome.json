@@ -16,7 +16,8 @@
       "!.agents",
       "!.claude",
       "!.agentyx.lock.json",
-      "!crates/entwine-engine/tests/golden"
+      "!crates/entwine-engine/tests/golden",
+      "!crates/entwine-engine/tests/baseline"
     ]
   },
   "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2 },

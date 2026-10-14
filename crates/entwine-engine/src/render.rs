@@ -69,13 +69,18 @@ pub(crate) fn nav(items: &[Navigation], current: &Route) -> String {
     html
 }
 
+/// Reference and backlink lists longer than this collapse into `<details>`.
+pub(crate) const COLLAPSED_LINKS_AFTER: usize = 12;
+
 /// Relative page link prepared once for either page-shell renderer.
+#[cfg_attr(feature = "flowview-renderer", derive(serde::Serialize))]
 pub(crate) struct PreparedLink {
     pub href: String,
     pub label: String,
 }
 
 /// Heading data shared by the inline and side table of contents.
+#[cfg_attr(feature = "flowview-renderer", derive(serde::Serialize))]
 pub(crate) struct PreparedHeading {
     #[cfg(feature = "flowview-renderer")]
     pub id: String,
@@ -85,6 +90,7 @@ pub(crate) struct PreparedHeading {
 }
 
 /// Metadata presentation shared by the built-in and Flowview page shells.
+#[cfg_attr(feature = "flowview-renderer", derive(serde::Serialize))]
 pub(crate) struct PreparedMetadata {
     pub class: String,
     pub label: String,
@@ -288,7 +294,7 @@ fn related_section(title: &str, pages: &[PreparedLink]) -> String {
             ))
             .collect::<String>()
     );
-    let body = if pages.len() > 12 {
+    let body = if pages.len() > COLLAPSED_LINKS_AFTER {
         format!(
             "<details><summary>{} documents</summary>{list}</details>",
             pages.len()
