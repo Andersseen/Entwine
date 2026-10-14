@@ -38,7 +38,7 @@ fn kitchen_sink_compiles_real_documents_and_all_projections() {
         compilation.context.relationships,
         compilation.knowledge.relations
     );
-    let files = render_site(&compilation.site).unwrap();
+    let files = render_site(&compilation.site);
     assert!(files.iter().any(|f| f.path == "index.html"));
     let auth_html = String::from_utf8(
         files
@@ -109,10 +109,7 @@ fn identical_input_produces_identical_output() {
     let first = compile(&kitchen()).unwrap();
     let second = compile(&kitchen()).unwrap();
     assert_eq!(first.knowledge, second.knowledge);
-    assert_eq!(
-        render_site(&first.site).unwrap(),
-        render_site(&second.site).unwrap()
-    );
+    assert_eq!(render_site(&first.site), render_site(&second.site));
     assert_eq!(render_graph(&first.graph), render_graph(&second.graph));
     assert_eq!(
         context_json(&first.context).unwrap(),
@@ -172,7 +169,7 @@ fn heading_ids_links_escaping_assets_and_relations_are_consistent() {
     assert!(compilation.knowledge.documents[0]
         .html
         .contains("nested/a%20b/#repeat-2"));
-    let files = render_site(&compilation.site).unwrap();
+    let files = render_site(&compilation.site);
     let home = String::from_utf8(
         files
             .iter()
@@ -265,7 +262,6 @@ fn projects_without_index_get_a_useful_entry_page() {
     assert_eq!(compilation.knowledge.documents.len(), 1);
     assert_eq!(compilation.graph.nodes.len(), 1);
     let index = render_site(&compilation.site)
-        .unwrap()
         .into_iter()
         .find(|f| f.path == "index.html")
         .unwrap();

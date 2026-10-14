@@ -205,40 +205,27 @@ pub struct SiteConfig {
     /// Publish only these discovered artifacts (exact repository-relative paths such as
     /// `.agents/skills/x/SKILL.md`). Mutually exclusive with `include_agent_knowledge`.
     pub public_agent_paths: Vec<String>,
-    /// Deprecated. Pages are always rendered with Flowview; `"flowview"` is still accepted
-    /// (with a warning) so projects that opted in during the experiment keep building.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub renderer: Option<LegacyRenderer>,
+    /// Select the experimental static HTML renderer. Defaults to the built-in renderer.
+    pub renderer: RendererKind,
 }
 
-/// The only `site.renderer` value still accepted: a parse-only alias for the sole renderer,
-/// not a selectable implementation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(try_from = "String", into = "&'static str")]
-pub enum LegacyRenderer {
+/// A page-shell renderer. Flowview remains opt-in until its parity experiment is complete.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RendererKind {
+    #[default]
+    Builtin,
     Flowview,
 }
 
-impl TryFrom<String> for LegacyRenderer {
-    type Error = String;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        match value.as_str() {
-            "flowview" => Ok(Self::Flowview),
-            "builtin" => Err("site.renderer = \"builtin\" is no longer supported: the built-in page renderer was removed and Flowview is the only renderer. Delete the `renderer` key.".into()),
-            other => Err(format!(
-                "unknown site.renderer {other:?}. The setting is deprecated; delete the `renderer` key."
-            )),
+impl RendererKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Builtin => "builtin",
+            Self::Flowview => "flowview",
         }
     }
 }
-
-impl From<LegacyRenderer> for &'static str {
-    fn from(_: LegacyRenderer) -> Self {
-        "flowview"
-    }
-}
-
 impl Config {
     pub fn discovers_agent_knowledge(&self) -> bool {
         self.discovery.agent_instructions || self.discovery.skills
