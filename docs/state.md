@@ -171,7 +171,7 @@ still see everything. Unknown keys are errors. See
 Ordinary documentation pages are rendered by Flowview from `page.flow` (source-only
 until released); Graph, Knowledge and Agents pages keep their Entwine Rust
 renderers. The minimum Rust version is 1.94, set by Flowview's Oxc parser. The
-compiler is pinned to Flowview commit `77a94d58`, an immutable Git revision, because
+compiler is pinned to Flowview commit `fba1468f`, an immutable Git revision, because
 crates.io has no `flowview-compiler` crate (checked 14 October 2026). `[site]
 renderer = "flowview"` is accepted as a deprecated no-op with a warning;
 `"builtin"` is an error. See the

@@ -78,10 +78,10 @@ keep building. Delete it in a later release.
 The dependency is therefore an immutable Git revision of Flowview `main`:
 
 ```text
-77a94d58b44f07bf70c8320ef84341481446cceb
+fba1468fe12bebc3e2f298d4550b9b01f991dbd9
 ```
 
-It replaces `35f8c3f2`. The new revision includes the UTF-8-safe diagnostic spans,
+It replaces `35f8c3f2`. The evidence below was collected on `77a94d58`; `fba1468f` differs only by Flowview's npm version-packages commit and leaves `crates/` unchanged, and the Rust tests were re-run on it. The new revision includes the UTF-8-safe diagnostic spans,
 compiler source maps, adversarial hardening, and static-API test additions made since.
 Cargo.lock pins it. Consequence to weigh: a Git dependency prevents publishing
 `entwine-engine` or `entwine-cli` to crates.io until Flowview publishes a crate.

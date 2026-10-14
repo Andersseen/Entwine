@@ -11,7 +11,7 @@ rust-version = "1.94"
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-flowview-compiler = { git = "https://github.com/Andersseen/flowview", rev = "77a94d58b44f07bf70c8320ef84341481446cceb" }
+flowview-compiler = { git = "https://github.com/Andersseen/flowview", rev = "fba1468fe12bebc3e2f298d4550b9b01f991dbd9" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
