@@ -82,31 +82,55 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
+  # Experimental Flowview page renderer from crates.io. Its dependency tree
+  # declares Rust 1.91, so this job pins exactly that toolchain; the default
+  # product keeps the 1.85 MSRV checked by the msrv job and never builds Flowview.
   flowview-experimental:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@1.91.0
         with:
-          components: rustfmt, clippy
+          components: clippy
       - uses: Swatinem/rust-cache@v2
+      - run: cargo test --workspace --features flowview-renderer --locked
+      - run: cargo build -p entwine-cli --features flowview-renderer --locked
+      - run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+        if: runner.os == 'Linux'
+      - run: cargo build --release -p entwine-cli --features flowview-renderer --locked
+        if: runner.os == 'Linux'
+      # Linux only: the showcase under /docs/ and /demo/ and the full browser suite
+      # against Flowview-rendered pages.
       - uses: pnpm/action-setup@v6
+        if: runner.os == 'Linux'
       - uses: actions/setup-node@v7
+        if: runner.os == 'Linux'
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: cargo test --workspace --features flowview-renderer --locked
-      - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
-      - run: cargo build -p entwine-cli --features flowview-renderer --locked
-      - run: cargo build --release -p entwine-cli --features flowview-renderer --locked
+        if: runner.os == 'Linux'
       - run: pnpm exec playwright install --with-deps chromium
+        if: runner.os == 'Linux'
       - run: pnpm build:showcase
+        if: runner.os == 'Linux'
         env:
           ENTWINE_RENDERER: flowview
       - run: pnpm test:e2e
+        if: runner.os == 'Linux'
         env:
           ENTWINE_RENDERER: flowview
+      - uses: actions/upload-artifact@v7
+        if: failure() && runner.os == 'Linux'
+        with:
+          name: flowview-e2e-traces
+          path: test-results
+          if-no-files-found: ignore
+          retention-days: 3
 
   portability:
     strategy:

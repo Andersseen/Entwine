@@ -1,9 +1,12 @@
 #![cfg(feature = "flowview-renderer")]
 
-use entwine_core::{Navigation, PageReference, RendererKind, Route};
+use entwine_core::{DocumentId, Navigation, PageReference, RendererKind, Route};
 use entwine_engine::{compile, parse_config, render, render_selected, render_site_with_renderer};
 use std::{fs, path::Path};
 use tempfile::tempdir;
+
+mod common;
+use common::normalize;
 
 fn fixture(root: &Path, renderer: Option<&str>) {
     fs::create_dir_all(root.join("docs/deep")).unwrap();
@@ -224,4 +227,113 @@ fn href_targets(html: &str) -> Vec<String> {
         .skip(1)
         .filter_map(|attribute| attribute.split_once('\"').map(|(href, _)| href.to_owned()))
         .collect()
+}
+
+/// Every host-supplied string in the page shell, in text and attribute
+/// positions, must be escaped identically by both renderers. The Markdown body
+/// and the host-rendered navigation are the only raw insertion points.
+#[test]
+fn both_renderers_escape_hostile_and_unicode_values_identically() {
+    const MARKUP: &str = "<img src=x onerror=alert(1)>";
+    const DOUBLE: &str = "\" onmouseover=\"alert(1)\" x=\"";
+    const SINGLE: &str = "' onfocus='alert(1)' x='";
+    const SCRIPT: &str = "</script><script>alert(1)</script>";
+    const ENTITY: &str = "Tom & Jerry &amp; &lt;b&gt; > <";
+    const UNICODE: &str = "Café 東京 שלום 🚀 👩‍👩‍👧";
+
+    let temp = tempdir().unwrap();
+    fixture(temp.path(), None);
+    let mut site = compile(temp.path()).unwrap().site;
+    site.navigation[0].label = format!("{UNICODE} {MARKUP}");
+    site.navigation.push(Navigation {
+        label: format!("{SCRIPT}{DOUBLE}"),
+        route: None,
+        children: vec![Navigation {
+            label: format!("{SINGLE}{ENTITY}"),
+            route: Some(Route::from_source("deep/page.md").unwrap()),
+            children: Vec::new(),
+        }],
+    });
+    let page = site
+        .pages
+        .iter_mut()
+        .find(|candidate| candidate.route.as_str() == "/deep/page/")
+        .unwrap();
+    page.title = format!("{UNICODE}{MARKUP}{DOUBLE}");
+    page.metadata.kind = Some(format!("{SINGLE}{SCRIPT}"));
+    page.metadata.status = Some(format!("{ENTITY}{UNICODE}"));
+    page.headings[0].text = format!("{MARKUP}{UNICODE}");
+    page.headings[1].id = DOUBLE.into();
+    page.headings[1].text = SINGLE.into();
+    page.graph_id = Some(DocumentId(format!("{DOUBLE}{UNICODE}")));
+    page.source_path = Some(format!("docs/{UNICODE}/{MARKUP}.md"));
+    page.source_url = Some(format!("https://example.invalid/{DOUBLE}?a=1&b={SINGLE}"));
+    page.backlinks[0].title = format!("{SCRIPT}{UNICODE}");
+    page.references.push(PageReference {
+        title: format!("{ENTITY}{DOUBLE}"),
+        route: Route::from_source("index.md").unwrap(),
+    });
+
+    let builtin = render_site_with_renderer(&site, RendererKind::Builtin).unwrap();
+    let flowview = render_site_with_renderer(&site, RendererKind::Flowview).unwrap();
+    assert_eq!(builtin.len(), flowview.len());
+    for (expected, actual) in builtin.iter().zip(&flowview) {
+        assert_eq!(expected.path, actual.path);
+        let actual_html = String::from_utf8(actual.contents.clone()).unwrap();
+        assert_eq!(
+            normalize(&String::from_utf8(expected.contents.clone()).unwrap()),
+            normalize(&actual_html),
+            "{}",
+            actual.path
+        );
+        for injected in [
+            "<img src=x",
+            "onmouseover=\"alert",
+            "onfocus='alert",
+            "<script>alert",
+            "<b>",
+        ] {
+            assert!(
+                !actual_html.contains(injected),
+                "{injected} in {}",
+                actual.path
+            );
+        }
+    }
+    let html = String::from_utf8(
+        flowview
+            .iter()
+            .find(|file| file.path == "deep/page/index.html")
+            .unwrap()
+            .contents
+            .clone(),
+    )
+    .unwrap();
+    assert!(html.contains("<title>Café 東京 שלום 🚀 👩‍👩‍👧&lt;img src=x onerror=alert(1)&gt;"));
+    assert!(html.contains("href=\"https://example.invalid/&quot; onmouseover=&quot;alert(1)&quot; x=&quot;?a=1&amp;b=&#39; onfocus=&#39;alert(1)&#39; x=&#39;\""));
+    assert!(html.contains("Tom &amp; Jerry &amp;amp; &amp;lt;b&amp;gt; &gt; &lt;"));
+    assert!(html
+        .contains("<code>docs/Café 東京 שלום 🚀 👩‍👩‍👧/&lt;img src=x onerror=alert(1)&gt;.md</code>"));
+}
+
+/// The Markdown body is Entwine's trusted HTML and is inserted unchanged.
+#[test]
+fn markdown_body_is_the_trusted_raw_insertion_point() {
+    let temp = tempdir().unwrap();
+    fixture(temp.path(), None);
+    let mut site = compile(temp.path()).unwrap().site;
+    site.pages[0].html = "<p data-x=\"1\">Entwine-rendered <em>body</em> &amp; more</p>".into();
+    site.pages[0].source_url = Some(String::new());
+    let builtin = render_site_with_renderer(&site, RendererKind::Builtin).unwrap();
+    let flowview = render_site_with_renderer(&site, RendererKind::Flowview).unwrap();
+    let page = String::from_utf8(flowview[1].contents.clone()).unwrap();
+    // An empty source URL is still `Some`, so both renderers keep the link.
+    assert!(page.contains("<a href=\"\">Source: <code>"));
+    assert!(page.contains(
+        "<article><p data-x=\"1\">Entwine-rendered <em>body</em> &amp; more</p></article>"
+    ));
+    assert_eq!(
+        normalize(&String::from_utf8_lossy(&builtin[1].contents)),
+        normalize(&page)
+    );
 }

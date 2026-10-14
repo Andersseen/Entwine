@@ -67,8 +67,9 @@ The page renderer can be selected with `[site] renderer = "flowview"` in
 renderer. The default Entwine build supports Rust 1.85 and excludes Flowview's
 compiler dependency tree. To include it, build with
 `cargo build -p entwine-cli --features flowview-renderer`; experimental builds
-require a newer Rust compiler while Flowview's Oxc dependencies require Rust
-1.94. Flowview remains an optional dependency of `entwine-engine` only and
+require Rust 1.91, the `rust-version` of `flowview-compiler` 0.2.0 and its Oxc
+dependencies from crates.io. Flowview remains an optional dependency of
+`entwine-engine` only and
 receives a narrow, host-prepared page view. A build without the feature reports
 an actionable error when Flowview is explicitly selected. See the
 [decision record](decisions/flowview-renderer-experiment.md).

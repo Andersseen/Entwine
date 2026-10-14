@@ -305,8 +305,10 @@ The renderer is not the knowledge model. See [architecture](docs/architecture.md
 [current state](docs/state.md), and [roadmap](docs/roadmap.md).
 
 The normal Entwine build supports Rust 1.85 and does not compile the experimental
-Flowview renderer. To try it with Rust 1.94 or newer, build
-`entwine-cli` using `--features flowview-renderer`. See the
+Flowview renderer. To try it with Rust 1.91 or newer, build
+`entwine-cli` using `--features flowview-renderer`, which uses
+`flowview-compiler` 0.2.0 from crates.io. The built-in renderer remains the
+default while the experiment is reviewed. See the
 [Flowview experiment record](docs/decisions/flowview-renderer-experiment.md).
 
 ## What it is not

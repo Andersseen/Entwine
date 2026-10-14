@@ -24,3 +24,11 @@ flowview-renderer = ["dep:flowview-compiler"]
 tempfile = "3"
 [lints]
 workspace = true
+
+[[example]]
+name = "renderer_parity"
+required-features = ["flowview-renderer"]
+
+[[example]]
+name = "renderer_benchmark"
+required-features = ["flowview-renderer"]

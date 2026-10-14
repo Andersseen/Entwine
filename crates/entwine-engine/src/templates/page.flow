@@ -45,7 +45,7 @@
             <h1>{{ context.page.title }}</h1>
           }
         </header>
-        @if (context.page.has_headings) {
+        @if (context.page.headings.length > 0) {
           <details class="inline-toc">
             <summary>On this page</summary>
             <nav aria-label="Page headings"><ul>
@@ -56,7 +56,7 @@
           </details>
         }
         <article>{{{ context.page.body_html }}}</article>
-        @if (context.page.has_references) {
+        @if (context.page.references.length > 0) {
           <section class="backlinks" aria-label="References">
             <h2>References</h2>
             @if (context.page.references_collapsible) {
@@ -74,7 +74,7 @@
             }
           </section>
         }
-        @if (context.page.has_backlinks) {
+        @if (context.page.backlinks.length > 0) {
           <section class="backlinks" aria-label="Referenced by">
             <h2>Referenced by</h2>
             @if (context.page.backlinks_collapsible) {
@@ -92,9 +92,9 @@
             }
           </section>
         }
-        @if (context.page.has_source) {
+        @if (context.page.source) {
           <p class="source">
-            @if (context.page.source.has_url) {
+            @if (context.page.source.url != null) {
               <a href="{{ context.page.source.url }}">Source: <code>{{ context.page.source.path }}</code></a>
             } @else {
               Source: <code>{{ context.page.source.path }}</code>
