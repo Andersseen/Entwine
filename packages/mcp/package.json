@@ -1,6 +1,6 @@
 {
   "name": "@entwine/mcp",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Entwine MCP server — read-only project knowledge, validation and dry-run previews for coding agents over stdio.",
   "license": "MIT",
   "type": "module",
