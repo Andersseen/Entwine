@@ -13,10 +13,10 @@
     "@andersseen/layout": "0.0.1",
     "@andersseen/motion": "0.2.0",
     "@andersseen/web-components": "0.5.1",
-    "astro": "^7.3.8"
+    "astro": "^7.4.2"
   },
   "devDependencies": {
-    "@astrojs/check": "^0.9.4",
-    "typescript": "^6.0.0"
+    "@astrojs/check": "^0.9.12",
+    "typescript": "^7.0.2"
   }
 }
